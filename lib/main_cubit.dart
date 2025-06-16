@@ -47,6 +47,6 @@ extension CharToAudioFilenaem on String {
       path += 'Number';
     }
 
-    return '$path/$char.pcm';
+    return '$path/$char.wav';
   }
 }
