@@ -1,10 +1,11 @@
 // main cubit
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:ssb_contest_runner/wav_to_pcm.dart';
+import 'package:wav/wav.dart';
 
 class HomeCubit extends Cubit<bool> {
   HomeCubit() : super(false);
@@ -15,14 +16,16 @@ class HomeCubit extends Cubit<bool> {
 
   void play(String callsign) async {
     final bufferStream = SoLoud.instance.setBufferStream(
-      bufferingType: BufferingType.released,
+      channels: Channels.mono,
     );
 
     for (final char in callsign.characters) {
       final path = char.toAudioFilename();
       final filePath = '/Users/wafer-li/Desktop/Global/$path';
       final bytes = await File(filePath).readAsBytes();
-      SoLoud.instance.addAudioDataStream(bufferStream, bytes);
+
+      final pcmData = await wavToPcm(bytes);
+      SoLoud.instance.addAudioDataStream(bufferStream, pcmData);
     }
 
     SoLoud.instance.setDataIsEnded(bufferStream);
