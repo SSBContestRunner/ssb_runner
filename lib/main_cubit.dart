@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:ssb_contest_runner/wav_to_pcm.dart';
-import 'package:wav/wav.dart';
 
 class HomeCubit extends Cubit<bool> {
   HomeCubit() : super(false);

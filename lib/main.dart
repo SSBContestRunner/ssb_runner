@@ -59,9 +59,7 @@ class HomePage extends StatelessWidget {
                         _textController.value = _textController.value.copyWith(
                           text: upperCased,
                         );
-                        context.read<HomeCubit>().onTextChange(
-                          upperCased,
-                        );
+                        context.read<HomeCubit>().onTextChange(upperCased);
                       },
                     ),
                     SizedBox(height: 30.0),
