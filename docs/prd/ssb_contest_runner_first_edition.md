@@ -47,7 +47,19 @@
 
 ## 比赛流程
 
-![比赛流程状态机](https://github.com/user-attachments/assets/5594c9de-221d-492c-96d7-2b2a16c4042c)
+![比赛流程状态机](https://github.com/user-attachments/assets/c43f8fdc-fb66-4ef2-8dde-17385545a607)
+
+超时时间定为 10s
+
+F1-F8 按键除了状态流转外，都需要执行对应的语音播放功能
+
+### 不涉及状态流转的按键指令
+
+- 空格键：键盘光标在 CALL 和 Exchange 输入框之间跳转
+- Tab 键：键盘光标跳转到下一个输入框
+- Shift+Tab 键：键盘光标跳转到上一个输入框
+- 分号按键：播放 F5+F2 的语音
+
 
 ## 界面原型
 
