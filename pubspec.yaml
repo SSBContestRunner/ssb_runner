@@ -37,6 +37,7 @@ dependencies:
   flutter_soloud: ^3.1.12
   flutter_bloc: ^9.1.1
   statemachine: ^3.4.0
+  collection: ^1.19.1
 
 dev_dependencies:
   flutter_test:
