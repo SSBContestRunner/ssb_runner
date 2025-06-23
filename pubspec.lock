@@ -98,10 +98,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_soloud
-      sha256: "6204837f1326dd3e9a359caba4d8268d2ccafd999fe024d3df32583c6687e84f"
+      sha256: "2a6e73020346f4b3a1899342560fe814650ef6885b2b15c8fae06a5d6cb33f67"
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.10"
+    version: "3.1.12"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -296,6 +296,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.12.1"
+  statemachine:
+    dependency: "direct main"
+    description:
+      name: statemachine
+      sha256: "9d0088c5ab2c6baa08abe66e33086f5918f2b758a2e39955124ba03767e9fa61"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.4.0"
   stream_channel:
     dependency: transitive
     description:
