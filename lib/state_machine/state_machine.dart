@@ -1,35 +1,6 @@
-import 'package:collection/collection.dart';
-
-class StateMachineBuilder<S, T, E, Side> {
-  S? _initialState;
-  List<TransitionDefinition<S, E, Side>> _transitionDefinitions = [];
-  List<TransitionListener<S, E, Side>> _transitionListeners = [];
-
-  void initialState(S state) {
-    this._initialState = state;
-  }
-
-  void state(Type state) {
-    // TODO: implement state transition builder
-  }
-
-  StateMachine<S, T, E, Side> build() {
-    final initialStateVal = _initialState;
-
-    if (_initialState == null) {
-      throw Exception('No initial state specified');
-    }
-
-    return StateMachine<S, T, E, Side>(
-      initialState: initialStateVal as S,
-      transitionDefinitions: _transitionDefinitions,
-      transitionListeners: _transitionListeners,
-    );
-  }
-}
+import 'package:ssb_contest_runner/state_machine/state_machine_definition.dart';
 
 class StateMachine<S, T, E, Side> {
-
   factory StateMachine.create(
     void Function(StateMachineBuilder<S, T, E, Side>) builderBlock,
   ) {
@@ -40,44 +11,63 @@ class StateMachine<S, T, E, Side> {
 
   StateMachine({
     required S initialState,
-    required List<TransitionDefinition<S, E, Side>> transitionDefinitions,
+    required Map<
+      Type,
+      Map<Type, TransitionDefinition<S, Side> Function(S state, E event)>
+    >
+    stateDefinitionMap,
     required List<TransitionListener<S, E, Side>> transitionListeners,
   }) : currentState = initialState,
-       _transitionsDefinitions = transitionDefinitions,
+       _stateDefinitionMap = stateDefinitionMap,
        _transitionListeners = transitionListeners;
 
   S currentState;
 
-  final List<TransitionDefinition<S, E, Side>> _transitionsDefinitions;
+  final Map<
+    Type,
+    Map<Type, TransitionDefinition<S, Side> Function(S state, E event)>
+  >
+  _stateDefinitionMap;
 
   final List<TransitionListener<S, E, Side>> _transitionListeners;
 
   S? transition(E event) {
     final currentStateVal = currentState;
 
-    final validTransitionDefinition = _transitionsDefinitions.firstWhereOrNull(
-      (element) =>
-          element.event == event.runtimeType &&
-          currentStateVal.runtimeType == element.from,
-    );
+    final eventTransitionMap = _stateDefinitionMap[currentStateVal.runtimeType];
 
-    if (validTransitionDefinition == null) {
-      final transition = Transition(event, currentStateVal);
-      for (final listener in _transitionListeners) {
-        listener.onTransition(transition);
-      }
+    if (eventTransitionMap == null) {
+      _notifyInvalidTransition(event);
       return null;
     }
 
-    final transitionValid = validTransitionDefinition.to.call(event);
-    final toState = transitionValid.to;
+    final transitionDefinitionBlock = eventTransitionMap[event.runtimeType];
+
+    if (transitionDefinitionBlock == null) {
+      _notifyInvalidTransition(event);
+      return null;
+    }
+
+    final transitionDefinition = transitionDefinitionBlock(
+      currentStateVal,
+      event,
+    );
+
+    final toState = transitionDefinition.toState;
     currentState = toState;
 
     for (final listener in _transitionListeners) {
-      listener.onTransition(transitionValid);
+      listener.onTransition(TransitionValid(event, currentState, toState, transitionDefinition.side));
     }
 
     return toState;
+  }
+
+  void _notifyInvalidTransition(E event) {
+    final transition = Transition(event, currentState);
+    for (final listener in _transitionListeners) {
+      listener.onTransition(transition);
+    }
   }
 }
 
@@ -91,15 +81,4 @@ class TransitionValid<S, E, Side> extends Transition<S, E> {
   TransitionValid(super.event, super.from, this.to, this.side);
   final S to;
   final Side side;
-}
-
-class TransitionDefinition<S, E, Side> {
-  TransitionDefinition(this.event, this.from, this.to);
-  final Type event;
-  final Type from;
-  final TransitionValid<S, E, Side> Function(E event) to;
-}
-
-abstract interface class TransitionListener<S, E, Side> {
-  void onTransition(Transition<S, E> transition);
 }
