@@ -1,6 +1,6 @@
 import 'package:ssb_contest_runner/state_machine/state_machine.dart';
 
-class StateMachineBuilder<S, T, E, Side> {
+class StateMachineBuilder<S, E, Side> {
   S? _initialState;
 
   List<TransitionListener<S, E, Side>> _transitionListeners = [];
@@ -27,18 +27,18 @@ class StateMachineBuilder<S, T, E, Side> {
     definitionBlock(eventTransitionDefinition);
 
     final eventTransitionDefinitionMap =
-        eventTransitionDefinition.definitionMap;
+        eventTransitionDefinition._definitionMap;
 
     stateTransitionDefinitionMap[state] = eventTransitionDefinitionMap;
   }
 
-  StateMachine<S, T, E, Side> build() {
+  StateMachine<S, E, Side> build() {
     final initialStateVal = _initialState;
 
     if (_initialState == null) {
       throw Exception('No initial state specified');
     }
-    return StateMachine<S, T, E, Side>(
+    return StateMachine<S, E, Side>(
       initialState: initialStateVal as S,
       stateDefinitionMap: stateTransitionDefinitionMap,
       transitionListeners: _transitionListeners,
@@ -47,7 +47,7 @@ class StateMachineBuilder<S, T, E, Side> {
 }
 
 class EventTransitionDefinition<S, E, Side> {
-  final definitionMap =
+  final _definitionMap =
       <Type, TransitionDefinition<S, Side> Function(S state, E event)>{};
 
   void on(
@@ -55,7 +55,7 @@ class EventTransitionDefinition<S, E, Side> {
     TransitionDefinition<S, Side> Function(S state, E event)
     transitionDefinitionBlock,
   ) {
-    definitionMap[event] = transitionDefinitionBlock;
+    _definitionMap[event] = transitionDefinitionBlock;
   }
 
   TransitionDefinition<S, Side> transitionTo(S toState, [Side? side]) {
