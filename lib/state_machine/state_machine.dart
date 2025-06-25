@@ -57,7 +57,14 @@ class StateMachine<S, E, Side> {
     currentState = toState;
 
     for (final listener in _transitionListeners) {
-      listener.onTransition(TransitionValid(event, currentState, toState, transitionDefinition.side));
+      listener.onTransition(
+        TransitionValid(
+          event,
+          currentState,
+          toState,
+          transitionDefinition.side,
+        ),
+      );
     }
 
     return toState;
@@ -71,14 +78,14 @@ class StateMachine<S, E, Side> {
   }
 }
 
-class Transition<S, E> {
-  Transition(this.event, this.from);
+class Transition<S, E, Side> {
+  Transition(this.event, this.from, [this.sideEffect]);
   final E event;
   final S from;
+  final Side? sideEffect;
 }
 
-class TransitionValid<S, E, Side> extends Transition<S, E> {
-  TransitionValid(super.event, super.from, this.to, this.side);
+class TransitionValid<S, E, Side> extends Transition<S, E, Side> {
+  TransitionValid(super.event, super.from, this.to, super.side);
   final S to;
-  final Side side;
 }

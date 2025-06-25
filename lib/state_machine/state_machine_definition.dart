@@ -3,7 +3,7 @@ part of 'state_machine.dart';
 class StateMachineBuilder<S, E, Side> {
   S? _initialState;
 
-  List<TransitionListener<S, E, Side>> _transitionListeners = [];
+  final List<TransitionListener<S, E, Side>> _transitionListeners = [];
 
   final stateTransitionDefinitionMap =
       <
@@ -30,6 +30,12 @@ class StateMachineBuilder<S, E, Side> {
         eventTransitionDefinition._definitionMap;
 
     stateTransitionDefinitionMap[state] = eventTransitionDefinitionMap;
+  }
+
+  void onTransition(
+    void Function(Transition<S, E, Side> transition) transitionBlock,
+  ) {
+    _transitionListeners.add(transitionBlock);
   }
 
   StateMachine<S, E, Side> _build() {
@@ -69,6 +75,5 @@ class TransitionDefinition<S, Side> {
   final Side? side;
 }
 
-abstract interface class TransitionListener<S, E, Side> {
-  void onTransition(Transition<S, E> transition);
-}
+typedef TransitionListener<S, E, Side> =
+    void Function(Transition<S, E, Side> transition);
