@@ -57,7 +57,7 @@ class StateMachine<S, E, Side> {
     currentState = toState;
 
     for (final listener in _transitionListeners) {
-      listener.onTransition(
+      listener.call(
         TransitionValid(
           event,
           currentState,
@@ -71,9 +71,9 @@ class StateMachine<S, E, Side> {
   }
 
   void _notifyInvalidTransition(E event) {
-    final transition = Transition(event, currentState);
+    final transition = Transition<S, E, Side>(event, currentState);
     for (final listener in _transitionListeners) {
-      listener.onTransition(transition);
+      listener.call(transition);
     }
   }
 }
