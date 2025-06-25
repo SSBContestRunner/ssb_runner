@@ -1,3 +1,4 @@
+import 'package:ssb_contest_runner/common/calculate_list_diff.dart';
 import 'package:ssb_contest_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
@@ -41,13 +42,16 @@ initSingleCallRunStateMachine() {
         final eventVal = event as SubmitCall;
         final submitCall = eventVal.call;
 
-        definition.transitionTo(
+        return definition.transitionTo(
           WaitingSubmitExchange(
             currentCallAnswer: currentCallAnswer,
             currentExchangeAnswer: currentExchangeAnswer,
             submitCall: submitCall,
-            // FIXME: determine the audio play type
-            audioPlayType: NoPlay(),
+            audioPlayType: _calcuateSingleCallAudioPlayType(
+              submitCall,
+              currentCallAnswer,
+              currentExchangeAnswer,
+            ),
           ),
         );
       });
@@ -121,4 +125,22 @@ initSingleCallRunStateMachine() {
       });
     });
   });
+}
+
+AudioPlayType _calcuateSingleCallAudioPlayType(
+  String submitCall,
+  String answerCall,
+  String answerExchange,
+) {
+  int diff = calculateMismatch(answer: answerCall, submit: submitCall);
+
+  if (diff >= 3) {
+    return NoPlay();
+  }
+
+  if (diff > 0) {
+    return PlayCallExchange(call: submitCall, exchange: answerExchange);
+  }
+
+  return PlayExchange(exchange: answerExchange);
 }

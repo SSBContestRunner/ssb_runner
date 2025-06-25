@@ -1,4 +1,4 @@
-import 'package:ssb_contest_runner/state_machine/state_machine_definition.dart';
+part 'state_machine_definition.dart';
 
 class StateMachine<S, E, Side> {
   factory StateMachine.create(
@@ -6,7 +6,7 @@ class StateMachine<S, E, Side> {
   ) {
     final builder = StateMachineBuilder<S, E, Side>();
     builderBlock(builder);
-    return builder.build();
+    return builder._build();
   }
 
   StateMachine({

@@ -1,4 +1,4 @@
-import 'package:ssb_contest_runner/state_machine/state_machine.dart';
+part of 'state_machine.dart';
 
 class StateMachineBuilder<S, E, Side> {
   S? _initialState;
@@ -32,7 +32,7 @@ class StateMachineBuilder<S, E, Side> {
     stateTransitionDefinitionMap[state] = eventTransitionDefinitionMap;
   }
 
-  StateMachine<S, E, Side> build() {
+  StateMachine<S, E, Side> _build() {
     final initialStateVal = _initialState;
 
     if (_initialState == null) {
