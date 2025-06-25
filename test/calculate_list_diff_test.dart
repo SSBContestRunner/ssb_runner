@@ -3,27 +3,36 @@ import 'package:ssb_contest_runner/common/calculate_list_diff.dart';
 
 void main() {
   test('test no match', () {
-    expect(calculateMismatch("ABCD", "EF"), 4); // 4
+    expect(
+      calculateMismatch(answer: "ABCD", submit: "EF"),
+      4,
+    ); // Already uses named args
   });
 
   test('test part of match', () {
-    expect(calculateMismatch("ABCD", "BCF"), 2); // 2
+    expect(calculateMismatch(answer: "ABCD", submit: "BCF"), 2); // Updated
   });
 
   test('test multipart of match', () {
-    expect(calculateMismatch("ABCDEFGHIJ", "CDXEFGHYW"), 4); // 4
+    expect(
+      calculateMismatch(answer: "ABCDEFGHIJ", submit: "CDXEFGHYW"),
+      4,
+    ); // Updated
   });
 
   test('test misorder', () {
-    expect(calculateMismatch("ABC", "BCA"), 1); // 1
-    expect(calculateMismatch("ABCD", "DCBA"), 3); // 3
+    expect(calculateMismatch(answer: "ABC", submit: "BCA"), 1); // Updated
+    expect(calculateMismatch(answer: "ABCD", submit: "DCBA"), 3); // Updated
   });
 
   test('test match', () {
-    expect(calculateMismatch("ABCD", "ABCD"), 0); // 0
+    expect(calculateMismatch(answer: "ABCD", submit: "ABCD"), 0); // Updated
   });
 
   test('test real case', () {
-    expect(calculateMismatch("BI1QJQ", "BY1QQQ"), 2); // 2
+    expect(
+      calculateMismatch(answer: "BI1QJQ", submit: "BY1QQQ"),
+      2,
+    ); 
   });
 }
