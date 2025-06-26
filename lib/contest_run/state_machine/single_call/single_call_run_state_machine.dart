@@ -5,10 +5,11 @@ import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_
 import 'package:ssb_contest_runner/state_machine/state_machine.dart';
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-initSingleCallRunStateMachine(
-  TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>
+initSingleCallRunStateMachine({
+  required WaitingSubmitCall initialState,
+  required TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>
   transitionListener,
-) {
+}) {
   return StateMachine.create((builder) {
     builder.state(WaitingSubmitCall, (definition) {
       definition.on(WorkedBefore, (state, event) {
