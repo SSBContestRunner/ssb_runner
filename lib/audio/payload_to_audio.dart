@@ -23,7 +23,8 @@ Future<Uint8List> payloadToAudioData(String call, [bool isMe = false]) async {
 
 Future<Uint8List> exchangeToAudioData({bool isMe = false}) async {
   final parentDirName = _obtainParentDirName(isMe);
-  final filePath = '$parentDirName/Common/5_9.wav';
+  final filename = isMe ? 'RUN/exch.wav' : 'Common/5_9.wav';
+  final filePath = '$parentDirName/$filename';
 
   final bytes = Uint8List.sublistView(await rootBundle.load(filePath));
   final pcmData = await wavToPcm(bytes);
