@@ -38,6 +38,7 @@ dependencies:
   flutter_bloc: ^9.1.1
   statemachine: ^3.4.0
   collection: ^1.19.1
+  equatable: ^2.0.7
 
 dev_dependencies:
   flutter_test:
