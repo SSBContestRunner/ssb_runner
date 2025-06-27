@@ -12,7 +12,17 @@ class DxccManager {
 
   DxccManager({required this.database});
 
-  void loadDxcc() async {
+  Future<void> loadDxcc() async {
+    final prefix = await (database.select(
+      database.prefixTable,
+    )..limit(1)).getSingleOrNull();
+
+    if (prefix == null) {
+      _loadDxccInternal();
+    }
+  }
+
+  Future<void> _loadDxccInternal() async {
     final bytes = Uint8List.sublistView(await rootBundle.load('cty.xml.gz'));
     final inputStream = InputMemoryStream.fromList(bytes);
     final archive = ZipDecoder().decodeStream(inputStream);
