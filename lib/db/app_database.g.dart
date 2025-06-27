@@ -40,8 +40,19 @@ class $PrefixTableTable extends PrefixTable
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _continentMeta = const VerificationMeta(
+    'continent',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, call, dxccId];
+  late final GeneratedColumn<String> continent = GeneratedColumn<String>(
+    'continent',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, call, dxccId, continent];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -73,6 +84,14 @@ class $PrefixTableTable extends PrefixTable
     } else if (isInserting) {
       context.missing(_dxccIdMeta);
     }
+    if (data.containsKey('continent')) {
+      context.handle(
+        _continentMeta,
+        continent.isAcceptableOrUnknown(data['continent']!, _continentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_continentMeta);
+    }
     return context;
   }
 
@@ -94,6 +113,10 @@ class $PrefixTableTable extends PrefixTable
         DriftSqlType.int,
         data['${effectivePrefix}dxcc_id'],
       )!,
+      continent: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}continent'],
+      )!,
     );
   }
 
@@ -107,10 +130,12 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
   final int id;
   final String call;
   final int dxccId;
+  final String continent;
   const PrefixTableData({
     required this.id,
     required this.call,
     required this.dxccId,
+    required this.continent,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -118,6 +143,7 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
     map['id'] = Variable<int>(id);
     map['call'] = Variable<String>(call);
     map['dxcc_id'] = Variable<int>(dxccId);
+    map['continent'] = Variable<String>(continent);
     return map;
   }
 
@@ -126,6 +152,7 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
       id: Value(id),
       call: Value(call),
       dxccId: Value(dxccId),
+      continent: Value(continent),
     );
   }
 
@@ -138,6 +165,7 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
       id: serializer.fromJson<int>(json['id']),
       call: serializer.fromJson<String>(json['call']),
       dxccId: serializer.fromJson<int>(json['dxccId']),
+      continent: serializer.fromJson<String>(json['continent']),
     );
   }
   @override
@@ -147,20 +175,27 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
       'id': serializer.toJson<int>(id),
       'call': serializer.toJson<String>(call),
       'dxccId': serializer.toJson<int>(dxccId),
+      'continent': serializer.toJson<String>(continent),
     };
   }
 
-  PrefixTableData copyWith({int? id, String? call, int? dxccId}) =>
-      PrefixTableData(
-        id: id ?? this.id,
-        call: call ?? this.call,
-        dxccId: dxccId ?? this.dxccId,
-      );
+  PrefixTableData copyWith({
+    int? id,
+    String? call,
+    int? dxccId,
+    String? continent,
+  }) => PrefixTableData(
+    id: id ?? this.id,
+    call: call ?? this.call,
+    dxccId: dxccId ?? this.dxccId,
+    continent: continent ?? this.continent,
+  );
   PrefixTableData copyWithCompanion(PrefixTableCompanion data) {
     return PrefixTableData(
       id: data.id.present ? data.id.value : this.id,
       call: data.call.present ? data.call.value : this.call,
       dxccId: data.dxccId.present ? data.dxccId.value : this.dxccId,
+      continent: data.continent.present ? data.continent.value : this.continent,
     );
   }
 
@@ -169,46 +204,54 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
     return (StringBuffer('PrefixTableData(')
           ..write('id: $id, ')
           ..write('call: $call, ')
-          ..write('dxccId: $dxccId')
+          ..write('dxccId: $dxccId, ')
+          ..write('continent: $continent')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, call, dxccId);
+  int get hashCode => Object.hash(id, call, dxccId, continent);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PrefixTableData &&
           other.id == this.id &&
           other.call == this.call &&
-          other.dxccId == this.dxccId);
+          other.dxccId == this.dxccId &&
+          other.continent == this.continent);
 }
 
 class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
   final Value<int> id;
   final Value<String> call;
   final Value<int> dxccId;
+  final Value<String> continent;
   const PrefixTableCompanion({
     this.id = const Value.absent(),
     this.call = const Value.absent(),
     this.dxccId = const Value.absent(),
+    this.continent = const Value.absent(),
   });
   PrefixTableCompanion.insert({
     this.id = const Value.absent(),
     required String call,
     required int dxccId,
+    required String continent,
   }) : call = Value(call),
-       dxccId = Value(dxccId);
+       dxccId = Value(dxccId),
+       continent = Value(continent);
   static Insertable<PrefixTableData> custom({
     Expression<int>? id,
     Expression<String>? call,
     Expression<int>? dxccId,
+    Expression<String>? continent,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (call != null) 'call': call,
       if (dxccId != null) 'dxcc_id': dxccId,
+      if (continent != null) 'continent': continent,
     });
   }
 
@@ -216,11 +259,13 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
     Value<int>? id,
     Value<String>? call,
     Value<int>? dxccId,
+    Value<String>? continent,
   }) {
     return PrefixTableCompanion(
       id: id ?? this.id,
       call: call ?? this.call,
       dxccId: dxccId ?? this.dxccId,
+      continent: continent ?? this.continent,
     );
   }
 
@@ -236,6 +281,9 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
     if (dxccId.present) {
       map['dxcc_id'] = Variable<int>(dxccId.value);
     }
+    if (continent.present) {
+      map['continent'] = Variable<String>(continent.value);
+    }
     return map;
   }
 
@@ -244,7 +292,8 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
     return (StringBuffer('PrefixTableCompanion(')
           ..write('id: $id, ')
           ..write('call: $call, ')
-          ..write('dxccId: $dxccId')
+          ..write('dxccId: $dxccId, ')
+          ..write('continent: $continent')
           ..write(')'))
         .toString();
   }
@@ -266,12 +315,14 @@ typedef $$PrefixTableTableCreateCompanionBuilder =
       Value<int> id,
       required String call,
       required int dxccId,
+      required String continent,
     });
 typedef $$PrefixTableTableUpdateCompanionBuilder =
     PrefixTableCompanion Function({
       Value<int> id,
       Value<String> call,
       Value<int> dxccId,
+      Value<String> continent,
     });
 
 class $$PrefixTableTableFilterComposer
@@ -295,6 +346,11 @@ class $$PrefixTableTableFilterComposer
 
   ColumnFilters<int> get dxccId => $composableBuilder(
     column: $table.dxccId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get continent => $composableBuilder(
+    column: $table.continent,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -322,6 +378,11 @@ class $$PrefixTableTableOrderingComposer
     column: $table.dxccId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get continent => $composableBuilder(
+    column: $table.continent,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PrefixTableTableAnnotationComposer
@@ -341,6 +402,9 @@ class $$PrefixTableTableAnnotationComposer
 
   GeneratedColumn<int> get dxccId =>
       $composableBuilder(column: $table.dxccId, builder: (column) => column);
+
+  GeneratedColumn<String> get continent =>
+      $composableBuilder(column: $table.continent, builder: (column) => column);
 }
 
 class $$PrefixTableTableTableManager
@@ -377,16 +441,24 @@ class $$PrefixTableTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> call = const Value.absent(),
                 Value<int> dxccId = const Value.absent(),
-              }) => PrefixTableCompanion(id: id, call: call, dxccId: dxccId),
+                Value<String> continent = const Value.absent(),
+              }) => PrefixTableCompanion(
+                id: id,
+                call: call,
+                dxccId: dxccId,
+                continent: continent,
+              ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required String call,
                 required int dxccId,
+                required String continent,
               }) => PrefixTableCompanion.insert(
                 id: id,
                 call: call,
                 dxccId: dxccId,
+                continent: continent,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

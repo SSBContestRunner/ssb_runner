@@ -42,6 +42,8 @@ dependencies:
   drift: ^2.27.0
   drift_flutter: ^0.2.4
   path_provider: ^2.1.5
+  archive: ^4.0.7
+  xml: ^6.5.0
 
 dev_dependencies:
   flutter_test:
