@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:ssb_contest_runner/db/app_database.dart';
 import 'package:ssb_contest_runner/main_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final database = AppDatabase();
 
   /// Initialize the player.
   await SoLoud.instance.init(channels: Channels.mono);
