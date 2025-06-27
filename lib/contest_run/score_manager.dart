@@ -1,6 +1,7 @@
 import 'package:ssb_contest_runner/contest_run/data/qso.dart';
 import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
 import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
+import 'package:ssb_contest_runner/dxcc/dxcc_manager.dart';
 
 const CQ_WPX = 'CQ-WPX';
 
@@ -13,8 +14,15 @@ class ScoreManager {
   ScoreData rawScoreData = ScoreData.initial();
   ScoreData verifiedScoreData = ScoreData.initial();
 
-  ScoreManager({required this.contestId, required this.stationCallsign})
-    : scoreCalculator = _contestIdToScoreCalculator(contestId, stationCallsign);
+  ScoreManager({
+    required this.contestId,
+    required this.stationCallsign,
+    required DxccManager dxccManager,
+  }) : scoreCalculator = _contestIdToScoreCalculator(
+         contestId,
+         stationCallsign,
+         dxccManager,
+       );
 
   void addQso(List<Qso> qsos, Qso submitQso, Qso answerQso) {
     final newRawScoreData = scoreCalculator.calculateScore(qsos);
@@ -42,8 +50,9 @@ class ScoreManager {
       case Penalty():
         verifiedScoreData = verifiedScoreData.copyWith(
           count: verifiedScoreData.count,
-          score: verifiedScoreData.score - diffScore,
-          multiple: verifiedScoreData.multiple - diffMultiple,
+          score:
+              newRawScoreData.score - correctness.penaltyMultiple * diffScore,
+          multiple: verifiedScoreData.multiple,
         );
         break;
     }
@@ -53,8 +62,12 @@ class ScoreManager {
 ScoreCalculator _contestIdToScoreCalculator(
   String stationCallsign,
   String contestId,
+  DxccManager dxccManager,
 ) {
-  return WpxScoreCalculator(stationCallsign: stationCallsign);
+  return WpxScoreCalculator(
+    stationCallsign: stationCallsign,
+    dxccManager: dxccManager,
+  );
 }
 
 abstract interface class ScoreCalculator {
@@ -67,7 +80,13 @@ abstract interface class ScoreCalculator {
 }
 
 class WpxScoreCalculator extends ScoreCalculator {
-  WpxScoreCalculator({required super.stationCallsign});
+  final DxccManager dxccManager;
+  final String stationContinent;
+
+  WpxScoreCalculator({
+    required super.stationCallsign,
+    required this.dxccManager,
+  }) : stationContinent = dxccManager.findCallSignContinet(stationCallsign);
 
   @override
   CorrectnessType calculateCorrectness(Qso submitQso, Qso answerQso) {
@@ -89,8 +108,28 @@ class WpxScoreCalculator extends ScoreCalculator {
         .toSet()
         .length;
 
-    // TODO: implement calculateScore
-    throw UnimplementedError();
+    final baseScores = qsos.fold(
+      0,
+      (acc, qso) => acc + _obtainQsoBasePoint(qso),
+    );
+
+    final score = baseScores * multipliers;
+
+    return ScoreData(count: qsos.length, multiple: multipliers, score: score);
+  }
+
+  int _obtainQsoBasePoint(Qso qso) {
+    final qsoContinent = dxccManager.findCallSignContinet(qso.call);
+
+    if (qsoContinent.isEmpty) {
+      return 1;
+    }
+
+    if (qsoContinent != stationContinent) {
+      return 3;
+    }
+
+    return 1;
   }
 }
 

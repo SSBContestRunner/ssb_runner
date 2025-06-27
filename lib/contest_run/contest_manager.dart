@@ -92,4 +92,8 @@ class ContestManager {
     _timer?.cancel();
     isContestRunning = false;
   }
+
+  void transition(SingleCallRunEvent event) {
+    _stateMachine.transition(event);
+  }
 }

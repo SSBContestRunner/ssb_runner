@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:archive/archive_io.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
+import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
 import 'package:ssb_contest_runner/db/app_database.dart';
-import 'package:ssb_contest_runner/dxcc/dxcc_prefix.dart';
 import 'package:xml/xml.dart';
 
 class DxccManager {
@@ -12,17 +12,35 @@ class DxccManager {
 
   DxccManager({required this.database});
 
-  Future<void> loadDxcc() async {
-    final prefix = await (database.select(
-      database.prefixTable,
-    )..limit(1)).getSingleOrNull();
+  late final List<PrefixTableData> _prefixes;
 
-    if (prefix == null) {
-      _loadDxccInternal();
+  String findCallSignContinet(String callsign) {
+    final prefix = extractPrefix(callsign);
+    final matchPrefixData = _prefixes.firstWhereOrNull(
+      (element) => element.call == prefix,
+    );
+
+    if (matchPrefixData == null) {
+      return '';
     }
+
+    return matchPrefixData.continent;
   }
 
-  Future<void> _loadDxccInternal() async {
+  Future<void> loadDxcc() async {
+    final prefixFromDb = await database.select(database.prefixTable).get();
+
+    if (prefixFromDb.isNotEmpty) {
+      _prefixes = prefixFromDb;
+      return;
+    }
+
+    final prefixFromXml = await _loadDxccInternal();
+    await _saveToDb(prefixFromXml);
+    _prefixes = prefixFromXml;
+  }
+
+  Future<List<PrefixTableData>> _loadDxccInternal() async {
     final bytes = Uint8List.sublistView(await rootBundle.load('cty.xml.gz'));
     final inputStream = InputMemoryStream.fromList(bytes);
     final archive = ZipDecoder().decodeStream(inputStream);
@@ -33,21 +51,21 @@ class DxccManager {
       throw Exception('Failed to extract DXCC XML');
     }
 
-    final dxccPrefixes = parseDxccXml(xmlString);
+    return parseDxccXml(xmlString);
+  }
 
+  Future<void> _saveToDb(List<PrefixTableData> prefixes) async {
     final insetStatement = database.into(database.prefixTable);
 
-    final insertFutures = dxccPrefixes.map((prefix) {
-      return insetStatement.insert(
+    for (final prefix in prefixes) {
+      await insetStatement.insert(
         PrefixTableCompanion.insert(
           call: prefix.call,
           dxccId: prefix.dxccId,
           continent: prefix.continent,
         ),
       );
-    });
-
-    await Future.wait(insertFutures);
+    }
   }
 
   String _extractDxccXml(Archive archive) {
@@ -65,7 +83,7 @@ class DxccManager {
   }
 }
 
-List<DxccPrefix> parseDxccXml(String xmlString) {
+List<PrefixTableData> parseDxccXml(String xmlString) {
   final document = XmlDocument.parse(xmlString);
   final root = document.rootElement;
 
@@ -108,7 +126,8 @@ List<DxccPrefix> parseDxccXml(String xmlString) {
   });
 
   return validPrefixes.map((element) {
-    return DxccPrefix(
+    return PrefixTableData(
+      id: int.tryParse(element.getAttribute('record') ?? '') ?? 0,
       call: element.getElement('call')?.innerText ?? '',
       dxccId: int.tryParse(element.getElement('adif')?.innerText ?? '') ?? 0,
       continent: element.getElement('cont')?.innerText ?? '',
