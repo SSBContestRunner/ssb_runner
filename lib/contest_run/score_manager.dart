@@ -1,6 +1,7 @@
-import 'package:ssb_contest_runner/contest_run/data/qso.dart';
 import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
 import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
+import 'package:ssb_contest_runner/db/app_database.dart';
+import 'package:ssb_contest_runner/db/table/qso_table.dart';
 import 'package:ssb_contest_runner/dxcc/dxcc_manager.dart';
 
 const CQ_WPX = 'CQ-WPX';
@@ -24,7 +25,7 @@ class ScoreManager {
          dxccManager,
        );
 
-  void addQso(List<Qso> qsos, Qso submitQso, Qso answerQso) {
+  void addQso(List<QsoTableData> qsos, QsoTableData submitQso, QsoTableData answerQso) {
     final newRawScoreData = scoreCalculator.calculateScore(qsos);
 
     final diffScore = newRawScoreData.score - rawScoreData.score;
@@ -75,8 +76,8 @@ abstract interface class ScoreCalculator {
 
   ScoreCalculator({required this.stationCallsign});
 
-  CorrectnessType calculateCorrectness(Qso submitQso, Qso answerQso);
-  ScoreData calculateScore(List<Qso> qsos);
+  CorrectnessType calculateCorrectness(QsoTableData submitQso, QsoTableData answerQso);
+  ScoreData calculateScore(List<QsoTableData> qsos);
 }
 
 class WpxScoreCalculator extends ScoreCalculator {
@@ -89,12 +90,12 @@ class WpxScoreCalculator extends ScoreCalculator {
   }) : stationContinent = dxccManager.findCallSignContinet(stationCallsign);
 
   @override
-  CorrectnessType calculateCorrectness(Qso submitQso, Qso answerQso) {
+  CorrectnessType calculateCorrectness(QsoTableData submitQso, QsoTableData answerQso) {
     if (submitQso == answerQso) {
       return Correct();
     }
 
-    if (submitQso.call != answerQso.call) {
+    if (submitQso.callsign != answerQso.callsign) {
       return Penalty(penaltyMultiple: 2);
     }
 
