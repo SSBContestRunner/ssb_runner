@@ -37,14 +37,14 @@ class ContestManager {
     );
   }
 
-  Future<void> _playAudio(SingleCallRunState state) async {
-    switch (state) {
+  Future<void> _playAudio(SingleCallRunState toState) async {
+    switch (toState) {
       case WaitingSubmitCall():
-        final pcmData = await payloadToAudioData(state.currentCallAnswer);
+        final pcmData = await payloadToAudioData(toState.currentCallAnswer);
         await _playAudioInternal(pcmData);
         break;
       case WaitingSubmitExchange():
-        _playAudioByPlayType(state.audioPlayType);
+        _playAudioByPlayType(toState.audioPlayType);
         break;
       case QsoEnd():
         // TODO: Play TU QRZ

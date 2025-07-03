@@ -103,9 +103,9 @@ class WpxScoreCalculator extends ScoreCalculator {
   }
 
   @override
-  ScoreData calculateScore(List<Qso> qsos) {
+  ScoreData calculateScore(List<QsoTableData> qsos) {
     final multipliers = qsos
-        .map((qso) => extractPrefix(qso.call))
+        .map((qso) => extractPrefix(qso.callsign))
         .toSet()
         .length;
 

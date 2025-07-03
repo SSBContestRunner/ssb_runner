@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:ssb_contest_runner/audio/audio_player.dart';
+import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
 import 'package:ssb_contest_runner/db/app_database.dart';
-import 'package:ssb_contest_runner/main_cubit.dart';
+import 'package:ssb_contest_runner/ui/main_page.dart';
+import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final database = AppDatabase();
+  // Initialize the window manager plugin.
+  await windowManager.ensureInitialized();
 
-  /// Initialize the player.
+  // Initialize the player.
   await SoLoud.instance.init(channels: Channels.mono);
+
+  final windowOptions = WindowOptions(size: Size(1280, 720), center: true);
+
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
 
   runApp(const MyApp());
 }
+
+const _seedColor = Color(0xFF0059BA);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -23,65 +35,17 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'SSB Runner',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: _seedColor),
       ),
-      home: HomePage(),
-    );
-  }
-}
-
-class HomePage extends StatelessWidget {
-  HomePage({super.key});
-
-  static final _regExp = RegExp(r'[a-zA-Z0-9/]');
-
-  final _textController = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home Page')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(96.0),
-          child: BlocProvider(
-            create: (context) => HomeCubit(),
-            child: BlocBuilder<HomeCubit, bool>(
-              builder: (context, isButtonEnabled) {
-                return Column(
-                  children: [
-                    TextField(
-                      controller: _textController,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(_regExp),
-                      ],
-                      onChanged: (value) {
-                        final upperCased = value.toUpperCase();
-                        _textController.value = _textController.value.copyWith(
-                          text: upperCased,
-                        );
-                        context.read<HomeCubit>().onTextChange(upperCased);
-                      },
-                    ),
-                    SizedBox(height: 30.0),
-                    ElevatedButton(
-                      onPressed: isButtonEnabled
-                          ? () {
-                              context.read<HomeCubit>().play(
-                                _textController.value.text,
-                              );
-                            }
-                          : null,
-                      child: Text('播放'),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
+      home: MultiRepositoryProvider(
+        providers: [
+          RepositoryProvider(create: (context) => AppDatabase()),
+          RepositoryProvider(create: (context) => ContestManager()),
+          RepositoryProvider(create: (context) => AudioPlayer()),
+        ],
+        child: MainPage(),
       ),
     );
   }
