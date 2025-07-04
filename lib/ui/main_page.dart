@@ -136,11 +136,24 @@ class _BottomPanel extends StatelessWidget {
                       mainAxisSize: MainAxisSize.max,
                       children: [
                         Expanded(
-                          child: FilledButton(
-                            onPressed: () {
-                              // TODO: Start Run
-                            },
-                            child: Text('RUN'),
+                          child: SizedBox(
+                            height: 74,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadiusGeometry.circular(
+                                    16.0,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () {
+                                // TODO: Start Run
+                              },
+                              child: Text(
+                                'RUN',
+                                style: theme.primaryTextTheme.headlineSmall,
+                              ),
+                            ),
                           ),
                         ),
                       ],
