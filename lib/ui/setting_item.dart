@@ -11,13 +11,12 @@ class SettingItem extends StatelessWidget {
     final bgColor = Theme.of(context).colorScheme.surfaceContainerHighest;
     final titleTextStyle = Theme.of(context).textTheme.titleMedium;
 
-    return DecoratedBox(
+    return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(4.0),
-          topRight: Radius.circular(4.0),
-        ),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4.0),
       ),
+      width: double.infinity,
       child: Padding(
         padding: const EdgeInsets.only(
           top: 12.0,
@@ -25,17 +24,14 @@ class SettingItem extends StatelessWidget {
           left: 14.0,
           right: 14.0,
         ),
-        child: Container(
-          width: double.infinity,
-          color: bgColor,
-          child: Flex(
-            direction: Axis.vertical,
-            spacing: 6.0,
-            children: [
-              Text(title, style: titleTextStyle),
-              content,
-            ],
-          ),
+        child: Flex(
+          direction: Axis.vertical,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 6.0,
+          children: [
+            Text(title, style: titleTextStyle),
+            content,
+          ],
         ),
       ),
     );

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-final functionKeysMap =  {
+final functionKeysMap = {
   LogicalKeyboardKey.f1: OperationEvent.cq,
   LogicalKeyboardKey.f2: OperationEvent.exch,
   LogicalKeyboardKey.f3: OperationEvent.tu,
@@ -61,4 +61,17 @@ class KeyEventManager {
   }
 }
 
-enum OperationEvent { cq, exch, tu, myCall, hisCall, b4, agn, nil }
+enum OperationEvent {
+  cq(btnText: 'CQ'),
+  exch(btnText: 'EXCH'),
+  tu(btnText: 'TU'),
+  myCall(btnText: '<my>'),
+  hisCall(btnText: '<his>'),
+  b4(btnText: 'B4'),
+  agn(btnText: 'AGN'),
+  nil(btnText: 'NIL');
+
+  final String btnText;
+
+  const OperationEvent({required this.btnText});
+}

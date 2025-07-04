@@ -299,7 +299,7 @@ class _FunctionKeys extends StatelessWidget {
   _FunctionKeys({required this.onOperationEvent});
 
   final _functionKeyBtns = functionKeysMap.entries.map((entry) {
-    final buttonTextName = '${entry.key.keyLabel} ${entry.value.name}';
+    final buttonTextName = '${entry.key.keyLabel} ${entry.value.btnText}';
     return (buttonTextName, entry.value);
   });
 
