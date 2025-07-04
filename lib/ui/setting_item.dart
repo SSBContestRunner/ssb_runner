@@ -20,15 +20,15 @@ class SettingItem extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.only(
-          top: 10.0,
-          bottom: 20.0,
-          left: 16.0,
-          right: 16.0,
+          top: 12.0,
+          bottom: 12.0,
+          left: 14.0,
+          right: 14.0,
         ),
         child: Container(
           width: double.infinity,
           color: bgColor,
-          child: Wrap(
+          child: Flex(
             direction: Axis.vertical,
             spacing: 6.0,
             children: [

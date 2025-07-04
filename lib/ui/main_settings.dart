@@ -8,7 +8,7 @@ class MainSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 370,
-      child: Wrap(
+      child: Flex(
         direction: Axis.vertical,
         spacing: 12.0,
         children: [
@@ -26,7 +26,7 @@ class _ContestSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
+    return Flex(
       direction: Axis.horizontal,
       spacing: 12.0,
       children: [
@@ -61,7 +61,7 @@ class _StationSettings extends StatelessWidget {
 class _OptionsSetting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Wrap(
+    return Flex(
       direction: Axis.vertical,
       spacing: 8,
       children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_contest_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_contest_runner/ui/main_cubit.dart';
@@ -10,20 +11,23 @@ class MainPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<MainCubit, bool>(
-      builder: (context, isShowKeyTips) {
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Wrap(
-            direction: Axis.vertical,
-            spacing: 15.0,
-            children: [
-              Expanded(child: _TopPanel()),
-              _BottomPanel(),
-            ],
-          ),
-        );
-      },
+    return BlocProvider(
+      create: (context) => MainCubit(),
+      child: BlocBuilder<MainCubit, bool>(
+        builder: (context, isShowKeyTips) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Flex(
+              direction: Axis.vertical,
+              spacing: 18.0,
+              children: [
+                Expanded(child: _TopPanel()),
+                _BottomPanel(),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -33,13 +37,10 @@ class _TopPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
+    return Flex(
       spacing: 18.0,
       direction: Axis.horizontal,
-      children: [
-        Expanded(child: QsoRecordTable()),
-        MainSettings(),
-      ],
+      children: [Expanded(child: QsoRecordTable()), MainSettings()],
     );
   }
 }
@@ -75,10 +76,10 @@ class _BottomPanel extends StatelessWidget {
                   ],
                 ),
               ),
-          
+
               SizedBox(
                 width: 240,
-                child: Wrap(
+                child: Flex(
                   direction: Axis.vertical,
                   spacing: 24,
                   children: [
@@ -86,9 +87,9 @@ class _BottomPanel extends StatelessWidget {
                       width: double.infinity,
                       height: 92.0,
                       decoration: BoxDecoration(
+                        color: surfaceVariant,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      color: surfaceVariant,
                       child: Stack(
                         children: [
                           Positioned(
@@ -99,7 +100,7 @@ class _BottomPanel extends StatelessWidget {
                               style: theme.textTheme.titleMedium,
                             ),
                           ),
-          
+
                           Positioned(
                             top: 46,
                             left: 60,
@@ -138,7 +139,7 @@ class _BottomPanel extends StatelessWidget {
               ),
               SizedBox(
                 width: 370,
-                child: Wrap(
+                child: Flex(
                   direction: Axis.vertical,
                   spacing: 20,
                   children: [
@@ -154,10 +155,10 @@ class _BottomPanel extends StatelessWidget {
                         ),
                       ],
                     ),
-          
+
                     Container(
-                      color: theme.colorScheme.secondaryContainer,
                       decoration: BoxDecoration(
+                        color: theme.colorScheme.secondaryContainer,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Stack(

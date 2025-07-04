@@ -45,7 +45,9 @@ class MyApp extends StatelessWidget {
           RepositoryProvider(create: (context) => ContestManager()),
           RepositoryProvider(create: (context) => AudioPlayer()),
         ],
-        child: MainPage(),
+        child: Scaffold(
+          body: MainPage(),
+        ),
       ),
     );
   }
