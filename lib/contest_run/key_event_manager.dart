@@ -2,16 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-const _functionKeys = [
-  LogicalKeyboardKey.f1,
-  LogicalKeyboardKey.f2,
-  LogicalKeyboardKey.f3,
-  LogicalKeyboardKey.f4,
-  LogicalKeyboardKey.f5,
-  LogicalKeyboardKey.f6,
-  LogicalKeyboardKey.f7,
-  LogicalKeyboardKey.f8,
-];
+final functionKeysMap =  {
+  LogicalKeyboardKey.f1: OperationEvent.cq,
+  LogicalKeyboardKey.f2: OperationEvent.exch,
+  LogicalKeyboardKey.f3: OperationEvent.tu,
+  LogicalKeyboardKey.f4: OperationEvent.myCall,
+  LogicalKeyboardKey.f5: OperationEvent.hisCall,
+  LogicalKeyboardKey.f6: OperationEvent.b4,
+  LogicalKeyboardKey.f7: OperationEvent.agn,
+  LogicalKeyboardKey.f8: OperationEvent.nil,
+};
 
 class KeyEventManager {
   bool _isFunctionKeyPressed = false;
@@ -36,7 +36,7 @@ class KeyEventManager {
   }
 
   void _handleKeyPressed(LogicalKeyboardKey key) {
-    if (_functionKeys.contains(key)) {
+    if (functionKeysMap.keys.contains(key)) {
       _handleFunctionKeyPressed(key);
     }
   }
@@ -48,36 +48,14 @@ class KeyEventManager {
 
     _isFunctionKeyPressed = true;
 
-    switch (key) {
-      case LogicalKeyboardKey.f1:
-        _operationEventController.add(OperationEvent.cq);
-        break;
-      case LogicalKeyboardKey.f2:
-        _operationEventController.add(OperationEvent.exch);
-        break;
-      case LogicalKeyboardKey.f3:
-        _operationEventController.add(OperationEvent.tu);
-        break;
-      case LogicalKeyboardKey.f4:
-        _operationEventController.add(OperationEvent.myCall);
-        break;
-      case LogicalKeyboardKey.f5:
-        _operationEventController.add(OperationEvent.hisCall);
-        break;
-      case LogicalKeyboardKey.f6:
-        _operationEventController.add(OperationEvent.b4);
-        break;
-      case LogicalKeyboardKey.f7:
-        _operationEventController.add(OperationEvent.agn);
-        break;
-      case LogicalKeyboardKey.f8:
-        _operationEventController.add(OperationEvent.nil);
-        break;
+    final operationEvent = functionKeysMap[key];
+    if (operationEvent != null) {
+      _operationEventController.add(operationEvent);
     }
   }
 
   void _handleFunctionKeyReleased(LogicalKeyboardKey key) {
-    if (_functionKeys.contains(key)) {
+    if (functionKeysMap.keys.contains(key)) {
       _isFunctionKeyPressed = false;
     }
   }

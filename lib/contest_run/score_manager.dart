@@ -25,7 +25,11 @@ class ScoreManager {
          dxccManager,
        );
 
-  void addQso(List<QsoTableData> qsos, QsoTableData submitQso, QsoTableData answerQso) {
+  void addQso(
+    List<QsoTableData> qsos,
+    QsoTableData submitQso,
+    QsoTableData answerQso,
+  ) {
     final newRawScoreData = scoreCalculator.calculateScore(qsos);
 
     final diffScore = newRawScoreData.score - rawScoreData.score;
@@ -76,7 +80,10 @@ abstract interface class ScoreCalculator {
 
   ScoreCalculator({required this.stationCallsign});
 
-  CorrectnessType calculateCorrectness(QsoTableData submitQso, QsoTableData answerQso);
+  CorrectnessType calculateCorrectness(
+    QsoTableData submitQso,
+    QsoTableData answerQso,
+  );
   ScoreData calculateScore(List<QsoTableData> qsos);
 }
 
@@ -90,7 +97,10 @@ class WpxScoreCalculator extends ScoreCalculator {
   }) : stationContinent = dxccManager.findCallSignContinet(stationCallsign);
 
   @override
-  CorrectnessType calculateCorrectness(QsoTableData submitQso, QsoTableData answerQso) {
+  CorrectnessType calculateCorrectness(
+    QsoTableData submitQso,
+    QsoTableData answerQso,
+  ) {
     if (submitQso == answerQso) {
       return Correct();
     }
@@ -119,8 +129,8 @@ class WpxScoreCalculator extends ScoreCalculator {
     return ScoreData(count: qsos.length, multiple: multipliers, score: score);
   }
 
-  int _obtainQsoBasePoint(Qso qso) {
-    final qsoContinent = dxccManager.findCallSignContinet(qso.call);
+  int _obtainQsoBasePoint(QsoTableData qso) {
+    final qsoContinent = dxccManager.findCallSignContinet(qso.callsign);
 
     if (qsoContinent.isEmpty) {
       return 1;
