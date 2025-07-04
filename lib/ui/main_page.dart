@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_contest_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_contest_runner/ui/main_cubit.dart';
@@ -16,10 +15,15 @@ class MainPage extends StatelessWidget {
       child: BlocBuilder<MainCubit, bool>(
         builder: (context, isShowKeyTips) {
           return Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.only(
+              top: 16.0,
+              bottom: 12.0,
+              left: 16.0,
+              right: 16.0,
+            ),
             child: Flex(
               direction: Axis.vertical,
-              spacing: 18.0,
+              spacing: 16.0,
               children: [
                 Expanded(child: _TopPanel()),
                 _BottomPanel(),
@@ -58,11 +62,15 @@ class _BottomPanel extends StatelessWidget {
 
         return SizedBox(
           height: 190,
-          child: Row(
+          child: Flex(
+            direction: Axis.horizontal,
+            spacing: 18.0,
             children: [
               Expanded(
                 flex: 1,
-                child: Column(
+                child: Flex(
+                  direction: Axis.vertical,
+                  spacing: 18.0,
                   children: [
                     _QsoInputArea(),
                     Expanded(
@@ -183,11 +191,14 @@ class _QsoInputArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorSchema = Theme.of(context).colorScheme;
-    final bgColor = colorSchema.primaryContainer.withAlpha(26);
+    final bgColor = colorSchema.primaryContainer;
     return Container(
-      color: bgColor,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.all(Radius.circular(4)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.only(left: 10.0, right: 10.0, bottom: 10.0),
+        padding: const EdgeInsets.all(10.0),
         child: Flex(
           direction: Axis.horizontal,
           spacing: 8.0,
