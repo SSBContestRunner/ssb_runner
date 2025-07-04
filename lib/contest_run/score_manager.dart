@@ -1,7 +1,6 @@
 import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
 import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
 import 'package:ssb_contest_runner/db/app_database.dart';
-import 'package:ssb_contest_runner/db/table/qso_table.dart';
 import 'package:ssb_contest_runner/dxcc/dxcc_manager.dart';
 
 const CQ_WPX = 'CQ-WPX';
