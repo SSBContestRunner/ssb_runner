@@ -237,7 +237,9 @@ class _FunctionKeysPad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Flex(
+      direction: Axis.horizontal,
+      spacing: 16.0,
       children: [
         Expanded(
           flex: 1,
@@ -278,6 +280,7 @@ class _FunctionKeys extends StatelessWidget {
       crossAxisCount: 4,
       mainAxisSpacing: 16.0,
       crossAxisSpacing: 16.0,
+      childAspectRatio: 2.5,
       children: _functionKeyBtns.map((element) {
         final (text, event) = element;
         return ElevatedButton(
