@@ -34,6 +34,7 @@ class _ContestSettings extends StatelessWidget {
           flex: 2,
           child: TextField(
             decoration: InputDecoration(
+              border: OutlineInputBorder(),
               labelText: 'Name',
               suffixIcon: Icon(Icons.arrow_drop_down),
             ),
@@ -42,7 +43,12 @@ class _ContestSettings extends StatelessWidget {
 
         Expanded(
           flex: 1,
-          child: TextField(decoration: InputDecoration(labelText: 'Exchange')),
+          child: TextField(
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Exchange',
+            ),
+          ),
         ),
       ],
     );
@@ -53,7 +59,14 @@ class _StationSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [TextField(decoration: InputDecoration(labelText: 'Callsign'))],
+      children: [
+        TextField(
+          decoration: InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Callsign',
+          ),
+        ),
+      ],
     );
   }
 }
@@ -65,8 +78,18 @@ class _OptionsSetting extends StatelessWidget {
       direction: Axis.vertical,
       spacing: 8,
       children: [
-        TextField(decoration: InputDecoration(labelText: 'Mode')),
-        TextField(decoration: InputDecoration(labelText: 'Duration')),
+        TextField(
+          decoration: InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Mode',
+          ),
+        ),
+        TextField(
+          decoration: InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Duration',
+          ),
+        ),
       ],
     );
   }
