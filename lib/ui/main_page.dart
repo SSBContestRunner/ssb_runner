@@ -277,6 +277,11 @@ class _FunctionKeysPad extends StatelessWidget {
           width: 56,
           height: 56,
           child: IconButton.filledTonal(
+            style: IconButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
             onPressed: () {
               onInfoIconPressed();
             },
@@ -308,6 +313,11 @@ class _FunctionKeys extends StatelessWidget {
       children: _functionKeyBtns.map((element) {
         final (text, event) = element;
         return ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+          ),
           onPressed: () {
             onOperationEvent(event);
           },

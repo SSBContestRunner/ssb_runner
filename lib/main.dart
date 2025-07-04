@@ -37,7 +37,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SSB Runner',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: _seedColor),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: _seedColor,
+          primary: _seedColor,
+        ),
       ),
       home: MultiRepositoryProvider(
         providers: [
@@ -45,9 +48,7 @@ class MyApp extends StatelessWidget {
           RepositoryProvider(create: (context) => ContestManager()),
           RepositoryProvider(create: (context) => AudioPlayer()),
         ],
-        child: Scaffold(
-          body: MainPage(),
-        ),
+        child: Scaffold(body: MainPage()),
       ),
     );
   }
