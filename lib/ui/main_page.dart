@@ -40,7 +40,10 @@ class _TopPanel extends StatelessWidget {
     return Flex(
       spacing: 18.0,
       direction: Axis.horizontal,
-      children: [Expanded(child: QsoRecordTable()), MainSettings()],
+      children: [
+        Expanded(child: QsoRecordTable()),
+        MainSettings(),
+      ],
     );
   }
 }
@@ -183,23 +186,41 @@ class _QsoInputArea extends StatelessWidget {
     final bgColor = colorSchema.primaryContainer.withAlpha(26);
     return Container(
       color: bgColor,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 1,
-            child: TextField(decoration: InputDecoration(labelText: 'Call')),
-          ),
-          Expanded(
-            flex: 1,
-            child: TextField(decoration: InputDecoration(labelText: 'RST')),
-          ),
-          Expanded(
-            flex: 1,
-            child: TextField(
-              decoration: InputDecoration(labelText: 'Exchange'),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 10.0, right: 10.0, bottom: 10.0),
+        child: Flex(
+          direction: Axis.horizontal,
+          spacing: 8.0,
+          children: [
+            Expanded(
+              flex: 1,
+              child: TextField(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Call',
+                ),
+              ),
             ),
-          ),
-        ],
+            Expanded(
+              flex: 1,
+              child: TextField(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'RST',
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: TextField(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Exchange',
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
