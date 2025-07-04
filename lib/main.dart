@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_contest_runner/audio/audio_player.dart';
 import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
 import 'package:ssb_contest_runner/db/app_database.dart';
+import 'package:ssb_contest_runner/settings/setting_constants.dart';
 import 'package:ssb_contest_runner/ui/main_page.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -47,6 +49,15 @@ class MyApp extends StatelessWidget {
           RepositoryProvider(create: (context) => AppDatabase()),
           RepositoryProvider(create: (context) => ContestManager()),
           RepositoryProvider(create: (context) => AudioPlayer()),
+          RepositoryProvider(
+            create: (context) async {
+              final prefs = await SharedPreferencesWithCache.create(
+                cacheOptions: SharedPreferencesWithCacheOptions(),
+              );
+
+              return AppSettings(prefs: prefs);
+            },
+          ),
         ],
         child: Scaffold(body: MainPage()),
       ),
