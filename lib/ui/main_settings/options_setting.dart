@@ -20,6 +20,8 @@ class _Options {
 class _OptionsSettingCubit extends Cubit<_Options> {
   final AppSettings _appSettings;
 
+  String _modeString = '';
+
   _OptionsSettingCubit({required AppSettings appSettings})
     : _appSettings = appSettings,
       super(
@@ -34,7 +36,9 @@ class _OptionsSettingCubit extends Cubit<_Options> {
     emit(state.copyWith(modeId: modeId));
   }
 
-  void changeDuration(int durationInMinutes) {
+  void changeDuration(String modeString) {
+    _modeString = modeString;
+    final durationInMinutes = int.tryParse(modeString) ?? 0;
     _appSettings.contestDuration = durationInMinutes;
   }
 }
@@ -74,13 +78,8 @@ class OptionsSetting extends StatelessWidget {
                 controller: _durationController,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 onChanged: (value) {
-                  if (value.isEmpty) {
-                    return;
-                  }
-
-                  final durationInMinutes = num.parse(value).toInt();
                   final cubit = context.read<_OptionsSettingCubit>();
-                  cubit.changeDuration(durationInMinutes);
+                  cubit.changeDuration(value);
                 },
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
