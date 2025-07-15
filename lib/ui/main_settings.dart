@@ -52,7 +52,14 @@ class _ContestSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ContestSettingCubit(appSettings: context.read()),
+      create: (context) {
+        final cubit = ContestSettingCubit(appSettings: context.read());
+
+        _contestNameController.text = cubit.state.name;
+        _contestExchangeController.text = cubit.state.exchange;
+
+        return cubit;
+      },
       child: BlocListener<ContestSettingCubit, Contest>(
         listener: (context, contest) {
           _contestNameController.text = contest.name;
@@ -74,10 +81,11 @@ class _ContestSettings extends StatelessWidget {
                 ),
               ),
             ),
-    
+
             Expanded(
               flex: 1,
               child: TextField(
+                readOnly: true,
                 controller: _contestExchangeController,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
