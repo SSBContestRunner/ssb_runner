@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_contest_runner/contest_run/contests.dart';
 import 'package:ssb_contest_runner/settings/setting_constants.dart';
+import 'package:ssb_contest_runner/ui/main_settings/options_setting.dart';
 import 'package:ssb_contest_runner/ui/setting_item.dart';
 
 class MainSettings extends StatelessWidget {
@@ -17,7 +18,7 @@ class MainSettings extends StatelessWidget {
         children: [
           SettingItem(title: 'Contest', content: _ContestSettings()),
           SettingItem(title: 'Station', content: _StationSettings()),
-          SettingItem(title: 'Options', content: _OptionsSetting()),
+          SettingItem(title: 'Options', content: OptionsSetting()),
         ],
       ),
     );
@@ -116,26 +117,4 @@ class _StationSettings extends StatelessWidget {
   }
 }
 
-class _OptionsSetting extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Flex(
-      direction: Axis.vertical,
-      spacing: 8,
-      children: [
-        TextField(
-          decoration: InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Mode',
-          ),
-        ),
-        TextField(
-          decoration: InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Duration',
-          ),
-        ),
-      ],
-    );
-  }
-}
+

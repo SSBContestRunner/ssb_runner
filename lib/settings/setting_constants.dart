@@ -20,6 +20,8 @@ class AppSettings {
       _prefs.setString(_settingStationCallsign, value);
 
   int get contestDuration => _prefs.getInt(_settingContestDuration) ?? 0;
+  set contestDuration(int value) =>
+      _prefs.setInt(_settingContestDuration, value);
 }
 
 const _settingContestId = 'setting_contest_id';
