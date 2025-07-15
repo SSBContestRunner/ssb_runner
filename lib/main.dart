@@ -25,13 +25,20 @@ void main() async {
     await windowManager.focus();
   });
 
-  runApp(const MyApp());
+  final prefs = await SharedPreferencesWithCache.create(
+    cacheOptions: SharedPreferencesWithCacheOptions(),
+  );
+
+  runApp(MyApp(pref: prefs));
 }
 
 const _seedColor = Color(0xFF0059BA);
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final SharedPreferencesWithCache _prefs;
+
+  const MyApp({super.key, required SharedPreferencesWithCache pref})
+    : _prefs = pref;
 
   // This widget is the root of your application.
   @override
@@ -49,15 +56,7 @@ class MyApp extends StatelessWidget {
           RepositoryProvider(create: (context) => AppDatabase()),
           RepositoryProvider(create: (context) => ContestManager()),
           RepositoryProvider(create: (context) => AudioPlayer()),
-          RepositoryProvider(
-            create: (context) async {
-              final prefs = await SharedPreferencesWithCache.create(
-                cacheOptions: SharedPreferencesWithCacheOptions(),
-              );
-
-              return AppSettings(prefs: prefs);
-            },
-          ),
+          RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
         ],
         child: Scaffold(body: MainPage()),
       ),

@@ -7,7 +7,7 @@ class AppSettings {
   AppSettings({required SharedPreferencesWithCache prefs}) : _prefs = prefs;
 
   String get contestId =>
-      _prefs.getString(_settingContestId) ?? supportedContest.first.id;
+      _prefs.getString(_settingContestId) ?? supportedContests.first.id;
   set contestId(String value) => _prefs.setString(_settingContestId, value);
 
   String get contestModeId =>
