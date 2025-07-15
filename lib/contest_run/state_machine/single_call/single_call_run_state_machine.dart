@@ -11,6 +11,8 @@ initSingleCallRunStateMachine({
   transitionListener,
 }) {
   return StateMachine.create((builder) {
+    builder.initialState(initialState);
+
     builder.state(WaitingSubmitCall, (definition) {
       definition.on(WorkedBefore, (state, event) {
         final eventVal = event as WorkedBefore;

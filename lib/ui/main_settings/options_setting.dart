@@ -64,7 +64,7 @@ class OptionsSetting extends StatelessWidget {
         builder: (context, state) {
           return Flex(
             direction: Axis.vertical,
-            spacing: 8,
+            spacing: 20,
             children: [
               TextField(
                 controller: _modeController,
@@ -72,6 +72,7 @@ class OptionsSetting extends StatelessWidget {
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
                   labelText: 'Mode',
+                  suffixIcon: Icon(Icons.arrow_drop_down),
                 ),
               ),
               TextField(

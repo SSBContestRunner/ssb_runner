@@ -27,7 +27,7 @@ class SettingItem extends StatelessWidget {
         child: Flex(
           direction: Axis.vertical,
           crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 6.0,
+          spacing: 20.0,
           children: [
             Text(title, style: titleTextStyle),
             content,
