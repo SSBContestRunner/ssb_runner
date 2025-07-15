@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_contest_runner/contest_run/contests.dart';
-import 'package:ssb_contest_runner/settings/setting_constants.dart';
+import 'package:ssb_contest_runner/settings/app_settings.dart';
 import 'package:ssb_contest_runner/ui/main_settings/options_setting.dart';
 import 'package:ssb_contest_runner/ui/setting_item.dart';
 

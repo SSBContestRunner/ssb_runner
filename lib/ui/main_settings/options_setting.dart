@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_contest_runner/settings/setting_constants.dart';
+import 'package:ssb_contest_runner/settings/app_settings.dart';
 
 class _Options {
   final String modeId;

@@ -12,7 +12,10 @@ import 'package:ssb_contest_runner/state_machine/state_machine.dart';
 class ContestManager {
   bool isContestRunning = false;
   Timer? _timer;
-  Duration leftTime = Duration.zero;
+
+  final _elapseTimeStreamController = StreamController<Duration>();
+
+  Stream<Duration> get elapseTimeStream => _elapseTimeStreamController.stream;
 
   final _audioPlayer = AudioPlayer();
 
@@ -76,13 +79,17 @@ class ContestManager {
 
   void startContest(Duration duration) {
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      leftTime = duration - Duration(seconds: timer.tick);
+      final elapseTime = Duration(seconds: timer.tick);
+      _elapseTimeStreamController.sink.add(elapseTime);
 
-      if (leftTime.inSeconds <= 0) {
+      if (elapseTime >= duration) {
         isContestRunning = false;
         timer.cancel();
       }
     });
+
+    final elapseTime = Duration.zero;
+    _elapseTimeStreamController.sink.add(elapseTime);
 
     isContestRunning = true;
     _audioPlayer.startPlay();
