@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_contest_runner/ui/bottom_panel/qso_operation_area.dart';
 import 'package:ssb_contest_runner/ui/bottom_panel/qso_speed_area.dart';
-import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score_area.dart';
+import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score/time_and_score_area.dart';
 import 'package:ssb_contest_runner/ui/main_cubit.dart';
 
 class BottomPanel extends StatelessWidget {

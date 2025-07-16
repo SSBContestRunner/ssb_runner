@@ -1,119 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_contest_runner/common/time_format.dart';
-import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
-import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
-import 'package:ssb_contest_runner/contest_run/score_manager.dart';
+import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score/score_area/score_area_cubit.dart';
+import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score/score_area/score_area_data.dart';
 
-class TimeAndScoreArea extends StatelessWidget {
-  const TimeAndScoreArea({super.key});
+class ScoreArea extends StatelessWidget {
+  const ScoreArea({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Flex(
-      direction: Axis.vertical,
-      spacing: 15,
-      children: [
-        _TimeArea(),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: _ScoreArea(),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TimeAreaCubit extends Cubit<Duration> {
-  _TimeAreaCubit({required ContestManager contestManager})
-    : super(Duration.zero) {
-    contestManager.elapseTimeStream.listen((duration) {
-      emit(duration);
-    });
-  }
-}
-
-class _TimeArea extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SizedBox(
-      height: 54,
-      child: Container(
-        color: theme.colorScheme.inverseSurface,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            BlocProvider(
-              create: (context) =>
-                  _TimeAreaCubit(contestManager: context.read()),
-              child: BlocBuilder<_TimeAreaCubit, Duration>(
-                builder: (context, duration) {
-                  return Text(
-                    formatDuration(duration),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: theme.colorScheme.onInverseSurface,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ScoreAreaData {
-  final ScoreData rawScore;
-  final ScoreData verifiedScore;
-
-  _ScoreAreaData({required this.rawScore, required this.verifiedScore});
-
-  _ScoreAreaData copyWith({ScoreData? rawScore, ScoreData? verifiedScore}) {
-    return _ScoreAreaData(
-      rawScore: rawScore ?? this.rawScore,
-      verifiedScore: verifiedScore ?? this.verifiedScore,
-    );
-  }
-}
-
-class _ScoreCubit extends Cubit<_ScoreAreaData> {
-  final ScoreManager _scoreManager;
-
-  _ScoreCubit({required ScoreManager scoreManager})
-    : _scoreManager = scoreManager,
-      super(_obtainScoreData()) {
-    _listenScoreUpdate();
-  }
-
-  static _ScoreAreaData _obtainScoreData() {
-    return _ScoreAreaData(
-      rawScore: ScoreData.initial(),
-      verifiedScore: ScoreData.initial(),
-    );
-  }
-
-  void _listenScoreUpdate() {
-    _scoreManager.rawScoreDataStream.stream.listen((scoreData) {
-      emit(state.copyWith(rawScore: scoreData));
-    });
-
-    _scoreManager.verifiedScoreDataStream.stream.listen((scoreData) {
-      emit(state.copyWith(verifiedScore: scoreData));
-    });
-  }
-}
-
-class _ScoreArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -137,7 +29,7 @@ class _ScoreArea extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 9, top: 38),
             child: BlocProvider(
-              create: (context) => _ScoreCubit(scoreManager: context.read()),
+              create: (context) => ScoreAreaCubit(context: context),
               child: Flex(
                 direction: Axis.horizontal,
                 children: [
@@ -155,7 +47,7 @@ class _ScoreArea extends StatelessWidget {
                   ),
 
                   Expanded(
-                    child: BlocBuilder<_ScoreCubit, _ScoreAreaData>(
+                    child: BlocBuilder<ScoreAreaCubit, ScoreAreaData>(
                       buildWhen: (previous, current) {
                         return previous.rawScore != current.rawScore;
                       },
@@ -183,7 +75,7 @@ class _ScoreArea extends StatelessWidget {
                   ),
 
                   Expanded(
-                    child: BlocBuilder<_ScoreCubit, _ScoreAreaData>(
+                    child: BlocBuilder<ScoreAreaCubit, ScoreAreaData>(
                       buildWhen: (previous, current) =>
                           previous.verifiedScore != current.verifiedScore,
                       builder: (context, scoreAreaData) {

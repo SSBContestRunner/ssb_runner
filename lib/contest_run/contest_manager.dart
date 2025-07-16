@@ -11,14 +11,17 @@ import 'package:ssb_contest_runner/state_machine/state_machine.dart';
 import 'package:uuid/uuid.dart';
 
 class ContestManager {
-  bool isContestRunning = false;
+  bool _isContestRunning = false;
   Timer? _timer;
 
-  final contestRunIdStream = StreamController<String>();
+  final _contestRunIdStreamController = StreamController<String>();
+  Stream<String> get contestRunIdStream => _contestRunIdStreamController.stream;
 
   final _elapseTimeStreamController = StreamController<Duration>();
-
   Stream<Duration> get elapseTimeStream => _elapseTimeStreamController.stream;
+
+  final _isContestRunningStreamController = StreamController<bool>();
+  Stream<bool> get isContestRunningStream => _isContestRunningStreamController.stream;
 
   final _audioPlayer = AudioPlayer();
 
@@ -82,14 +85,15 @@ class ContestManager {
 
   void startContest(Duration duration) {
     final contestRunId = Uuid().v4();
-    contestRunIdStream.sink.add(contestRunId);
+    _contestRunIdStreamController.sink.add(contestRunId);
 
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       final elapseTime = Duration(seconds: timer.tick);
       _elapseTimeStreamController.sink.add(elapseTime);
 
       if (elapseTime >= duration) {
-        isContestRunning = false;
+        _isContestRunning = false;
+        _isContestRunningStreamController.sink.add(false);
         timer.cancel();
       }
     });
@@ -97,13 +101,15 @@ class ContestManager {
     final elapseTime = Duration.zero;
     _elapseTimeStreamController.sink.add(elapseTime);
 
-    isContestRunning = true;
+    _isContestRunning = true;
+    _isContestRunningStreamController.sink.add(true);
     _audioPlayer.startPlay();
   }
 
   void stopContest() {
     _timer?.cancel();
-    isContestRunning = false;
+    _isContestRunning = false;
+    _isContestRunningStreamController.sink.add(false);
   }
 
   void transition(SingleCallRunEvent event) {

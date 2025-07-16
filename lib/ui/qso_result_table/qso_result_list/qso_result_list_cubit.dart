@@ -20,7 +20,9 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   }
 
   void _listenQsoUpdate() {
-    final streams = _contestManager.contestRunIdStream.stream.map((id) {
+    final streams = _contestManager.contestRunIdStream.map((
+      id,
+    ) {
       if (id.isEmpty) {
         return Stream<List<QsoTableData>>.empty();
       }
