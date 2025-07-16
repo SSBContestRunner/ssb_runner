@@ -146,7 +146,7 @@ class _ScoreArea extends StatelessWidget {
           ),
 
           Padding(
-            padding: const EdgeInsets.only(left: 120),
+            padding: const EdgeInsets.only(left: 130),
             child: SizedBox(
               height: 38,
               child: Row(
