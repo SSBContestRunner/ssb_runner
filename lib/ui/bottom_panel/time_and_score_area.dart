@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_contest_runner/common/time_format.dart';
 import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
+import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
+import 'package:ssb_contest_runner/contest_run/score_manager.dart';
 
 class TimeAndScoreArea extends StatelessWidget {
   const TimeAndScoreArea({super.key});
@@ -70,6 +72,47 @@ class _TimeArea extends StatelessWidget {
   }
 }
 
+class _ScoreAreaData {
+  final ScoreData rawScore;
+  final ScoreData verifiedScore;
+
+  _ScoreAreaData({required this.rawScore, required this.verifiedScore});
+
+  _ScoreAreaData copyWith({ScoreData? rawScore, ScoreData? verifiedScore}) {
+    return _ScoreAreaData(
+      rawScore: rawScore ?? this.rawScore,
+      verifiedScore: verifiedScore ?? this.verifiedScore,
+    );
+  }
+}
+
+class _ScoreCubit extends Cubit<_ScoreAreaData> {
+  final ScoreManager _scoreManager;
+
+  _ScoreCubit({required ScoreManager scoreManager})
+    : _scoreManager = scoreManager,
+      super(_obtainScoreData()) {
+    _listenScoreUpdate();
+  }
+
+  static _ScoreAreaData _obtainScoreData() {
+    return _ScoreAreaData(
+      rawScore: ScoreData.initial(),
+      verifiedScore: ScoreData.initial(),
+    );
+  }
+
+  void _listenScoreUpdate() {
+    _scoreManager.rawScoreDataStream.stream.listen((scoreData) {
+      emit(state.copyWith(rawScore: scoreData));
+    });
+
+    _scoreManager.verifiedScoreDataStream.stream.listen((scoreData) {
+      emit(state.copyWith(verifiedScore: scoreData));
+    });
+  }
+}
+
 class _ScoreArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -93,46 +136,80 @@ class _ScoreArea extends StatelessWidget {
 
           Padding(
             padding: const EdgeInsets.only(left: 9, top: 38),
-            child: Flex(
-              direction: Axis.horizontal,
-              children: [
-                Expanded(
-                  child: Flex(
-                    direction: Axis.vertical,
-                    spacing: 5,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Point', style: titleTextStyle),
-                      Text('Mult', style: titleTextStyle),
-                      Text('Score', style: titleTextStyle),
-                    ],
+            child: BlocProvider(
+              create: (context) => _ScoreCubit(scoreManager: context.read()),
+              child: Flex(
+                direction: Axis.horizontal,
+                children: [
+                  Expanded(
+                    child: Flex(
+                      direction: Axis.vertical,
+                      spacing: 5,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Point', style: titleTextStyle),
+                        Text('Mult', style: titleTextStyle),
+                        Text('Score', style: titleTextStyle),
+                      ],
+                    ),
                   ),
-                ),
 
-                Expanded(
-                  child: Flex(
-                    direction: Axis.vertical,
-                    spacing: 5,
-                    children: [
-                      Text('1', style: titleTextStyle),
-                      Text('2', style: titleTextStyle),
-                      Text('3', style: titleTextStyle),
-                    ],
+                  Expanded(
+                    child: BlocBuilder<_ScoreCubit, _ScoreAreaData>(
+                      buildWhen: (previous, current) {
+                        return previous.rawScore != current.rawScore;
+                      },
+                      builder: (context, scoreAreaData) {
+                        return Flex(
+                          direction: Axis.vertical,
+                          spacing: 5,
+                          children: [
+                            Text(
+                              scoreAreaData.rawScore.count.toString(),
+                              style: titleTextStyle,
+                            ),
+                            Text(
+                              scoreAreaData.rawScore.multiple.toString(),
+                              style: titleTextStyle,
+                            ),
+                            Text(
+                              scoreAreaData.rawScore.score.toString(),
+                              style: titleTextStyle,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
-                ),
 
-                Expanded(
-                  child: Flex(
-                    direction: Axis.vertical,
-                    spacing: 5,
-                    children: [
-                      Text('4', style: titleTextStyle),
-                      Text('5', style: titleTextStyle),
-                      Text('6', style: titleTextStyle),
-                    ],
+                  Expanded(
+                    child: BlocBuilder<_ScoreCubit, _ScoreAreaData>(
+                      buildWhen: (previous, current) =>
+                          previous.verifiedScore != current.verifiedScore,
+                      builder: (context, scoreAreaData) {
+                        return Flex(
+                          direction: Axis.vertical,
+                          spacing: 5,
+                          children: [
+                            Text(
+                              scoreAreaData.verifiedScore.count.toString(),
+                              style: titleTextStyle,
+                            ),
+                            Text(
+                              scoreAreaData.verifiedScore.multiple.toString(),
+                              style: titleTextStyle,
+                            ),
+                            Text(
+                              scoreAreaData.verifiedScore.score.toString(),
+                              style: titleTextStyle,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 

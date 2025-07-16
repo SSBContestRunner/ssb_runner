@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
 import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
 import 'package:ssb_contest_runner/db/app_database.dart';
@@ -11,8 +13,11 @@ class ScoreManager {
 
   final ScoreCalculator scoreCalculator;
 
-  ScoreData rawScoreData = ScoreData.initial();
-  ScoreData verifiedScoreData = ScoreData.initial();
+  ScoreData _rawScoreData = ScoreData.initial();
+  ScoreData _verifiedScoreData = ScoreData.initial();
+
+  final rawScoreDataStream = StreamController<ScoreData>();
+  final verifiedScoreDataStream = StreamController<ScoreData>();
 
   ScoreManager({
     required this.contestId,
@@ -31,35 +36,38 @@ class ScoreManager {
   ) {
     final newRawScoreData = scoreCalculator.calculateScore(qsos);
 
-    final diffScore = newRawScoreData.score - rawScoreData.score;
-    final diffMultiple = newRawScoreData.multiple - rawScoreData.multiple;
+    final diffScore = newRawScoreData.score - _rawScoreData.score;
+    final diffMultiple = newRawScoreData.multiple - _rawScoreData.multiple;
 
     final correctness = scoreCalculator.calculateCorrectness(
       submitQso,
       answerQso,
     );
 
-    rawScoreData = newRawScoreData;
+    _rawScoreData = newRawScoreData;
 
     switch (correctness) {
       case Correct():
-        verifiedScoreData = verifiedScoreData.copyWith(
-          count: verifiedScoreData.count + 1,
-          score: verifiedScoreData.score + diffScore,
-          multiple: verifiedScoreData.multiple + diffMultiple,
+        _verifiedScoreData = _verifiedScoreData.copyWith(
+          count: _verifiedScoreData.count + 1,
+          score: _verifiedScoreData.score + diffScore,
+          multiple: _verifiedScoreData.multiple + diffMultiple,
         );
         break;
       case Incorrect():
         break;
       case Penalty():
-        verifiedScoreData = verifiedScoreData.copyWith(
-          count: verifiedScoreData.count,
+        _verifiedScoreData = _verifiedScoreData.copyWith(
+          count: _verifiedScoreData.count,
           score:
               newRawScoreData.score - correctness.penaltyMultiple * diffScore,
-          multiple: verifiedScoreData.multiple,
+          multiple: _verifiedScoreData.multiple,
         );
         break;
     }
+
+    rawScoreDataStream.sink.add(_rawScoreData);
+    verifiedScoreDataStream.sink.add(_verifiedScoreData);
   }
 }
 
