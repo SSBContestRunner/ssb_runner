@@ -25,7 +25,7 @@ class MainPage extends StatelessWidget {
             ),
             child: Flex(
               direction: Axis.vertical,
-              spacing: 16.0,
+              spacing: 12.0,
               children: [
                 Expanded(child: _TopPanel()),
                 BottomPanel(),

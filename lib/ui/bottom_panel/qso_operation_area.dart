@@ -11,7 +11,7 @@ class QsoOperationArea extends StatelessWidget {
   Widget build(BuildContext context) {
     return Flex(
       direction: Axis.vertical,
-      spacing: 18.0,
+      spacing: 15.0,
       children: [
         _QsoInputArea(),
         Expanded(
@@ -41,7 +41,7 @@ class _QsoInputArea extends StatelessWidget {
         borderRadius: BorderRadius.all(Radius.circular(4)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.all(8.0),
         child: Flex(
           direction: Axis.horizontal,
           spacing: 8.0,
