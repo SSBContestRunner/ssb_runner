@@ -10,17 +10,16 @@ class TimeAndScoreArea extends StatelessWidget {
     final theme = Theme.of(context);
     return Flex(
       direction: Axis.vertical,
-      spacing: 20,
+      spacing: 15,
       children: [
         _TimeArea(),
-
-        Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Stack(
-            // TODO: 绘制表格
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: _ScoreArea(),
           ),
         ),
       ],
@@ -77,5 +76,101 @@ class _TimeArea extends StatelessWidget {
     String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60).abs());
 
     return "$negativeSign${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+}
+
+class _ScoreArea extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.shadow;
+    final titleTextStyle = theme.textTheme.titleSmall;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints.expand(),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 120, top: 3, bottom: 3),
+            child: VerticalDivider(thickness: 2, color: color),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.only(top: 25, left: 3, right: 3),
+            child: Divider(thickness: 2, color: color),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.only(left: 9, top: 38),
+            child: Flex(
+              direction: Axis.horizontal,
+              children: [
+                Expanded(
+                  child: Flex(
+                    direction: Axis.vertical,
+                    spacing: 5,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Point', style: titleTextStyle),
+                      Text('Mult', style: titleTextStyle),
+                      Text('Score', style: titleTextStyle),
+                    ],
+                  ),
+                ),
+
+                Expanded(
+                  child: Flex(
+                    direction: Axis.vertical,
+                    spacing: 5,
+                    children: [
+                      Text('1', style: titleTextStyle),
+                      Text('2', style: titleTextStyle),
+                      Text('3', style: titleTextStyle),
+                    ],
+                  ),
+                ),
+
+                Expanded(
+                  child: Flex(
+                    direction: Axis.vertical,
+                    spacing: 5,
+                    children: [
+                      Text('4', style: titleTextStyle),
+                      Text('5', style: titleTextStyle),
+                      Text('6', style: titleTextStyle),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.only(left: 120),
+            child: SizedBox(
+              height: 38,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Raw',
+                      style: titleTextStyle,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Verified',
+                      style: titleTextStyle,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
