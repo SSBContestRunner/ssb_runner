@@ -5,7 +5,7 @@ import 'package:ssb_contest_runner/settings/app_settings.dart';
 import 'package:ssb_contest_runner/ui/bottom_panel/bottom_panel.dart';
 import 'package:ssb_contest_runner/ui/main_cubit.dart';
 import 'package:ssb_contest_runner/ui/main_settings/main_settings.dart';
-import 'package:ssb_contest_runner/ui/qso_record_table.dart';
+import 'package:ssb_contest_runner/ui/qso_result_table/qso_record_table.dart';
 
 class MainPage extends StatelessWidget {
   const MainPage({super.key});

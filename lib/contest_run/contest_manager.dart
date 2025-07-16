@@ -8,10 +8,13 @@ import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_
 import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_call_run_state_machine.dart';
 import 'package:ssb_contest_runner/state_machine/state_machine.dart';
+import 'package:uuid/uuid.dart';
 
 class ContestManager {
   bool isContestRunning = false;
   Timer? _timer;
+
+  final contestRunIdStream = StreamController<String>();
 
   final _elapseTimeStreamController = StreamController<Duration>();
 
@@ -78,6 +81,9 @@ class ContestManager {
   }
 
   void startContest(Duration duration) {
+    final contestRunId = Uuid().v4();
+    contestRunIdStream.sink.add(contestRunId);
+
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       final elapseTime = Duration(seconds: timer.tick);
       _elapseTimeStreamController.sink.add(elapseTime);

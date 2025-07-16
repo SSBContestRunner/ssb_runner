@@ -318,21 +318,21 @@ class $QsoTableTable extends QsoTable
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const VerificationMeta _utcInSecondsMeta = const VerificationMeta(
+    'utcInSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> utcInSeconds = GeneratedColumn<int>(
+    'utc_in_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
   @override
   late final GeneratedColumn<String> runId = GeneratedColumn<String>(
     'run_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _callsignMeta = const VerificationMeta(
-    'callsign',
-  );
-  @override
-  late final GeneratedColumn<String> callsign = GeneratedColumn<String>(
-    'callsign',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -349,45 +349,65 @@ class $QsoTableTable extends QsoTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _exchangeRecvMeta = const VerificationMeta(
-    'exchangeRecv',
+  static const VerificationMeta _callsignMeta = const VerificationMeta(
+    'callsign',
   );
   @override
-  late final GeneratedColumn<String> exchangeRecv = GeneratedColumn<String>(
-    'exchange_recv',
+  late final GeneratedColumn<String> callsign = GeneratedColumn<String>(
+    'callsign',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _exchangeSentMeta = const VerificationMeta(
-    'exchangeSent',
+  static const VerificationMeta _callsignCorrectMeta = const VerificationMeta(
+    'callsignCorrect',
   );
   @override
-  late final GeneratedColumn<String> exchangeSent = GeneratedColumn<String>(
-    'exchange_sent',
+  late final GeneratedColumn<String> callsignCorrect = GeneratedColumn<String>(
+    'callsign_correct',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _rstSentMeta = const VerificationMeta(
-    'rstSent',
+  static const VerificationMeta _exchangeMeta = const VerificationMeta(
+    'exchange',
   );
   @override
-  late final GeneratedColumn<int> rstSent = GeneratedColumn<int>(
-    'rst_sent',
+  late final GeneratedColumn<String> exchange = GeneratedColumn<String>(
+    'exchange',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _exchangeCorrectMeta = const VerificationMeta(
+    'exchangeCorrect',
+  );
+  @override
+  late final GeneratedColumn<String> exchangeCorrect = GeneratedColumn<String>(
+    'exchange_correct',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rstMeta = const VerificationMeta('rst');
+  @override
+  late final GeneratedColumn<int> rst = GeneratedColumn<int>(
+    'rst',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _rstRecvMeta = const VerificationMeta(
-    'rstRecv',
+  static const VerificationMeta _rstCorrectMeta = const VerificationMeta(
+    'rstCorrect',
   );
   @override
-  late final GeneratedColumn<int> rstRecv = GeneratedColumn<int>(
-    'rst_recv',
+  late final GeneratedColumn<int> rstCorrect = GeneratedColumn<int>(
+    'rst_correct',
     aliasedName,
     false,
     type: DriftSqlType.int,
@@ -396,13 +416,15 @@ class $QsoTableTable extends QsoTable
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    utcInSeconds,
     runId,
-    callsign,
     stationCallsign,
-    exchangeRecv,
-    exchangeSent,
-    rstSent,
-    rstRecv,
+    callsign,
+    callsignCorrect,
+    exchange,
+    exchangeCorrect,
+    rst,
+    rstCorrect,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -419,6 +441,17 @@ class $QsoTableTable extends QsoTable
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
+    if (data.containsKey('utc_in_seconds')) {
+      context.handle(
+        _utcInSecondsMeta,
+        utcInSeconds.isAcceptableOrUnknown(
+          data['utc_in_seconds']!,
+          _utcInSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_utcInSecondsMeta);
+    }
     if (data.containsKey('run_id')) {
       context.handle(
         _runIdMeta,
@@ -426,14 +459,6 @@ class $QsoTableTable extends QsoTable
       );
     } else if (isInserting) {
       context.missing(_runIdMeta);
-    }
-    if (data.containsKey('callsign')) {
-      context.handle(
-        _callsignMeta,
-        callsign.isAcceptableOrUnknown(data['callsign']!, _callsignMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_callsignMeta);
     }
     if (data.containsKey('station_callsign')) {
       context.handle(
@@ -446,43 +471,59 @@ class $QsoTableTable extends QsoTable
     } else if (isInserting) {
       context.missing(_stationCallsignMeta);
     }
-    if (data.containsKey('exchange_recv')) {
+    if (data.containsKey('callsign')) {
       context.handle(
-        _exchangeRecvMeta,
-        exchangeRecv.isAcceptableOrUnknown(
-          data['exchange_recv']!,
-          _exchangeRecvMeta,
+        _callsignMeta,
+        callsign.isAcceptableOrUnknown(data['callsign']!, _callsignMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_callsignMeta);
+    }
+    if (data.containsKey('callsign_correct')) {
+      context.handle(
+        _callsignCorrectMeta,
+        callsignCorrect.isAcceptableOrUnknown(
+          data['callsign_correct']!,
+          _callsignCorrectMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_exchangeRecvMeta);
+      context.missing(_callsignCorrectMeta);
     }
-    if (data.containsKey('exchange_sent')) {
+    if (data.containsKey('exchange')) {
       context.handle(
-        _exchangeSentMeta,
-        exchangeSent.isAcceptableOrUnknown(
-          data['exchange_sent']!,
-          _exchangeSentMeta,
+        _exchangeMeta,
+        exchange.isAcceptableOrUnknown(data['exchange']!, _exchangeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_exchangeMeta);
+    }
+    if (data.containsKey('exchange_correct')) {
+      context.handle(
+        _exchangeCorrectMeta,
+        exchangeCorrect.isAcceptableOrUnknown(
+          data['exchange_correct']!,
+          _exchangeCorrectMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_exchangeSentMeta);
+      context.missing(_exchangeCorrectMeta);
     }
-    if (data.containsKey('rst_sent')) {
+    if (data.containsKey('rst')) {
       context.handle(
-        _rstSentMeta,
-        rstSent.isAcceptableOrUnknown(data['rst_sent']!, _rstSentMeta),
+        _rstMeta,
+        rst.isAcceptableOrUnknown(data['rst']!, _rstMeta),
       );
     } else if (isInserting) {
-      context.missing(_rstSentMeta);
+      context.missing(_rstMeta);
     }
-    if (data.containsKey('rst_recv')) {
+    if (data.containsKey('rst_correct')) {
       context.handle(
-        _rstRecvMeta,
-        rstRecv.isAcceptableOrUnknown(data['rst_recv']!, _rstRecvMeta),
+        _rstCorrectMeta,
+        rstCorrect.isAcceptableOrUnknown(data['rst_correct']!, _rstCorrectMeta),
       );
     } else if (isInserting) {
-      context.missing(_rstRecvMeta);
+      context.missing(_rstCorrectMeta);
     }
     return context;
   }
@@ -497,33 +538,41 @@ class $QsoTableTable extends QsoTable
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
+      utcInSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}utc_in_seconds'],
+      )!,
       runId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}run_id'],
-      )!,
-      callsign: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}callsign'],
       )!,
       stationCallsign: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}station_callsign'],
       )!,
-      exchangeRecv: attachedDatabase.typeMapping.read(
+      callsign: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}exchange_recv'],
+        data['${effectivePrefix}callsign'],
       )!,
-      exchangeSent: attachedDatabase.typeMapping.read(
+      callsignCorrect: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}exchange_sent'],
+        data['${effectivePrefix}callsign_correct'],
       )!,
-      rstSent: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}rst_sent'],
+      exchange: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exchange'],
       )!,
-      rstRecv: attachedDatabase.typeMapping.read(
+      exchangeCorrect: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exchange_correct'],
+      )!,
+      rst: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}rst_recv'],
+        data['${effectivePrefix}rst'],
+      )!,
+      rstCorrect: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rst_correct'],
       )!,
     );
   }
@@ -536,47 +585,55 @@ class $QsoTableTable extends QsoTable
 
 class QsoTableData extends DataClass implements Insertable<QsoTableData> {
   final int id;
+  final int utcInSeconds;
   final String runId;
-  final String callsign;
   final String stationCallsign;
-  final String exchangeRecv;
-  final String exchangeSent;
-  final int rstSent;
-  final int rstRecv;
+  final String callsign;
+  final String callsignCorrect;
+  final String exchange;
+  final String exchangeCorrect;
+  final int rst;
+  final int rstCorrect;
   const QsoTableData({
     required this.id,
+    required this.utcInSeconds,
     required this.runId,
-    required this.callsign,
     required this.stationCallsign,
-    required this.exchangeRecv,
-    required this.exchangeSent,
-    required this.rstSent,
-    required this.rstRecv,
+    required this.callsign,
+    required this.callsignCorrect,
+    required this.exchange,
+    required this.exchangeCorrect,
+    required this.rst,
+    required this.rstCorrect,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['utc_in_seconds'] = Variable<int>(utcInSeconds);
     map['run_id'] = Variable<String>(runId);
-    map['callsign'] = Variable<String>(callsign);
     map['station_callsign'] = Variable<String>(stationCallsign);
-    map['exchange_recv'] = Variable<String>(exchangeRecv);
-    map['exchange_sent'] = Variable<String>(exchangeSent);
-    map['rst_sent'] = Variable<int>(rstSent);
-    map['rst_recv'] = Variable<int>(rstRecv);
+    map['callsign'] = Variable<String>(callsign);
+    map['callsign_correct'] = Variable<String>(callsignCorrect);
+    map['exchange'] = Variable<String>(exchange);
+    map['exchange_correct'] = Variable<String>(exchangeCorrect);
+    map['rst'] = Variable<int>(rst);
+    map['rst_correct'] = Variable<int>(rstCorrect);
     return map;
   }
 
   QsoTableCompanion toCompanion(bool nullToAbsent) {
     return QsoTableCompanion(
       id: Value(id),
+      utcInSeconds: Value(utcInSeconds),
       runId: Value(runId),
-      callsign: Value(callsign),
       stationCallsign: Value(stationCallsign),
-      exchangeRecv: Value(exchangeRecv),
-      exchangeSent: Value(exchangeSent),
-      rstSent: Value(rstSent),
-      rstRecv: Value(rstRecv),
+      callsign: Value(callsign),
+      callsignCorrect: Value(callsignCorrect),
+      exchange: Value(exchange),
+      exchangeCorrect: Value(exchangeCorrect),
+      rst: Value(rst),
+      rstCorrect: Value(rstCorrect),
     );
   }
 
@@ -587,13 +644,15 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return QsoTableData(
       id: serializer.fromJson<int>(json['id']),
+      utcInSeconds: serializer.fromJson<int>(json['utcInSeconds']),
       runId: serializer.fromJson<String>(json['runId']),
-      callsign: serializer.fromJson<String>(json['callsign']),
       stationCallsign: serializer.fromJson<String>(json['stationCallsign']),
-      exchangeRecv: serializer.fromJson<String>(json['exchangeRecv']),
-      exchangeSent: serializer.fromJson<String>(json['exchangeSent']),
-      rstSent: serializer.fromJson<int>(json['rstSent']),
-      rstRecv: serializer.fromJson<int>(json['rstRecv']),
+      callsign: serializer.fromJson<String>(json['callsign']),
+      callsignCorrect: serializer.fromJson<String>(json['callsignCorrect']),
+      exchange: serializer.fromJson<String>(json['exchange']),
+      exchangeCorrect: serializer.fromJson<String>(json['exchangeCorrect']),
+      rst: serializer.fromJson<int>(json['rst']),
+      rstCorrect: serializer.fromJson<int>(json['rstCorrect']),
     );
   }
   @override
@@ -601,51 +660,63 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'utcInSeconds': serializer.toJson<int>(utcInSeconds),
       'runId': serializer.toJson<String>(runId),
-      'callsign': serializer.toJson<String>(callsign),
       'stationCallsign': serializer.toJson<String>(stationCallsign),
-      'exchangeRecv': serializer.toJson<String>(exchangeRecv),
-      'exchangeSent': serializer.toJson<String>(exchangeSent),
-      'rstSent': serializer.toJson<int>(rstSent),
-      'rstRecv': serializer.toJson<int>(rstRecv),
+      'callsign': serializer.toJson<String>(callsign),
+      'callsignCorrect': serializer.toJson<String>(callsignCorrect),
+      'exchange': serializer.toJson<String>(exchange),
+      'exchangeCorrect': serializer.toJson<String>(exchangeCorrect),
+      'rst': serializer.toJson<int>(rst),
+      'rstCorrect': serializer.toJson<int>(rstCorrect),
     };
   }
 
   QsoTableData copyWith({
     int? id,
+    int? utcInSeconds,
     String? runId,
-    String? callsign,
     String? stationCallsign,
-    String? exchangeRecv,
-    String? exchangeSent,
-    int? rstSent,
-    int? rstRecv,
+    String? callsign,
+    String? callsignCorrect,
+    String? exchange,
+    String? exchangeCorrect,
+    int? rst,
+    int? rstCorrect,
   }) => QsoTableData(
     id: id ?? this.id,
+    utcInSeconds: utcInSeconds ?? this.utcInSeconds,
     runId: runId ?? this.runId,
-    callsign: callsign ?? this.callsign,
     stationCallsign: stationCallsign ?? this.stationCallsign,
-    exchangeRecv: exchangeRecv ?? this.exchangeRecv,
-    exchangeSent: exchangeSent ?? this.exchangeSent,
-    rstSent: rstSent ?? this.rstSent,
-    rstRecv: rstRecv ?? this.rstRecv,
+    callsign: callsign ?? this.callsign,
+    callsignCorrect: callsignCorrect ?? this.callsignCorrect,
+    exchange: exchange ?? this.exchange,
+    exchangeCorrect: exchangeCorrect ?? this.exchangeCorrect,
+    rst: rst ?? this.rst,
+    rstCorrect: rstCorrect ?? this.rstCorrect,
   );
   QsoTableData copyWithCompanion(QsoTableCompanion data) {
     return QsoTableData(
       id: data.id.present ? data.id.value : this.id,
+      utcInSeconds: data.utcInSeconds.present
+          ? data.utcInSeconds.value
+          : this.utcInSeconds,
       runId: data.runId.present ? data.runId.value : this.runId,
-      callsign: data.callsign.present ? data.callsign.value : this.callsign,
       stationCallsign: data.stationCallsign.present
           ? data.stationCallsign.value
           : this.stationCallsign,
-      exchangeRecv: data.exchangeRecv.present
-          ? data.exchangeRecv.value
-          : this.exchangeRecv,
-      exchangeSent: data.exchangeSent.present
-          ? data.exchangeSent.value
-          : this.exchangeSent,
-      rstSent: data.rstSent.present ? data.rstSent.value : this.rstSent,
-      rstRecv: data.rstRecv.present ? data.rstRecv.value : this.rstRecv,
+      callsign: data.callsign.present ? data.callsign.value : this.callsign,
+      callsignCorrect: data.callsignCorrect.present
+          ? data.callsignCorrect.value
+          : this.callsignCorrect,
+      exchange: data.exchange.present ? data.exchange.value : this.exchange,
+      exchangeCorrect: data.exchangeCorrect.present
+          ? data.exchangeCorrect.value
+          : this.exchangeCorrect,
+      rst: data.rst.present ? data.rst.value : this.rst,
+      rstCorrect: data.rstCorrect.present
+          ? data.rstCorrect.value
+          : this.rstCorrect,
     );
   }
 
@@ -653,13 +724,15 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
   String toString() {
     return (StringBuffer('QsoTableData(')
           ..write('id: $id, ')
+          ..write('utcInSeconds: $utcInSeconds, ')
           ..write('runId: $runId, ')
-          ..write('callsign: $callsign, ')
           ..write('stationCallsign: $stationCallsign, ')
-          ..write('exchangeRecv: $exchangeRecv, ')
-          ..write('exchangeSent: $exchangeSent, ')
-          ..write('rstSent: $rstSent, ')
-          ..write('rstRecv: $rstRecv')
+          ..write('callsign: $callsign, ')
+          ..write('callsignCorrect: $callsignCorrect, ')
+          ..write('exchange: $exchange, ')
+          ..write('exchangeCorrect: $exchangeCorrect, ')
+          ..write('rst: $rst, ')
+          ..write('rstCorrect: $rstCorrect')
           ..write(')'))
         .toString();
   }
@@ -667,104 +740,124 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
   @override
   int get hashCode => Object.hash(
     id,
+    utcInSeconds,
     runId,
-    callsign,
     stationCallsign,
-    exchangeRecv,
-    exchangeSent,
-    rstSent,
-    rstRecv,
+    callsign,
+    callsignCorrect,
+    exchange,
+    exchangeCorrect,
+    rst,
+    rstCorrect,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is QsoTableData &&
           other.id == this.id &&
+          other.utcInSeconds == this.utcInSeconds &&
           other.runId == this.runId &&
-          other.callsign == this.callsign &&
           other.stationCallsign == this.stationCallsign &&
-          other.exchangeRecv == this.exchangeRecv &&
-          other.exchangeSent == this.exchangeSent &&
-          other.rstSent == this.rstSent &&
-          other.rstRecv == this.rstRecv);
+          other.callsign == this.callsign &&
+          other.callsignCorrect == this.callsignCorrect &&
+          other.exchange == this.exchange &&
+          other.exchangeCorrect == this.exchangeCorrect &&
+          other.rst == this.rst &&
+          other.rstCorrect == this.rstCorrect);
 }
 
 class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
   final Value<int> id;
+  final Value<int> utcInSeconds;
   final Value<String> runId;
-  final Value<String> callsign;
   final Value<String> stationCallsign;
-  final Value<String> exchangeRecv;
-  final Value<String> exchangeSent;
-  final Value<int> rstSent;
-  final Value<int> rstRecv;
+  final Value<String> callsign;
+  final Value<String> callsignCorrect;
+  final Value<String> exchange;
+  final Value<String> exchangeCorrect;
+  final Value<int> rst;
+  final Value<int> rstCorrect;
   const QsoTableCompanion({
     this.id = const Value.absent(),
+    this.utcInSeconds = const Value.absent(),
     this.runId = const Value.absent(),
-    this.callsign = const Value.absent(),
     this.stationCallsign = const Value.absent(),
-    this.exchangeRecv = const Value.absent(),
-    this.exchangeSent = const Value.absent(),
-    this.rstSent = const Value.absent(),
-    this.rstRecv = const Value.absent(),
+    this.callsign = const Value.absent(),
+    this.callsignCorrect = const Value.absent(),
+    this.exchange = const Value.absent(),
+    this.exchangeCorrect = const Value.absent(),
+    this.rst = const Value.absent(),
+    this.rstCorrect = const Value.absent(),
   });
   QsoTableCompanion.insert({
     this.id = const Value.absent(),
+    required int utcInSeconds,
     required String runId,
-    required String callsign,
     required String stationCallsign,
-    required String exchangeRecv,
-    required String exchangeSent,
-    required int rstSent,
-    required int rstRecv,
-  }) : runId = Value(runId),
-       callsign = Value(callsign),
+    required String callsign,
+    required String callsignCorrect,
+    required String exchange,
+    required String exchangeCorrect,
+    required int rst,
+    required int rstCorrect,
+  }) : utcInSeconds = Value(utcInSeconds),
+       runId = Value(runId),
        stationCallsign = Value(stationCallsign),
-       exchangeRecv = Value(exchangeRecv),
-       exchangeSent = Value(exchangeSent),
-       rstSent = Value(rstSent),
-       rstRecv = Value(rstRecv);
+       callsign = Value(callsign),
+       callsignCorrect = Value(callsignCorrect),
+       exchange = Value(exchange),
+       exchangeCorrect = Value(exchangeCorrect),
+       rst = Value(rst),
+       rstCorrect = Value(rstCorrect);
   static Insertable<QsoTableData> custom({
     Expression<int>? id,
+    Expression<int>? utcInSeconds,
     Expression<String>? runId,
-    Expression<String>? callsign,
     Expression<String>? stationCallsign,
-    Expression<String>? exchangeRecv,
-    Expression<String>? exchangeSent,
-    Expression<int>? rstSent,
-    Expression<int>? rstRecv,
+    Expression<String>? callsign,
+    Expression<String>? callsignCorrect,
+    Expression<String>? exchange,
+    Expression<String>? exchangeCorrect,
+    Expression<int>? rst,
+    Expression<int>? rstCorrect,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (utcInSeconds != null) 'utc_in_seconds': utcInSeconds,
       if (runId != null) 'run_id': runId,
-      if (callsign != null) 'callsign': callsign,
       if (stationCallsign != null) 'station_callsign': stationCallsign,
-      if (exchangeRecv != null) 'exchange_recv': exchangeRecv,
-      if (exchangeSent != null) 'exchange_sent': exchangeSent,
-      if (rstSent != null) 'rst_sent': rstSent,
-      if (rstRecv != null) 'rst_recv': rstRecv,
+      if (callsign != null) 'callsign': callsign,
+      if (callsignCorrect != null) 'callsign_correct': callsignCorrect,
+      if (exchange != null) 'exchange': exchange,
+      if (exchangeCorrect != null) 'exchange_correct': exchangeCorrect,
+      if (rst != null) 'rst': rst,
+      if (rstCorrect != null) 'rst_correct': rstCorrect,
     });
   }
 
   QsoTableCompanion copyWith({
     Value<int>? id,
+    Value<int>? utcInSeconds,
     Value<String>? runId,
-    Value<String>? callsign,
     Value<String>? stationCallsign,
-    Value<String>? exchangeRecv,
-    Value<String>? exchangeSent,
-    Value<int>? rstSent,
-    Value<int>? rstRecv,
+    Value<String>? callsign,
+    Value<String>? callsignCorrect,
+    Value<String>? exchange,
+    Value<String>? exchangeCorrect,
+    Value<int>? rst,
+    Value<int>? rstCorrect,
   }) {
     return QsoTableCompanion(
       id: id ?? this.id,
+      utcInSeconds: utcInSeconds ?? this.utcInSeconds,
       runId: runId ?? this.runId,
-      callsign: callsign ?? this.callsign,
       stationCallsign: stationCallsign ?? this.stationCallsign,
-      exchangeRecv: exchangeRecv ?? this.exchangeRecv,
-      exchangeSent: exchangeSent ?? this.exchangeSent,
-      rstSent: rstSent ?? this.rstSent,
-      rstRecv: rstRecv ?? this.rstRecv,
+      callsign: callsign ?? this.callsign,
+      callsignCorrect: callsignCorrect ?? this.callsignCorrect,
+      exchange: exchange ?? this.exchange,
+      exchangeCorrect: exchangeCorrect ?? this.exchangeCorrect,
+      rst: rst ?? this.rst,
+      rstCorrect: rstCorrect ?? this.rstCorrect,
     );
   }
 
@@ -774,26 +867,32 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
+    if (utcInSeconds.present) {
+      map['utc_in_seconds'] = Variable<int>(utcInSeconds.value);
+    }
     if (runId.present) {
       map['run_id'] = Variable<String>(runId.value);
-    }
-    if (callsign.present) {
-      map['callsign'] = Variable<String>(callsign.value);
     }
     if (stationCallsign.present) {
       map['station_callsign'] = Variable<String>(stationCallsign.value);
     }
-    if (exchangeRecv.present) {
-      map['exchange_recv'] = Variable<String>(exchangeRecv.value);
+    if (callsign.present) {
+      map['callsign'] = Variable<String>(callsign.value);
     }
-    if (exchangeSent.present) {
-      map['exchange_sent'] = Variable<String>(exchangeSent.value);
+    if (callsignCorrect.present) {
+      map['callsign_correct'] = Variable<String>(callsignCorrect.value);
     }
-    if (rstSent.present) {
-      map['rst_sent'] = Variable<int>(rstSent.value);
+    if (exchange.present) {
+      map['exchange'] = Variable<String>(exchange.value);
     }
-    if (rstRecv.present) {
-      map['rst_recv'] = Variable<int>(rstRecv.value);
+    if (exchangeCorrect.present) {
+      map['exchange_correct'] = Variable<String>(exchangeCorrect.value);
+    }
+    if (rst.present) {
+      map['rst'] = Variable<int>(rst.value);
+    }
+    if (rstCorrect.present) {
+      map['rst_correct'] = Variable<int>(rstCorrect.value);
     }
     return map;
   }
@@ -802,13 +901,15 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
   String toString() {
     return (StringBuffer('QsoTableCompanion(')
           ..write('id: $id, ')
+          ..write('utcInSeconds: $utcInSeconds, ')
           ..write('runId: $runId, ')
-          ..write('callsign: $callsign, ')
           ..write('stationCallsign: $stationCallsign, ')
-          ..write('exchangeRecv: $exchangeRecv, ')
-          ..write('exchangeSent: $exchangeSent, ')
-          ..write('rstSent: $rstSent, ')
-          ..write('rstRecv: $rstRecv')
+          ..write('callsign: $callsign, ')
+          ..write('callsignCorrect: $callsignCorrect, ')
+          ..write('exchange: $exchange, ')
+          ..write('exchangeCorrect: $exchangeCorrect, ')
+          ..write('rst: $rst, ')
+          ..write('rstCorrect: $rstCorrect')
           ..write(')'))
         .toString();
   }
@@ -1004,24 +1105,28 @@ typedef $$PrefixTableTableProcessedTableManager =
 typedef $$QsoTableTableCreateCompanionBuilder =
     QsoTableCompanion Function({
       Value<int> id,
+      required int utcInSeconds,
       required String runId,
-      required String callsign,
       required String stationCallsign,
-      required String exchangeRecv,
-      required String exchangeSent,
-      required int rstSent,
-      required int rstRecv,
+      required String callsign,
+      required String callsignCorrect,
+      required String exchange,
+      required String exchangeCorrect,
+      required int rst,
+      required int rstCorrect,
     });
 typedef $$QsoTableTableUpdateCompanionBuilder =
     QsoTableCompanion Function({
       Value<int> id,
+      Value<int> utcInSeconds,
       Value<String> runId,
-      Value<String> callsign,
       Value<String> stationCallsign,
-      Value<String> exchangeRecv,
-      Value<String> exchangeSent,
-      Value<int> rstSent,
-      Value<int> rstRecv,
+      Value<String> callsign,
+      Value<String> callsignCorrect,
+      Value<String> exchange,
+      Value<String> exchangeCorrect,
+      Value<int> rst,
+      Value<int> rstCorrect,
     });
 
 class $$QsoTableTableFilterComposer
@@ -1038,13 +1143,13 @@ class $$QsoTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get runId => $composableBuilder(
-    column: $table.runId,
+  ColumnFilters<int> get utcInSeconds => $composableBuilder(
+    column: $table.utcInSeconds,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get callsign => $composableBuilder(
-    column: $table.callsign,
+  ColumnFilters<String> get runId => $composableBuilder(
+    column: $table.runId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1053,23 +1158,33 @@ class $$QsoTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get exchangeRecv => $composableBuilder(
-    column: $table.exchangeRecv,
+  ColumnFilters<String> get callsign => $composableBuilder(
+    column: $table.callsign,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get exchangeSent => $composableBuilder(
-    column: $table.exchangeSent,
+  ColumnFilters<String> get callsignCorrect => $composableBuilder(
+    column: $table.callsignCorrect,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get rstSent => $composableBuilder(
-    column: $table.rstSent,
+  ColumnFilters<String> get exchange => $composableBuilder(
+    column: $table.exchange,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get rstRecv => $composableBuilder(
-    column: $table.rstRecv,
+  ColumnFilters<String> get exchangeCorrect => $composableBuilder(
+    column: $table.exchangeCorrect,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rst => $composableBuilder(
+    column: $table.rst,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rstCorrect => $composableBuilder(
+    column: $table.rstCorrect,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1088,13 +1203,13 @@ class $$QsoTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get runId => $composableBuilder(
-    column: $table.runId,
+  ColumnOrderings<int> get utcInSeconds => $composableBuilder(
+    column: $table.utcInSeconds,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get callsign => $composableBuilder(
-    column: $table.callsign,
+  ColumnOrderings<String> get runId => $composableBuilder(
+    column: $table.runId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -1103,23 +1218,33 @@ class $$QsoTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get exchangeRecv => $composableBuilder(
-    column: $table.exchangeRecv,
+  ColumnOrderings<String> get callsign => $composableBuilder(
+    column: $table.callsign,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get exchangeSent => $composableBuilder(
-    column: $table.exchangeSent,
+  ColumnOrderings<String> get callsignCorrect => $composableBuilder(
+    column: $table.callsignCorrect,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get rstSent => $composableBuilder(
-    column: $table.rstSent,
+  ColumnOrderings<String> get exchange => $composableBuilder(
+    column: $table.exchange,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get rstRecv => $composableBuilder(
-    column: $table.rstRecv,
+  ColumnOrderings<String> get exchangeCorrect => $composableBuilder(
+    column: $table.exchangeCorrect,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rst => $composableBuilder(
+    column: $table.rst,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rstCorrect => $composableBuilder(
+    column: $table.rstCorrect,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -1136,32 +1261,42 @@ class $$QsoTableTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<int> get utcInSeconds => $composableBuilder(
+    column: $table.utcInSeconds,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get runId =>
       $composableBuilder(column: $table.runId, builder: (column) => column);
-
-  GeneratedColumn<String> get callsign =>
-      $composableBuilder(column: $table.callsign, builder: (column) => column);
 
   GeneratedColumn<String> get stationCallsign => $composableBuilder(
     column: $table.stationCallsign,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get exchangeRecv => $composableBuilder(
-    column: $table.exchangeRecv,
+  GeneratedColumn<String> get callsign =>
+      $composableBuilder(column: $table.callsign, builder: (column) => column);
+
+  GeneratedColumn<String> get callsignCorrect => $composableBuilder(
+    column: $table.callsignCorrect,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get exchangeSent => $composableBuilder(
-    column: $table.exchangeSent,
+  GeneratedColumn<String> get exchange =>
+      $composableBuilder(column: $table.exchange, builder: (column) => column);
+
+  GeneratedColumn<String> get exchangeCorrect => $composableBuilder(
+    column: $table.exchangeCorrect,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get rstSent =>
-      $composableBuilder(column: $table.rstSent, builder: (column) => column);
+  GeneratedColumn<int> get rst =>
+      $composableBuilder(column: $table.rst, builder: (column) => column);
 
-  GeneratedColumn<int> get rstRecv =>
-      $composableBuilder(column: $table.rstRecv, builder: (column) => column);
+  GeneratedColumn<int> get rstCorrect => $composableBuilder(
+    column: $table.rstCorrect,
+    builder: (column) => column,
+  );
 }
 
 class $$QsoTableTableTableManager
@@ -1196,42 +1331,50 @@ class $$QsoTableTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int> utcInSeconds = const Value.absent(),
                 Value<String> runId = const Value.absent(),
-                Value<String> callsign = const Value.absent(),
                 Value<String> stationCallsign = const Value.absent(),
-                Value<String> exchangeRecv = const Value.absent(),
-                Value<String> exchangeSent = const Value.absent(),
-                Value<int> rstSent = const Value.absent(),
-                Value<int> rstRecv = const Value.absent(),
+                Value<String> callsign = const Value.absent(),
+                Value<String> callsignCorrect = const Value.absent(),
+                Value<String> exchange = const Value.absent(),
+                Value<String> exchangeCorrect = const Value.absent(),
+                Value<int> rst = const Value.absent(),
+                Value<int> rstCorrect = const Value.absent(),
               }) => QsoTableCompanion(
                 id: id,
+                utcInSeconds: utcInSeconds,
                 runId: runId,
-                callsign: callsign,
                 stationCallsign: stationCallsign,
-                exchangeRecv: exchangeRecv,
-                exchangeSent: exchangeSent,
-                rstSent: rstSent,
-                rstRecv: rstRecv,
+                callsign: callsign,
+                callsignCorrect: callsignCorrect,
+                exchange: exchange,
+                exchangeCorrect: exchangeCorrect,
+                rst: rst,
+                rstCorrect: rstCorrect,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                required int utcInSeconds,
                 required String runId,
-                required String callsign,
                 required String stationCallsign,
-                required String exchangeRecv,
-                required String exchangeSent,
-                required int rstSent,
-                required int rstRecv,
+                required String callsign,
+                required String callsignCorrect,
+                required String exchange,
+                required String exchangeCorrect,
+                required int rst,
+                required int rstCorrect,
               }) => QsoTableCompanion.insert(
                 id: id,
+                utcInSeconds: utcInSeconds,
                 runId: runId,
-                callsign: callsign,
                 stationCallsign: stationCallsign,
-                exchangeRecv: exchangeRecv,
-                exchangeSent: exchangeSent,
-                rstSent: rstSent,
-                rstRecv: rstRecv,
+                callsign: callsign,
+                callsignCorrect: callsignCorrect,
+                exchange: exchange,
+                exchangeCorrect: exchangeCorrect,
+                rst: rst,
+                rstCorrect: rstCorrect,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_contest_runner/common/time_format.dart';
 import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
 
 class TimeAndScoreArea extends StatelessWidget {
@@ -54,7 +55,7 @@ class _TimeArea extends StatelessWidget {
               child: BlocBuilder<_TimeAreaCubit, Duration>(
                 builder: (context, duration) {
                   return Text(
-                    _formatDuration(duration),
+                    formatDuration(duration),
                     style: theme.textTheme.titleLarge?.copyWith(
                       color: theme.colorScheme.onInverseSurface,
                     ),
@@ -66,16 +67,6 @@ class _TimeArea extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDuration(Duration duration) {
-    final negativeSign = duration.isNegative ? '-' : '';
-
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60).abs());
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60).abs());
-
-    return "$negativeSign${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
   }
 }
 
