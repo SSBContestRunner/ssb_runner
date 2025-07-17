@@ -1,6 +1,6 @@
 {
-    "name": "ssb_contest_runner",
-    "short_name": "ssb_contest_runner",
+    "name": "SSB Runner",
+    "short_name": "ssb_runner",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

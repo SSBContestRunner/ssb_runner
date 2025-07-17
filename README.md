@@ -1,4 +1,4 @@
-# ssb_contest_runner
+# ssb_runner
 
 A new Flutter project.
 
