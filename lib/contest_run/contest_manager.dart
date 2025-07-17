@@ -10,9 +10,12 @@ import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_
 import 'package:ssb_contest_runner/state_machine/state_machine.dart';
 import 'package:uuid/uuid.dart';
 
+const _timeoutDuration = Duration(seconds: 10);
+
 class ContestManager {
   bool _isContestRunning = false;
-  Timer? _timer;
+  Timer? _contestTimer;
+  Timer? _retryTimer;
 
   final _contestRunIdStreamController = StreamController<String>();
   Stream<String> get contestRunIdStream => _contestRunIdStreamController.stream;
@@ -21,7 +24,8 @@ class ContestManager {
   Stream<Duration> get elapseTimeStream => _elapseTimeStreamController.stream;
 
   final _isContestRunningStreamController = StreamController<bool>();
-  Stream<bool> get isContestRunningStream => _isContestRunningStreamController.stream;
+  Stream<bool> get isContestRunningStream =>
+      _isContestRunningStreamController.stream;
 
   final _audioPlayer = AudioPlayer();
 
@@ -42,6 +46,7 @@ class ContestManager {
 
         final toState = transition.to;
         _playAudio(toState);
+        _setupRetryTimer(toState);
       },
     );
   }
@@ -83,11 +88,26 @@ class ContestManager {
     _audioPlayer.addPcmData(pcmData);
   }
 
+  void _setupRetryTimer(SingleCallRunState toState) {
+    _retryTimer?.cancel();
+
+    switch (toState) {
+      case WaitingSubmitCall():
+      case WaitingSubmitExchange():
+        _retryTimer = Timer(_timeoutDuration, () {
+          _stateMachine.transition(Retry());
+        });
+        break;
+      case QsoEnd():
+        break;
+    }
+  }
+
   void startContest(Duration duration) {
     final contestRunId = Uuid().v4();
     _contestRunIdStreamController.sink.add(contestRunId);
 
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _contestTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       final elapseTime = Duration(seconds: timer.tick);
       _elapseTimeStreamController.sink.add(elapseTime);
 
@@ -107,7 +127,7 @@ class ContestManager {
   }
 
   void stopContest() {
-    _timer?.cancel();
+    _contestTimer?.cancel();
     _isContestRunning = false;
     _isContestRunningStreamController.sink.add(false);
   }
