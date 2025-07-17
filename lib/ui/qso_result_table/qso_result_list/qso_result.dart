@@ -1,13 +1,13 @@
 class QsoResult {
   final QsoResultField call;
-  final QsoResultField rst;
   final QsoResultField exchange;
   final String utc;
   final String corrections;
 
+  final String rst = '59';
+
   QsoResult({
     required this.call,
-    required this.rst,
     required this.exchange,
     required this.utc,
     required this.corrections,

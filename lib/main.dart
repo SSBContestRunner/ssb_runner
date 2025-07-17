@@ -54,11 +54,16 @@ class MyApp extends StatelessWidget {
       home: MultiRepositoryProvider(
         providers: [
           RepositoryProvider(create: (context) => AppDatabase()),
-          RepositoryProvider(create: (context) => ContestManager()),
           RepositoryProvider(create: (context) => AudioPlayer()),
           RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
         ],
-        child: Scaffold(body: MainPage()),
+        child: RepositoryProvider(
+          create: (context) => ContestManager(
+            appSettings: context.read(),
+            appDatabase: context.read(),
+          ),
+          child: Scaffold(body: MainPage()),
+        ),
       ),
     );
   }

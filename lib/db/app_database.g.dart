@@ -393,26 +393,6 @@ class $QsoTableTable extends QsoTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _rstMeta = const VerificationMeta('rst');
-  @override
-  late final GeneratedColumn<int> rst = GeneratedColumn<int>(
-    'rst',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _rstCorrectMeta = const VerificationMeta(
-    'rstCorrect',
-  );
-  @override
-  late final GeneratedColumn<int> rstCorrect = GeneratedColumn<int>(
-    'rst_correct',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -423,8 +403,6 @@ class $QsoTableTable extends QsoTable
     callsignCorrect,
     exchange,
     exchangeCorrect,
-    rst,
-    rstCorrect,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -509,22 +487,6 @@ class $QsoTableTable extends QsoTable
     } else if (isInserting) {
       context.missing(_exchangeCorrectMeta);
     }
-    if (data.containsKey('rst')) {
-      context.handle(
-        _rstMeta,
-        rst.isAcceptableOrUnknown(data['rst']!, _rstMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_rstMeta);
-    }
-    if (data.containsKey('rst_correct')) {
-      context.handle(
-        _rstCorrectMeta,
-        rstCorrect.isAcceptableOrUnknown(data['rst_correct']!, _rstCorrectMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_rstCorrectMeta);
-    }
     return context;
   }
 
@@ -566,14 +528,6 @@ class $QsoTableTable extends QsoTable
         DriftSqlType.string,
         data['${effectivePrefix}exchange_correct'],
       )!,
-      rst: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}rst'],
-      )!,
-      rstCorrect: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}rst_correct'],
-      )!,
     );
   }
 
@@ -592,8 +546,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
   final String callsignCorrect;
   final String exchange;
   final String exchangeCorrect;
-  final int rst;
-  final int rstCorrect;
   const QsoTableData({
     required this.id,
     required this.utcInSeconds,
@@ -603,8 +555,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     required this.callsignCorrect,
     required this.exchange,
     required this.exchangeCorrect,
-    required this.rst,
-    required this.rstCorrect,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -617,8 +567,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     map['callsign_correct'] = Variable<String>(callsignCorrect);
     map['exchange'] = Variable<String>(exchange);
     map['exchange_correct'] = Variable<String>(exchangeCorrect);
-    map['rst'] = Variable<int>(rst);
-    map['rst_correct'] = Variable<int>(rstCorrect);
     return map;
   }
 
@@ -632,8 +580,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       callsignCorrect: Value(callsignCorrect),
       exchange: Value(exchange),
       exchangeCorrect: Value(exchangeCorrect),
-      rst: Value(rst),
-      rstCorrect: Value(rstCorrect),
     );
   }
 
@@ -651,8 +597,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       callsignCorrect: serializer.fromJson<String>(json['callsignCorrect']),
       exchange: serializer.fromJson<String>(json['exchange']),
       exchangeCorrect: serializer.fromJson<String>(json['exchangeCorrect']),
-      rst: serializer.fromJson<int>(json['rst']),
-      rstCorrect: serializer.fromJson<int>(json['rstCorrect']),
     );
   }
   @override
@@ -667,8 +611,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       'callsignCorrect': serializer.toJson<String>(callsignCorrect),
       'exchange': serializer.toJson<String>(exchange),
       'exchangeCorrect': serializer.toJson<String>(exchangeCorrect),
-      'rst': serializer.toJson<int>(rst),
-      'rstCorrect': serializer.toJson<int>(rstCorrect),
     };
   }
 
@@ -681,8 +623,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     String? callsignCorrect,
     String? exchange,
     String? exchangeCorrect,
-    int? rst,
-    int? rstCorrect,
   }) => QsoTableData(
     id: id ?? this.id,
     utcInSeconds: utcInSeconds ?? this.utcInSeconds,
@@ -692,8 +632,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     callsignCorrect: callsignCorrect ?? this.callsignCorrect,
     exchange: exchange ?? this.exchange,
     exchangeCorrect: exchangeCorrect ?? this.exchangeCorrect,
-    rst: rst ?? this.rst,
-    rstCorrect: rstCorrect ?? this.rstCorrect,
   );
   QsoTableData copyWithCompanion(QsoTableCompanion data) {
     return QsoTableData(
@@ -713,10 +651,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       exchangeCorrect: data.exchangeCorrect.present
           ? data.exchangeCorrect.value
           : this.exchangeCorrect,
-      rst: data.rst.present ? data.rst.value : this.rst,
-      rstCorrect: data.rstCorrect.present
-          ? data.rstCorrect.value
-          : this.rstCorrect,
     );
   }
 
@@ -730,9 +664,7 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
           ..write('callsign: $callsign, ')
           ..write('callsignCorrect: $callsignCorrect, ')
           ..write('exchange: $exchange, ')
-          ..write('exchangeCorrect: $exchangeCorrect, ')
-          ..write('rst: $rst, ')
-          ..write('rstCorrect: $rstCorrect')
+          ..write('exchangeCorrect: $exchangeCorrect')
           ..write(')'))
         .toString();
   }
@@ -747,8 +679,6 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     callsignCorrect,
     exchange,
     exchangeCorrect,
-    rst,
-    rstCorrect,
   );
   @override
   bool operator ==(Object other) =>
@@ -761,9 +691,7 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
           other.callsign == this.callsign &&
           other.callsignCorrect == this.callsignCorrect &&
           other.exchange == this.exchange &&
-          other.exchangeCorrect == this.exchangeCorrect &&
-          other.rst == this.rst &&
-          other.rstCorrect == this.rstCorrect);
+          other.exchangeCorrect == this.exchangeCorrect);
 }
 
 class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
@@ -775,8 +703,6 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
   final Value<String> callsignCorrect;
   final Value<String> exchange;
   final Value<String> exchangeCorrect;
-  final Value<int> rst;
-  final Value<int> rstCorrect;
   const QsoTableCompanion({
     this.id = const Value.absent(),
     this.utcInSeconds = const Value.absent(),
@@ -786,8 +712,6 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     this.callsignCorrect = const Value.absent(),
     this.exchange = const Value.absent(),
     this.exchangeCorrect = const Value.absent(),
-    this.rst = const Value.absent(),
-    this.rstCorrect = const Value.absent(),
   });
   QsoTableCompanion.insert({
     this.id = const Value.absent(),
@@ -798,17 +722,13 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     required String callsignCorrect,
     required String exchange,
     required String exchangeCorrect,
-    required int rst,
-    required int rstCorrect,
   }) : utcInSeconds = Value(utcInSeconds),
        runId = Value(runId),
        stationCallsign = Value(stationCallsign),
        callsign = Value(callsign),
        callsignCorrect = Value(callsignCorrect),
        exchange = Value(exchange),
-       exchangeCorrect = Value(exchangeCorrect),
-       rst = Value(rst),
-       rstCorrect = Value(rstCorrect);
+       exchangeCorrect = Value(exchangeCorrect);
   static Insertable<QsoTableData> custom({
     Expression<int>? id,
     Expression<int>? utcInSeconds,
@@ -818,8 +738,6 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     Expression<String>? callsignCorrect,
     Expression<String>? exchange,
     Expression<String>? exchangeCorrect,
-    Expression<int>? rst,
-    Expression<int>? rstCorrect,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -830,8 +748,6 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
       if (callsignCorrect != null) 'callsign_correct': callsignCorrect,
       if (exchange != null) 'exchange': exchange,
       if (exchangeCorrect != null) 'exchange_correct': exchangeCorrect,
-      if (rst != null) 'rst': rst,
-      if (rstCorrect != null) 'rst_correct': rstCorrect,
     });
   }
 
@@ -844,8 +760,6 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     Value<String>? callsignCorrect,
     Value<String>? exchange,
     Value<String>? exchangeCorrect,
-    Value<int>? rst,
-    Value<int>? rstCorrect,
   }) {
     return QsoTableCompanion(
       id: id ?? this.id,
@@ -856,8 +770,6 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
       callsignCorrect: callsignCorrect ?? this.callsignCorrect,
       exchange: exchange ?? this.exchange,
       exchangeCorrect: exchangeCorrect ?? this.exchangeCorrect,
-      rst: rst ?? this.rst,
-      rstCorrect: rstCorrect ?? this.rstCorrect,
     );
   }
 
@@ -888,12 +800,6 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     if (exchangeCorrect.present) {
       map['exchange_correct'] = Variable<String>(exchangeCorrect.value);
     }
-    if (rst.present) {
-      map['rst'] = Variable<int>(rst.value);
-    }
-    if (rstCorrect.present) {
-      map['rst_correct'] = Variable<int>(rstCorrect.value);
-    }
     return map;
   }
 
@@ -907,9 +813,7 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
           ..write('callsign: $callsign, ')
           ..write('callsignCorrect: $callsignCorrect, ')
           ..write('exchange: $exchange, ')
-          ..write('exchangeCorrect: $exchangeCorrect, ')
-          ..write('rst: $rst, ')
-          ..write('rstCorrect: $rstCorrect')
+          ..write('exchangeCorrect: $exchangeCorrect')
           ..write(')'))
         .toString();
   }
@@ -1112,8 +1016,6 @@ typedef $$QsoTableTableCreateCompanionBuilder =
       required String callsignCorrect,
       required String exchange,
       required String exchangeCorrect,
-      required int rst,
-      required int rstCorrect,
     });
 typedef $$QsoTableTableUpdateCompanionBuilder =
     QsoTableCompanion Function({
@@ -1125,8 +1027,6 @@ typedef $$QsoTableTableUpdateCompanionBuilder =
       Value<String> callsignCorrect,
       Value<String> exchange,
       Value<String> exchangeCorrect,
-      Value<int> rst,
-      Value<int> rstCorrect,
     });
 
 class $$QsoTableTableFilterComposer
@@ -1175,16 +1075,6 @@ class $$QsoTableTableFilterComposer
 
   ColumnFilters<String> get exchangeCorrect => $composableBuilder(
     column: $table.exchangeCorrect,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get rst => $composableBuilder(
-    column: $table.rst,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get rstCorrect => $composableBuilder(
-    column: $table.rstCorrect,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1237,16 +1127,6 @@ class $$QsoTableTableOrderingComposer
     column: $table.exchangeCorrect,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<int> get rst => $composableBuilder(
-    column: $table.rst,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get rstCorrect => $composableBuilder(
-    column: $table.rstCorrect,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$QsoTableTableAnnotationComposer
@@ -1287,14 +1167,6 @@ class $$QsoTableTableAnnotationComposer
 
   GeneratedColumn<String> get exchangeCorrect => $composableBuilder(
     column: $table.exchangeCorrect,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get rst =>
-      $composableBuilder(column: $table.rst, builder: (column) => column);
-
-  GeneratedColumn<int> get rstCorrect => $composableBuilder(
-    column: $table.rstCorrect,
     builder: (column) => column,
   );
 }
@@ -1338,8 +1210,6 @@ class $$QsoTableTableTableManager
                 Value<String> callsignCorrect = const Value.absent(),
                 Value<String> exchange = const Value.absent(),
                 Value<String> exchangeCorrect = const Value.absent(),
-                Value<int> rst = const Value.absent(),
-                Value<int> rstCorrect = const Value.absent(),
               }) => QsoTableCompanion(
                 id: id,
                 utcInSeconds: utcInSeconds,
@@ -1349,8 +1219,6 @@ class $$QsoTableTableTableManager
                 callsignCorrect: callsignCorrect,
                 exchange: exchange,
                 exchangeCorrect: exchangeCorrect,
-                rst: rst,
-                rstCorrect: rstCorrect,
               ),
           createCompanionCallback:
               ({
@@ -1362,8 +1230,6 @@ class $$QsoTableTableTableManager
                 required String callsignCorrect,
                 required String exchange,
                 required String exchangeCorrect,
-                required int rst,
-                required int rstCorrect,
               }) => QsoTableCompanion.insert(
                 id: id,
                 utcInSeconds: utcInSeconds,
@@ -1373,8 +1239,6 @@ class $$QsoTableTableTableManager
                 callsignCorrect: callsignCorrect,
                 exchange: exchange,
                 exchangeCorrect: exchangeCorrect,
-                rst: rst,
-                rstCorrect: rstCorrect,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -20,9 +20,7 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   }
 
   void _listenQsoUpdate() {
-    final streams = _contestManager.contestRunIdStream.map((
-      id,
-    ) {
+    final streams = _contestManager.contestRunIdStream.map((id) {
       if (id.isEmpty) {
         return Stream<List<QsoTableData>>.empty();
       }
@@ -42,10 +40,6 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
             data: qso.callsign,
             isCorrect: qso.callsignCorrect == qso.callsign,
           ),
-          rst: QsoResultField(
-            data: qso.rst.toString(),
-            isCorrect: qso.rst == qso.rstCorrect,
-          ),
           exchange: QsoResultField(
             data: qso.exchange,
             isCorrect: qso.exchange == qso.exchangeCorrect,
@@ -62,10 +56,6 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
 
     if (qso.callsign != qso.callsignCorrect) {
       stringBuffer.write(qso.callsignCorrect);
-    }
-
-    if (qso.rst != qso.rstCorrect) {
-      stringBuffer.write(qso.rstCorrect);
     }
 
     if (qso.exchange != qso.exchangeCorrect) {

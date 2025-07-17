@@ -10,6 +10,4 @@ class QsoTable extends Table {
   TextColumn get callsignCorrect => text()();
   TextColumn get exchange => text()();
   TextColumn get exchangeCorrect => text()();
-  IntColumn get rst => integer()();
-  IntColumn get rstCorrect => integer()();
 }

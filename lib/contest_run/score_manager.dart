@@ -97,8 +97,7 @@ class WpxScoreCalculator extends ScoreCalculator {
   @override
   CorrectnessType calculateCorrectness(QsoTableData submitQso) {
     if (submitQso.callsignCorrect == submitQso.callsign &&
-        submitQso.exchange == submitQso.exchangeCorrect &&
-        submitQso.rst == submitQso.rstCorrect) {
+        submitQso.exchange == submitQso.exchangeCorrect) {
       return Correct();
     }
 

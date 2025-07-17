@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_contest_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
@@ -49,7 +48,14 @@ class QsoRecordList extends StatelessWidget {
                         Expanded(
                           child: Row(
                             children: [
-                              _textOfQso(colorScheme, bodySmall, item.rst),
+                              Text(
+                                item.rst,
+                                style: _obtainBodyTextStyle(
+                                  colorScheme,
+                                  bodySmall,
+                                  true,
+                                ),
+                              ),
                             ],
                           ),
                         ),

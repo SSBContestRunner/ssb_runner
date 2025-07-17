@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:ssb_contest_runner/audio/audio_player.dart';
 import 'package:ssb_contest_runner/audio/payload_to_audio.dart';
 import 'package:ssb_contest_runner/contest_run/score_manager.dart';
@@ -135,8 +134,6 @@ class ContestManager {
         callsignCorrect: toState.currentCallAnswer,
         exchange: toState.submitExchange,
         exchangeCorrect: toState.currentExchangeAnswer,
-        rst: 59,
-        rstCorrect: 59,
       ),
     );
 
