@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ssb_contest_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 
 void main() {
   test('load dxcc from xml', () {

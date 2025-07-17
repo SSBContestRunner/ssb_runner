@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:ssb_contest_runner/contest_run/contests.dart';
-import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
-import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
-import 'package:ssb_contest_runner/db/app_database.dart';
-import 'package:ssb_contest_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/contest_run/data/score_data.dart';
+import 'package:ssb_runner/contest_run/log/extract_prefix.dart';
+import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 
 const CQ_WPX = 'CQ-WPX';
 

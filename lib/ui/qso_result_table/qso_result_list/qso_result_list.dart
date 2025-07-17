@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_contest_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
-import 'package:ssb_contest_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 
 class QsoRecordList extends StatelessWidget {
   const QsoRecordList({super.key});

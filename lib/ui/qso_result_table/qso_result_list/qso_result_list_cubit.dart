@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_contest_runner/common/streams.dart';
-import 'package:ssb_contest_runner/common/time_format.dart';
-import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
-import 'package:ssb_contest_runner/db/app_database.dart';
-import 'package:ssb_contest_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
+import 'package:ssb_runner/common/streams.dart';
+import 'package:ssb_runner/common/time_format.dart';
+import 'package:ssb_runner/contest_run/contest_manager.dart';
+import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 
 class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   final AppDatabase _appDatabase;

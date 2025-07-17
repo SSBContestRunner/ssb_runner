@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ssb_contest_runner/audio/wav_to_pcm.dart';
+import 'package:ssb_runner/audio/wav_to_pcm.dart';
 
 /// Helper method, to transfrom CALL or EXCHANGE to audio data
 Future<Uint8List> payloadToAudioData(String call, [bool isMe = false]) async {

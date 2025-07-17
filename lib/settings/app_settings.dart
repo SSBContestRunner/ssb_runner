@@ -1,5 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ssb_contest_runner/contest_run/contests.dart';
+import 'package:ssb_runner/contest_run/contests.dart';
 
 class AppSettings {
   final SharedPreferencesWithCache _prefs;

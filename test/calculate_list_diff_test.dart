@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ssb_contest_runner/common/calculate_list_diff.dart';
+import 'package:ssb_runner/common/calculate_list_diff.dart';
 
 void main() {
   test('test no match', () {
@@ -30,9 +30,6 @@ void main() {
   });
 
   test('test real case', () {
-    expect(
-      calculateMismatch(answer: "BI1QJQ", submit: "BY1QQQ"),
-      2,
-    ); 
+    expect(calculateMismatch(answer: "BI1QJQ", submit: "BY1QQQ"), 2);
   });
 }

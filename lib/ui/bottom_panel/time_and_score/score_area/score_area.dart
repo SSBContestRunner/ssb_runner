@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score/score_area/score_area_cubit.dart';
-import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score/score_area/score_area_data.dart';
+import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area_cubit.dart';
+import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area_data.dart';
 
 class ScoreArea extends StatelessWidget {
   const ScoreArea({super.key});

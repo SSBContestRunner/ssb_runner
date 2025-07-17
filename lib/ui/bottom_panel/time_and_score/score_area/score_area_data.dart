@@ -1,4 +1,4 @@
-import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
+import 'package:ssb_runner/contest_run/data/score_data.dart';
 
 class ScoreAreaData {
   final ScoreData rawScore;

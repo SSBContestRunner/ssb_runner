@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
-import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
-import 'package:ssb_contest_runner/contest_run/score_manager.dart';
-import 'package:ssb_contest_runner/db/app_database.dart';
-import 'package:ssb_contest_runner/dxcc/dxcc_manager.dart';
-import 'package:ssb_contest_runner/settings/app_settings.dart';
-import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score/score_area/score_area_data.dart';
+import 'package:ssb_runner/contest_run/contest_manager.dart';
+import 'package:ssb_runner/contest_run/data/score_data.dart';
+import 'package:ssb_runner/contest_run/score_manager.dart';
+import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area_data.dart';
 
 class ScoreAreaCubit extends Cubit<ScoreAreaData> {
   StreamSubscription<ScoreData>? _rawScoreDataSubscription;

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_contest_runner/common/time_format.dart';
-import 'package:ssb_contest_runner/contest_run/contest_manager.dart';
-import 'package:ssb_contest_runner/ui/bottom_panel/time_and_score/score_area/score_area.dart';
+import 'package:ssb_runner/common/time_format.dart';
+import 'package:ssb_runner/contest_run/contest_manager.dart';
+import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area.dart';
 
 class TimeAndScoreArea extends StatelessWidget {
   const TimeAndScoreArea({super.key});

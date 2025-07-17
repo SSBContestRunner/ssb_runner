@@ -1,4 +1,4 @@
-import 'package:ssb_contest_runner/contest_run/state_machine/single_call/audio_play_type.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 
 sealed class SingleCallRunState {}
 

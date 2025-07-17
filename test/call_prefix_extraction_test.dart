@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
+import 'package:ssb_runner/contest_run/log/extract_prefix.dart';
 
 void main() {
   test('test 3x3', () {

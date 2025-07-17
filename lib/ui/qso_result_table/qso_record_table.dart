@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ssb_contest_runner/ui/qso_result_table/qso_result_list/qso_result_list.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list.dart';
 
 class QsoRecordTable extends StatelessWidget {
   const QsoRecordTable({super.key});

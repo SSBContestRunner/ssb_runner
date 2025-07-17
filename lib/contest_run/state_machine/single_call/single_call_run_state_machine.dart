@@ -1,8 +1,8 @@
-import 'package:ssb_contest_runner/common/calculate_list_diff.dart';
-import 'package:ssb_contest_runner/contest_run/state_machine/single_call/audio_play_type.dart';
-import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
-import 'package:ssb_contest_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
-import 'package:ssb_contest_runner/state_machine/state_machine.dart';
+import 'package:ssb_runner/common/calculate_list_diff.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
+import 'package:ssb_runner/state_machine/state_machine.dart';
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
 initSingleCallRunStateMachine({
