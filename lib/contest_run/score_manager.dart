@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:ssb_contest_runner/contest_run/contests.dart';
 import 'package:ssb_contest_runner/contest_run/data/score_data.dart';
 import 'package:ssb_contest_runner/contest_run/log/extract_prefix.dart';
 import 'package:ssb_contest_runner/db/app_database.dart';
@@ -29,20 +30,13 @@ class ScoreManager {
          dxccManager,
        );
 
-  void addQso(
-    List<QsoTableData> qsos,
-    QsoTableData submitQso,
-    QsoTableData answerQso,
-  ) {
+  void addQso(List<QsoTableData> qsos, QsoTableData submitQso) {
     final newRawScoreData = scoreCalculator.calculateScore(qsos);
 
     final diffScore = newRawScoreData.score - _rawScoreData.score;
     final diffMultiple = newRawScoreData.multiple - _rawScoreData.multiple;
 
-    final correctness = scoreCalculator.calculateCorrectness(
-      submitQso,
-      answerQso,
-    );
+    final correctness = scoreCalculator.calculateCorrectness(submitQso);
 
     _rawScoreData = newRawScoreData;
 
@@ -87,10 +81,7 @@ abstract interface class ScoreCalculator {
 
   ScoreCalculator({required this.stationCallsign});
 
-  CorrectnessType calculateCorrectness(
-    QsoTableData submitQso,
-    QsoTableData answerQso,
-  );
+  CorrectnessType calculateCorrectness(QsoTableData submitQso);
   ScoreData calculateScore(List<QsoTableData> qsos);
 }
 
@@ -104,15 +95,14 @@ class WpxScoreCalculator extends ScoreCalculator {
   }) : stationContinent = dxccManager.findCallSignContinet(stationCallsign);
 
   @override
-  CorrectnessType calculateCorrectness(
-    QsoTableData submitQso,
-    QsoTableData answerQso,
-  ) {
-    if (submitQso == answerQso) {
+  CorrectnessType calculateCorrectness(QsoTableData submitQso) {
+    if (submitQso.callsignCorrect == submitQso.callsign &&
+        submitQso.exchange == submitQso.exchangeCorrect &&
+        submitQso.rst == submitQso.rstCorrect) {
       return Correct();
     }
 
-    if (submitQso.callsign != answerQso.callsign) {
+    if (submitQso.callsign != submitQso.callsignCorrect) {
       return Penalty(penaltyMultiple: 2);
     }
 
