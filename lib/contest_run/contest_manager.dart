@@ -167,10 +167,27 @@ class ContestManager {
   }
 
   void startContest() {
-    final duration = Duration(minutes: _appSettings.contestDuration);
     final contestRunId = Uuid().v4();
+
     _contestRunId = contestRunId;
     _contestRunIdStreamController.sink.add(contestRunId);
+
+    _audioPlayer.startPlay();
+
+    _startContestInternal();
+  }
+
+  void _startContestInternal() async {
+    final scoreManager = await _createScoreManager();
+    this.scoreManager = scoreManager;
+
+    if (_callsignLoader.callSigns.isEmpty) {
+      await _callsignLoader.loadCallsigns();
+    }
+
+    _generateAnswerAndNextCall();
+  
+    final duration = Duration(minutes: _appSettings.contestDuration);
 
     _contestTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       final elapseTime = Duration(seconds: timer.tick);
@@ -187,21 +204,6 @@ class ContestManager {
     _elapseTimeStreamController.sink.add(elapseTime);
 
     _isContestRunningStreamController.sink.add(true);
-
-    _audioPlayer.startPlay();
-
-    _startContestInternal();
-  }
-
-  void _startContestInternal() async {
-    final scoreManager = await _createScoreManager();
-    this.scoreManager = scoreManager;
-
-    if (_callsignLoader.callSigns.isEmpty) {
-      await _callsignLoader.loadCallsigns();
-    }
-
-    _generateAnswerAndNextCall();
   }
 
   Future<ScoreManager> _createScoreManager() async {
