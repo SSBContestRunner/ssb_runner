@@ -10,24 +10,31 @@ import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
-class QsoOperationAreaCubit extends Cubit<void> {
+class QsoOperationAreaCubit extends Cubit<int> {
   final _keyEventHandler = KeyEventManager();
 
   final AudioPlayer _audioPlayer;
   final AppSettings _appSettings;
+  final ContestManager _contestManager;
 
   QsoOperationAreaCubit({
     required AppSettings appSettings,
     required AudioPlayer audioPlayer,
+    required ContestManager contestManager,
   }) : _appSettings = appSettings,
        _audioPlayer = audioPlayer,
-       super(null) {
+       _contestManager = contestManager,
+       super(0) {
     _keyEventHandler.operationEventStream.listen((event) {
-      _handleOperationEvent(event);
+      handleOperationEvent(event);
+    });
+
+    _contestManager.fillCallAndRstStream.listen((data) {
+      emit(data);
     });
   }
 
-  Future<void> _handleOperationEvent(OperationEvent event) async {
+  Future<void> handleOperationEvent(OperationEvent event) async {
     Uint8List? pcmData;
 
     switch (event) {
@@ -90,6 +97,7 @@ class QsoOperationArea extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => QsoOperationAreaCubit(
+        contestManager: context.read(),
         appSettings: context.read(),
         audioPlayer: context.read(),
       ),
@@ -104,7 +112,9 @@ class QsoOperationArea extends StatelessWidget {
                 flex: 1,
                 child: _FunctionKeysPad(
                   onOperationEvent: (event) {
-                    // TODO: handle function key event
+                    context.read<QsoOperationAreaCubit>().handleOperationEvent(
+                      event,
+                    );
                   },
                   onInfoIconPressed: () {
                     context.read<MainCubit>().showKeyTips();
@@ -120,8 +130,8 @@ class QsoOperationArea extends StatelessWidget {
 }
 
 class _QsoInputArea extends StatelessWidget {
-  final _callEditorController = TextEditingController();
-  final _exchangeEditorController = TextEditingController();
+  final _exchangeFocusonNode = FocusNode();
+
   final _rstEditorController = TextEditingController();
 
   @override
@@ -129,9 +139,13 @@ class _QsoInputArea extends StatelessWidget {
     final colorSchema = Theme.of(context).colorScheme;
     final bgColor = colorSchema.primaryContainer;
 
-    return BlocConsumer<QsoOperationAreaCubit, void>(
-      listener: (context, _) {
-        // TODO: implement listener
+    return BlocConsumer<QsoOperationAreaCubit, int>(
+      listener: (context, runNum) {
+        if (_rstEditorController.text.isEmpty) {
+          _rstEditorController.text = '59';
+        }
+
+        _exchangeFocusonNode.requestFocus();
       },
       builder: (context, _) {
         return Container(
@@ -160,6 +174,7 @@ class _QsoInputArea extends StatelessWidget {
                 Expanded(
                   flex: 1,
                   child: TextField(
+                    controller: _rstEditorController,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'RST',
@@ -169,6 +184,7 @@ class _QsoInputArea extends StatelessWidget {
                 Expanded(
                   flex: 1,
                   child: TextField(
+                    focusNode: _exchangeFocusonNode,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'Exchange',
@@ -244,10 +260,11 @@ class _FunctionKeys extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final contestManager = context.read<ContestManager>();
+    final qsoOperationAreaCubit = context.read<QsoOperationAreaCubit>();
+
     final focusNode = FocusNode(
       onKeyEvent: (node, event) {
-        contestManager.onKeyEvent(event);
+        qsoOperationAreaCubit.onKeyEvent(event);
         return KeyEventResult.handled;
       },
     );

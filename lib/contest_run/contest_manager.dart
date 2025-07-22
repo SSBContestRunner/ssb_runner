@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/widgets.dart';
@@ -40,6 +41,10 @@ class ContestManager {
   Stream<ScoreManager?> get scoreManagerStream =>
       _scoreManagerStreamController.stream;
 
+  final _fillCallAndRstStreamController = StreamController<int>();
+  Stream<int> get fillCallAndRstStream =>
+      _fillCallAndRstStreamController.stream;
+
   final _keyEventManager = KeyEventManager();
 
   late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
@@ -70,6 +75,11 @@ class ContestManager {
         final toState = transition.to;
         _playAudio(toState);
         _setupRetryTimer(toState);
+
+        if (transition.from is WaitingSubmitCall &&
+            toState is WaitingSubmitExchange) {
+          _fillCallAndRstStreamController.sink.add(Random(null).nextInt(12093));
+        }
 
         if (toState is QsoEnd) {
           _handleQsoEnd(toState);
