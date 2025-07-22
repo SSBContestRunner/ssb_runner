@@ -143,6 +143,9 @@ initSingleCallRunStateMachine({
     });
 
     builder.onTransition((transition) {
+      print(
+        'onTransition: from=${transition.from} to=${(transition is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) ? transition.to : null} event=${transition.event}',
+      );
       transitionListener(transition);
     });
   });
