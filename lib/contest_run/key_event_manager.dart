@@ -16,6 +16,8 @@ final functionKeysMap = {
 class KeyEventManager {
   bool _isFunctionKeyPressed = false;
 
+  final Set<LogicalKeyboardKey> _pressedKeys = {};
+
   final StreamController<OperationEvent> _operationEventController =
       StreamController.broadcast(sync: false);
 
@@ -24,10 +26,12 @@ class KeyEventManager {
 
   void onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
+      _pressedKeys.add(event.logicalKey);
       _handleKeyPressed(event.logicalKey);
     }
 
     if (event is KeyUpEvent) {
+      _pressedKeys.remove(event.logicalKey);
       _handleFunctionKeyReleased(event.logicalKey);
     }
   }
@@ -35,6 +39,10 @@ class KeyEventManager {
   void _handleKeyPressed(LogicalKeyboardKey key) {
     if (functionKeysMap.keys.contains(key)) {
       _handleFunctionKeyPressed(key);
+    }
+
+    if (key == LogicalKeyboardKey.enter && _pressedKeys.isEmpty) {
+      _operationEventController.add(OperationEvent.submit);
     }
   }
 
@@ -66,7 +74,8 @@ enum OperationEvent {
   hisCall(btnText: '<his>'),
   b4(btnText: 'B4'),
   agn(btnText: 'AGN'),
-  nil(btnText: 'NIL');
+  nil(btnText: 'NIL'),
+  submit(btnText: '');
 
   final String btnText;
 

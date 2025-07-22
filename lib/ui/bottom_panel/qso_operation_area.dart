@@ -7,6 +7,7 @@ import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
@@ -66,11 +67,31 @@ class QsoOperationAreaCubit extends Cubit<int> {
       case OperationEvent.nil:
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
         break;
+      case OperationEvent.submit:
+        _handleSubmit();
+        break;
     }
 
     final pcmDataVal = pcmData;
     if (pcmDataVal != null) {
       _audioPlayer.resetAndPlay(pcmDataVal);
+    }
+  }
+
+  void _handleSubmit() {
+    if (_hisCall.isEmpty && _exchange.isEmpty) {
+      _contestManager.transition(Retry());
+      return;
+    }
+
+    if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
+      _contestManager.transition(SubmitExchange(exchange: _exchange));
+      return;
+    }
+
+    if (_hisCall.isNotEmpty) {
+      _contestManager.transition(SubmitCall(call: _hisCall));
+      return;
     }
   }
 
