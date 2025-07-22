@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/contest_run/contest_manager.dart';
 
 class QsoSpeedArea extends StatelessWidget {
   const QsoSpeedArea({super.key});
@@ -72,6 +74,7 @@ class _RunBtn extends StatelessWidget {
               ),
               onPressed: () {
                 // TODO: Start Run
+                context.read<ContestManager>().startContest();
               },
               child: Text('RUN', style: theme.primaryTextTheme.headlineSmall),
             ),

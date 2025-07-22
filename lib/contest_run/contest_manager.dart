@@ -169,7 +169,8 @@ class ContestManager {
     _generateAnswerAndNextCall();
   }
 
-  void startContest(Duration duration) {
+  void startContest() {
+    final duration = Duration(minutes: _appSettings.contestDuration);
     final contestRunId = Uuid().v4();
     _contestRunId = contestRunId;
     _contestRunIdStreamController.sink.add(contestRunId);
