@@ -40,8 +40,6 @@ class ContestManager {
   Stream<ScoreManager?> get scoreManagerStream =>
       _scoreManagerStreamController.stream;
 
-  final _audioPlayer = AudioPlayer();
-
   final _keyEventManager = KeyEventManager();
 
   late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
@@ -49,12 +47,15 @@ class ContestManager {
 
   final AppSettings _appSettings;
   final AppDatabase _appDatabase;
+  final AudioPlayer _audioPlayer;
 
   ContestManager({
     required AppSettings appSettings,
     required AppDatabase appDatabase,
+    required AudioPlayer audioPlayer,
   }) : _appSettings = appSettings,
-       _appDatabase = appDatabase {
+       _appDatabase = appDatabase,
+       _audioPlayer = audioPlayer {
     _stateMachine = initSingleCallRunStateMachine(
       initialState: WaitingSubmitCall(
         currentCallAnswer: 'BI1QJQ',
@@ -75,8 +76,6 @@ class ContestManager {
         }
       },
     );
-
-    _observeKeyOperationEvent();
   }
 
   Future<void> _playAudio(SingleCallRunState toState) async {
@@ -89,7 +88,8 @@ class ContestManager {
         _playAudioByPlayType(toState.audioPlayType);
         break;
       case QsoEnd():
-        // TODO: Play TU QRZ
+        final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        _audioPlayer.resetAndPlay(pcmData);
         break;
     }
   }
@@ -113,7 +113,7 @@ class ContestManager {
       await _audioPlayer.startPlay();
     }
 
-    _audioPlayer.addPcmData(pcmData);
+    _audioPlayer.resetAndPlay(pcmData);
   }
 
   void _setupRetryTimer(SingleCallRunState toState) {
@@ -149,54 +149,7 @@ class ContestManager {
     }
 
     final latestQsos = await _appDatabase.qsoTable.all().get();
-
     _scoreManager?.addQso(latestQsos, submitQso);
-  }
-
-  void _observeKeyOperationEvent() {
-    _keyEventManager.operationEventStream.listen((event) {
-      _handleOperationEvent(event);
-    });
-  }
-
-  Future<void> _handleOperationEvent(OperationEvent event) async {
-    Uint8List? pcmData;
-
-    switch (event) {
-      case OperationEvent.cq:
-        pcmData = await cqAudioData(_appSettings.stationCallsign);
-        break;
-      case OperationEvent.exch:
-        // TODO: read exchange from input
-        final exchange = '01';
-        pcmData = await exchangeAudioData(exchange);
-        break;
-      case OperationEvent.tu:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
-        break;
-      case OperationEvent.myCall:
-        pcmData = await payloadToAudioData(_appSettings.stationCallsign);
-        break;
-      case OperationEvent.hisCall:
-        // TODO: read his call from input
-        final hisCall = 'JJ0JJP';
-        pcmData = await payloadToAudioData(hisCall);
-        break;
-      case OperationEvent.b4:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
-        break;
-      case OperationEvent.agn:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
-        break;
-      case OperationEvent.nil:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
-        break;
-    }
-
-    final pcmDataVal = pcmData;
-    if (pcmDataVal != null) {
-      _audioPlayer.resetAndPlay(pcmData);
-    }
   }
 
   void startContest(Duration duration) {

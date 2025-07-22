@@ -61,6 +61,7 @@ class MyApp extends StatelessWidget {
           create: (context) => ContestManager(
             appSettings: context.read(),
             appDatabase: context.read(),
+            audioPlayer: context.read(),
           ),
           child: Scaffold(body: MainPage()),
         ),

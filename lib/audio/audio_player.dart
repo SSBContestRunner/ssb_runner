@@ -18,10 +18,6 @@ class AudioPlayer {
     _handle = await SoLoud.instance.play(_audioSource);
   }
 
-  void addPcmData(Uint8List pcmData) {
-    SoLoud.instance.addAudioDataStream(_audioSource, pcmData);
-  }
-
   void stopPlay() {
     final handleVal = _handle;
     if (handleVal != null) {
@@ -46,6 +42,6 @@ class AudioPlayer {
     }
 
     SoLoud.instance.resetBufferStream(_audioSource);
-    addPcmData(pcmData);
+    SoLoud.instance.addAudioDataStream(_audioSource, pcmData);
   }
 }
