@@ -30,4 +30,22 @@ class AudioPlayer {
       _handle = null;
     }
   }
+
+  bool isPlaying() {
+    if (_handle == null) {
+      return false;
+    }
+
+    return SoLoud.instance.getLength(_audioSource) > Duration.zero;
+  }
+
+  void resetAndPlay(Uint8List pcmData) {
+    final handleVal = _handle;
+    if (handleVal == null) {
+      return;
+    }
+
+    SoLoud.instance.resetBufferStream(_audioSource);
+    addPcmData(pcmData);
+  }
 }

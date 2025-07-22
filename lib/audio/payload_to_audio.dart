@@ -5,16 +5,16 @@ import 'package:flutter/services.dart';
 import 'package:ssb_runner/audio/wav_to_pcm.dart';
 
 /// Helper method, to transfrom CALL or EXCHANGE to audio data
-Future<Uint8List> payloadToAudioData(String call, [bool isMe = false]) async {
+Future<Uint8List> payloadToAudioData(String payload, {bool isMe = false}) async {
   final result = BytesBuilder();
 
-  for (final char in call.characters) {
+  for (final char in payload.characters) {
     final fileName = char.toAudioFilename();
     final parentPath = _obtainParentDirName(isMe);
-
     final path = '$parentPath/$fileName';
-    final bytes = Uint8List.sublistView(await rootBundle.load(path));
-    final pcmData = await wavToPcm(bytes);
+
+    final pcmData = await loadAssetsWavPcmData(path);
+
     result.add(pcmData);
   }
 
@@ -25,7 +25,10 @@ Future<Uint8List> exchangeToAudioData({bool isMe = false}) async {
   final parentDirName = _obtainParentDirName(isMe);
   final filename = isMe ? 'RUN/exch.wav' : 'Common/5_9.wav';
   final filePath = '$parentDirName/$filename';
+  return loadAssetsWavPcmData(filePath);
+}
 
+Future<Uint8List> loadAssetsWavPcmData(String filePath) async {
   final bytes = Uint8List.sublistView(await rootBundle.load(filePath));
   final pcmData = await wavToPcm(bytes);
 

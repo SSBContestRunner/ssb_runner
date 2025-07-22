@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
@@ -134,25 +135,36 @@ class _FunctionKeys extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 4,
-      mainAxisSpacing: 16.0,
-      crossAxisSpacing: 16.0,
-      childAspectRatio: 2.5,
-      children: _functionKeyBtns.map((element) {
-        final (text, event) = element;
-        return ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
+    final contestManager = context.read<ContestManager>();
+    final focusNode = FocusNode(
+      onKeyEvent: (node, event) {
+        contestManager.onKeyEvent(event);
+        return KeyEventResult.handled;
+      },
+    );
+
+    return Focus(
+      focusNode: focusNode,
+      child: GridView.count(
+        crossAxisCount: 4,
+        mainAxisSpacing: 16.0,
+        crossAxisSpacing: 16.0,
+        childAspectRatio: 2.5,
+        children: _functionKeyBtns.map((element) {
+          final (text, event) = element;
+          return ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
             ),
-          ),
-          onPressed: () {
-            onOperationEvent(event);
-          },
-          child: Text(text),
-        );
-      }).toList(),
+            onPressed: () {
+              onOperationEvent(event);
+            },
+            child: Text(text),
+          );
+        }).toList(),
+      ),
     );
   }
 }

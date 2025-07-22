@@ -19,11 +19,8 @@ class KeyEventManager {
   final StreamController<OperationEvent> _operationEventController =
       StreamController.broadcast(sync: false);
 
-  late final Stream<OperationEvent> operationEventStream;
-
-  KeyEventManager() {
-    operationEventStream = _operationEventController.stream;
-  }
+  Stream<OperationEvent> get operationEventStream =>
+      _operationEventController.stream;
 
   void onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {

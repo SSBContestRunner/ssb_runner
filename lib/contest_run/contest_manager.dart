@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
+import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
+import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
@@ -39,6 +42,8 @@ class ContestManager {
 
   final _audioPlayer = AudioPlayer();
 
+  final _keyEventManager = KeyEventManager();
+
   late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
 
@@ -70,6 +75,8 @@ class ContestManager {
         }
       },
     );
+
+    _observeKeyOperationEvent();
   }
 
   Future<void> _playAudio(SingleCallRunState toState) async {
@@ -146,6 +153,52 @@ class ContestManager {
     _scoreManager?.addQso(latestQsos, submitQso);
   }
 
+  void _observeKeyOperationEvent() {
+    _keyEventManager.operationEventStream.listen((event) {
+      _handleOperationEvent(event);
+    });
+  }
+
+  Future<void> _handleOperationEvent(OperationEvent event) async {
+    Uint8List? pcmData;
+
+    switch (event) {
+      case OperationEvent.cq:
+        pcmData = await cqAudioData(_appSettings.stationCallsign);
+        break;
+      case OperationEvent.exch:
+        // TODO: read exchange from input
+        final exchange = '01';
+        pcmData = await exchangeAudioData(exchange);
+        break;
+      case OperationEvent.tu:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        break;
+      case OperationEvent.myCall:
+        pcmData = await payloadToAudioData(_appSettings.stationCallsign);
+        break;
+      case OperationEvent.hisCall:
+        // TODO: read his call from input
+        final hisCall = 'JJ0JJP';
+        pcmData = await payloadToAudioData(hisCall);
+        break;
+      case OperationEvent.b4:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        break;
+      case OperationEvent.agn:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
+        break;
+      case OperationEvent.nil:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        break;
+    }
+
+    final pcmDataVal = pcmData;
+    if (pcmDataVal != null) {
+      _audioPlayer.resetAndPlay(pcmData);
+    }
+  }
+
   void startContest(Duration duration) {
     final contestRunId = Uuid().v4();
     _contestRunId = contestRunId;
@@ -193,5 +246,9 @@ class ContestManager {
 
   void transition(SingleCallRunEvent event) {
     _stateMachine.transition(event);
+  }
+
+  void onKeyEvent(KeyEvent event) {
+    _keyEventManager.onKeyEvent(event);
   }
 }
