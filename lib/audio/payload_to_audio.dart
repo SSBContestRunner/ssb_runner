@@ -29,7 +29,7 @@ Future<Uint8List> exchangeToAudioData({bool isMe = false}) async {
 }
 
 Future<Uint8List> loadAssetsWavPcmData(String filePath) async {
-  final bytes = Uint8List.sublistView(await rootBundle.load(filePath));
+  final bytes = Uint8List.sublistView(await rootBundle.load('assets/voice/$filePath'));
   final pcmData = await wavToPcm(bytes);
 
   return pcmData;
