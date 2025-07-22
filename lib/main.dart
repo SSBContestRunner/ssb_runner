@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
+import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -55,10 +56,14 @@ class MyApp extends StatelessWidget {
         providers: [
           RepositoryProvider(create: (context) => AppDatabase()),
           RepositoryProvider(create: (context) => AudioPlayer()),
+          RepositoryProvider(
+            create: (context) => CallsignLoader()..loadCallsigns(),
+          ),
           RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
         ],
         child: RepositoryProvider(
           create: (context) => ContestManager(
+            callsignLoader: context.read(),
             appSettings: context.read(),
             appDatabase: context.read(),
             audioPlayer: context.read(),

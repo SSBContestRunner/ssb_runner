@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
+import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
@@ -53,19 +54,19 @@ class ContestManager {
   final AppSettings _appSettings;
   final AppDatabase _appDatabase;
   final AudioPlayer _audioPlayer;
+  final CallsignLoader _callsignLoader;
 
   ContestManager({
+    required CallsignLoader callsignLoader,
     required AppSettings appSettings,
     required AppDatabase appDatabase,
     required AudioPlayer audioPlayer,
   }) : _appSettings = appSettings,
        _appDatabase = appDatabase,
-       _audioPlayer = audioPlayer {
+       _audioPlayer = audioPlayer,
+       _callsignLoader = callsignLoader {
     _stateMachine = initSingleCallRunStateMachine(
-      initialState: WaitingSubmitCall(
-        currentCallAnswer: 'BI1QJQ',
-        currentExchangeAnswer: '230',
-      ),
+      initialState: Init(),
       transitionListener: (transition) {
         if (transition
             is! TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) {
@@ -100,6 +101,9 @@ class ContestManager {
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
         _audioPlayer.resetAndPlay(pcmData);
+        break;
+      case Init():
+        // don't play audio in init
         break;
     }
   }
@@ -137,6 +141,7 @@ class ContestManager {
         });
         break;
       case QsoEnd():
+      case Init():
         break;
     }
   }
@@ -160,6 +165,8 @@ class ContestManager {
 
     final latestQsos = await _appDatabase.qsoTable.all().get();
     _scoreManager?.addQso(latestQsos, submitQso);
+
+    _generateAnswerAndNextCall();
   }
 
   void startContest(Duration duration) {
@@ -188,6 +195,7 @@ class ContestManager {
     _scoreManagerStreamController.sink.add(scoreManager);
 
     _audioPlayer.startPlay();
+    _startContestByNextCall();
   }
 
   ScoreManager _createScoreManager() {
@@ -197,6 +205,27 @@ class ContestManager {
       contestId: _appSettings.contestId,
       stationCallsign: _appSettings.stationCallsign,
       dxccManager: dxccManager,
+    );
+  }
+
+  void _startContestByNextCall() async {
+    if (_callsignLoader.callSigns.isEmpty) {
+      await _callsignLoader.loadCallsigns();
+    }
+
+    _generateAnswerAndNextCall();
+  }
+
+  void _generateAnswerAndNextCall() {
+    List<String> callSigns = _callsignLoader.callSigns;
+
+    final random = Random();
+    final index = random.nextInt(callSigns.length);
+    final callSign = callSigns[index];
+    final exchange = random.nextInt(3000) + 1;
+
+    _stateMachine.transition(
+      NextCall(callAnswer: callSign, exchangeAnswer: '0$exchange'),
     );
   }
 

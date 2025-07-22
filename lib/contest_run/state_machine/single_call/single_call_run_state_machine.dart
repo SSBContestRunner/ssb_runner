@@ -6,12 +6,23 @@ import 'package:ssb_runner/state_machine/state_machine.dart';
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
 initSingleCallRunStateMachine({
-  required WaitingSubmitCall initialState,
+  required SingleCallRunState initialState,
   required TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>
   transitionListener,
 }) {
   return StateMachine.create((builder) {
     builder.initialState(initialState);
+
+    builder.state(Init, (definition) {
+      definition.on(NextCall, (state, event) {
+        return definition.transitionTo(
+          WaitingSubmitCall(
+            currentCallAnswer: (event as NextCall).callAnswer,
+            currentExchangeAnswer: event.exchangeAnswer,
+          ),
+        );
+      });
+    });
 
     builder.state(WaitingSubmitCall, (definition) {
       definition.on(WorkedBefore, (state, event) {

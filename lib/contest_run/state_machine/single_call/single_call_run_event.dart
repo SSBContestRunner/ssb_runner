@@ -11,7 +11,10 @@ class WorkedBefore extends SingleCallRunEvent {
   final String nextCallAnswer;
   final String nextExchangeAnswer;
 
-  WorkedBefore({required this.nextCallAnswer, required this.nextExchangeAnswer});
+  WorkedBefore({
+    required this.nextCallAnswer,
+    required this.nextExchangeAnswer,
+  });
 }
 
 class SubmitCall extends SingleCallRunEvent {
