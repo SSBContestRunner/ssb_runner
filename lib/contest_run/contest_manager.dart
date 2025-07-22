@@ -190,30 +190,33 @@ class ContestManager {
 
     _isContestRunningStreamController.sink.add(true);
 
-    final scoreManager = _createScoreManager();
+    _audioPlayer.startPlay();
+
+    _startContestInternal();
+  }
+
+  void _startContestInternal() async {
+    final scoreManager = await _createScoreManager();
     _scoreManager = scoreManager;
     _scoreManagerStreamController.sink.add(scoreManager);
 
-    _audioPlayer.startPlay();
-    _startContestByNextCall();
+    if (_callsignLoader.callSigns.isEmpty) {
+      await _callsignLoader.loadCallsigns();
+    }
+
+    _generateAnswerAndNextCall();
   }
 
-  ScoreManager _createScoreManager() {
+  Future<ScoreManager> _createScoreManager() async {
     final dxccManager = DxccManager(database: _appDatabase);
+
+    await dxccManager.loadDxcc();
 
     return ScoreManager(
       contestId: _appSettings.contestId,
       stationCallsign: _appSettings.stationCallsign,
       dxccManager: dxccManager,
     );
-  }
-
-  void _startContestByNextCall() async {
-    if (_callsignLoader.callSigns.isEmpty) {
-      await _callsignLoader.loadCallsigns();
-    }
-
-    _generateAnswerAndNextCall();
   }
 
   void _generateAnswerAndNextCall() {

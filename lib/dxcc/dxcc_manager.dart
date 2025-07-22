@@ -41,7 +41,7 @@ class DxccManager {
   }
 
   Future<List<PrefixTableData>> _loadDxccInternal() async {
-    final bytes = Uint8List.sublistView(await rootBundle.load('cty.xml.gz'));
+    final bytes = Uint8List.sublistView(await rootBundle.load('assets/dxcc/cty.xml.gz'));
     final inputStream = InputMemoryStream.fromList(bytes);
     final archive = ZipDecoder().decodeStream(inputStream);
 
