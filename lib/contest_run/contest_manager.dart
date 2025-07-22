@@ -37,10 +37,7 @@ class ContestManager {
   Stream<bool> get isContestRunningStream =>
       _isContestRunningStreamController.stream;
 
-  ScoreManager? _scoreManager;
-  final _scoreManagerStreamController = StreamController<ScoreManager?>();
-  Stream<ScoreManager?> get scoreManagerStream =>
-      _scoreManagerStreamController.stream;
+  ScoreManager? scoreManager;
 
   final _fillCallAndRstStreamController = StreamController<int>();
   Stream<int> get fillCallAndRstStream =>
@@ -164,7 +161,7 @@ class ContestManager {
     }
 
     final latestQsos = await _appDatabase.qsoTable.all().get();
-    _scoreManager?.addQso(latestQsos, submitQso);
+    scoreManager?.addQso(latestQsos, submitQso);
 
     _generateAnswerAndNextCall();
   }
@@ -198,8 +195,7 @@ class ContestManager {
 
   void _startContestInternal() async {
     final scoreManager = await _createScoreManager();
-    _scoreManager = scoreManager;
-    _scoreManagerStreamController.sink.add(scoreManager);
+    this.scoreManager = scoreManager;
 
     if (_callsignLoader.callSigns.isEmpty) {
       await _callsignLoader.loadCallsigns();
@@ -236,8 +232,7 @@ class ContestManager {
   void stopContest() {
     _contestTimer?.cancel();
     _isContestRunningStreamController.sink.add(false);
-    _scoreManager = null;
-    _scoreManagerStreamController.sink.add(null);
+    scoreManager = null;
   }
 
   void transition(SingleCallRunEvent event) {

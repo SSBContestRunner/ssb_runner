@@ -27,30 +27,17 @@ class ScoreAreaCubit extends Cubit<ScoreAreaData> {
 
   void _subscribeContestChange(BuildContext context) {
     final contestManager = context.read<ContestManager>();
-    final appSettings = context.read<AppSettings>();
-    final appDatabase = context.read<AppDatabase>();
 
     contestManager.isContestRunningStream.listen((isContestRunning) {
       _unsubscribeScoreUpdate();
 
       if (isContestRunning) {
-        final scoreManager = _createScoreManager(appSettings, appDatabase);
-        _subscribeScoreUpdate(scoreManager);
+        final scoreManager = contestManager.scoreManager;
+        if (scoreManager != null) {
+          _subscribeScoreUpdate(scoreManager);
+        }
       }
     });
-  }
-
-  ScoreManager _createScoreManager(
-    AppSettings appSettings,
-    AppDatabase appDatabase,
-  ) {
-    final dxccManager = DxccManager(database: appDatabase);
-
-    return ScoreManager(
-      contestId: appSettings.contestId,
-      stationCallsign: appSettings.stationCallsign,
-      dxccManager: dxccManager,
-    );
   }
 
   void _subscribeScoreUpdate(ScoreManager scoreManager) {
