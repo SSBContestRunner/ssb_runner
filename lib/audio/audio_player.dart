@@ -41,7 +41,7 @@ class AudioPlayer {
       return;
     }
 
-    SoLoud.instance.resetBufferStream(_audioSource);
+    // SoLoud.instance.resetBufferStream(_audioSource);
     SoLoud.instance.addAudioDataStream(_audioSource, pcmData);
   }
 }
