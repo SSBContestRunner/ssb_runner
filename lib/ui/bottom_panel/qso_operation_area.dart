@@ -74,7 +74,7 @@ class QsoOperationAreaCubit extends Cubit<int> {
 
     final pcmDataVal = pcmData;
     if (pcmDataVal != null) {
-      _audioPlayer.resetAndPlay(pcmDataVal);
+      _audioPlayer.addAudioData(pcmDataVal);
     }
   }
 

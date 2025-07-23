@@ -176,7 +176,7 @@ class ContestManager {
         break;
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
-        _audioPlayer.resetAndPlay(pcmData);
+        _audioPlayer.addAudioData(pcmData);
         break;
     }
   }
@@ -200,7 +200,7 @@ class ContestManager {
       await _audioPlayer.startPlay();
     }
 
-    _audioPlayer.resetAndPlay(pcmData);
+    _audioPlayer.addAudioData(pcmData);
   }
 
   void _setupRetryTimer(SingleCallRunState toState) {
