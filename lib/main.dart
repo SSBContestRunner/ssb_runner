@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:logger/web.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
@@ -10,6 +11,8 @@ import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
+
+final logger = Logger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
