@@ -283,15 +283,14 @@ class _FunctionKeys extends StatelessWidget {
   Widget build(BuildContext context) {
     final qsoOperationAreaCubit = context.read<QsoOperationAreaCubit>();
 
-    final focusNode = FocusNode(
-      onKeyEvent: (node, event) {
-        qsoOperationAreaCubit.onKeyEvent(event);
-        return KeyEventResult.handled;
-      },
-    );
+    final focusNode = FocusNode();
 
-    return Focus(
+    return KeyboardListener(
       focusNode: focusNode,
+      autofocus: true,
+      onKeyEvent: (event) {
+        qsoOperationAreaCubit.onKeyEvent(event);
+      },
       child: GridView.count(
         crossAxisCount: 4,
         mainAxisSpacing: 16.0,
