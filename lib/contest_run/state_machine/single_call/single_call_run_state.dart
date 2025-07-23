@@ -2,8 +2,6 @@ import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type
 
 sealed class SingleCallRunState {}
 
-class Init extends SingleCallRunState {}
-
 class WaitingSubmitCall extends SingleCallRunState {
   WaitingSubmitCall({
     required this.currentCallAnswer,

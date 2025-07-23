@@ -76,6 +76,10 @@ class StateMachine<S, E, Side> {
       listener.call(transition);
     }
   }
+
+  void dispose() {
+    _transitionListeners.clear();
+  }
 }
 
 class Transition<S, E, Side> {

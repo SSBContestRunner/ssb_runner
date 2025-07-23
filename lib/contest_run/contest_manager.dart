@@ -46,8 +46,7 @@ class ContestManager {
 
   final _keyEventManager = KeyEventManager();
 
-  late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-  _stateMachine;
+  StateMachine<SingleCallRunState, SingleCallRunEvent, Null>? _stateMachine;
 
   final AppSettings _appSettings;
   final AppDatabase _appDatabase;
@@ -62,9 +61,82 @@ class ContestManager {
   }) : _appSettings = appSettings,
        _appDatabase = appDatabase,
        _audioPlayer = audioPlayer,
-       _callsignLoader = callsignLoader {
+       _callsignLoader = callsignLoader;
+
+  void startContest() {
+    final contestRunId = Uuid().v4();
+
+    _contestRunId = contestRunId;
+    _contestRunIdStreamController.sink.add(contestRunId);
+
+    _audioPlayer.startPlay();
+
+    _startContestInternal();
+  }
+
+  void _startContestInternal() async {
+    final scoreManager = await _createScoreManager();
+    this.scoreManager = scoreManager;
+
+    if (_callsignLoader.callSigns.isEmpty) {
+      await _callsignLoader.loadCallsigns();
+    }
+
+    final duration = Duration(minutes: _appSettings.contestDuration);
+
+    _contestTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      final elapseTime = Duration(seconds: timer.tick);
+      _elapseTime = elapseTime;
+      _elapseTimeStreamController.sink.add(elapseTime);
+
+      if (elapseTime >= duration) {
+        isContestRunning = false;
+        _isContestRunningStreamController.sink.add(false);
+        timer.cancel();
+      }
+    });
+
+    final elapseTime = Duration.zero;
+    _elapseTimeStreamController.sink.add(elapseTime);
+
+    isContestRunning = true;
+    _isContestRunningStreamController.sink.add(true);
+
+    final (callSign, exchange) = _generateAnswer();
+    final initialState = WaitingSubmitCall(
+      currentCallAnswer: callSign,
+      currentExchangeAnswer: exchange,
+    );
+
+    _setupStateMachine(initialState);
+  }
+
+  Future<ScoreManager> _createScoreManager() async {
+    final dxccManager = DxccManager(database: _appDatabase);
+
+    await dxccManager.loadDxcc();
+
+    return ScoreManager(
+      contestId: _appSettings.contestId,
+      stationCallsign: _appSettings.stationCallsign,
+      dxccManager: dxccManager,
+    );
+  }
+
+  (String, String) _generateAnswer() {
+    List<String> callSigns = _callsignLoader.callSigns;
+
+    final random = Random();
+    final index = random.nextInt(callSigns.length);
+    final callSign = callSigns[index];
+    final exchange = random.nextInt(3000) + 1;
+
+    return (callSign, exchange.toString());
+  }
+
+  void _setupStateMachine(WaitingSubmitCall waitingSubmitCall) async {
     _stateMachine = initSingleCallRunStateMachine(
-      initialState: Init(),
+      initialState: waitingSubmitCall,
       transitionListener: (transition) {
         if (transition
             is! TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) {
@@ -72,19 +144,25 @@ class ContestManager {
         }
 
         final toState = transition.to;
-        _playAudio(toState);
-        _setupRetryTimer(toState);
+        _handleToState(toState);
 
         if (transition.from is WaitingSubmitCall &&
             toState is WaitingSubmitExchange) {
           _fillCallAndRstStreamController.sink.add(Random(null).nextInt(12093));
         }
-
-        if (toState is QsoEnd) {
-          _handleQsoEnd(toState);
-        }
       },
     );
+
+    _handleToState(waitingSubmitCall);
+  }
+
+  void _handleToState(SingleCallRunState toState) {
+    _playAudio(toState);
+    _setupRetryTimer(toState);
+
+    if (toState is QsoEnd) {
+      _handleQsoEnd(toState);
+    }
   }
 
   Future<void> _playAudio(SingleCallRunState toState) async {
@@ -99,9 +177,6 @@ class ContestManager {
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
         _audioPlayer.resetAndPlay(pcmData);
-        break;
-      case Init():
-        // don't play audio in init
         break;
     }
   }
@@ -135,11 +210,10 @@ class ContestManager {
       case WaitingSubmitCall():
       case WaitingSubmitExchange():
         _retryTimer = Timer(_timeoutDuration, () {
-          _stateMachine.transition(Retry());
+          _stateMachine?.transition(Retry());
         });
         break;
       case QsoEnd():
-      case Init():
         break;
     }
   }
@@ -164,72 +238,8 @@ class ContestManager {
     final latestQsos = await _appDatabase.qsoTable.all().get();
     scoreManager?.addQso(latestQsos, submitQso);
 
-    _generateAnswerAndNextCall();
-  }
-
-  void startContest() {
-    final contestRunId = Uuid().v4();
-
-    _contestRunId = contestRunId;
-    _contestRunIdStreamController.sink.add(contestRunId);
-
-    _audioPlayer.startPlay();
-
-    _startContestInternal();
-  }
-
-  void _startContestInternal() async {
-    final scoreManager = await _createScoreManager();
-    this.scoreManager = scoreManager;
-
-    if (_callsignLoader.callSigns.isEmpty) {
-      await _callsignLoader.loadCallsigns();
-    }
-
-    _generateAnswerAndNextCall();
-
-    final duration = Duration(minutes: _appSettings.contestDuration);
-
-    _contestTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      final elapseTime = Duration(seconds: timer.tick);
-      _elapseTime = elapseTime;
-      _elapseTimeStreamController.sink.add(elapseTime);
-
-      if (elapseTime >= duration) {
-        isContestRunning = false;
-        _isContestRunningStreamController.sink.add(false);
-        timer.cancel();
-      }
-    });
-
-    final elapseTime = Duration.zero;
-    _elapseTimeStreamController.sink.add(elapseTime);
-
-    isContestRunning = true;
-    _isContestRunningStreamController.sink.add(true);
-  }
-
-  Future<ScoreManager> _createScoreManager() async {
-    final dxccManager = DxccManager(database: _appDatabase);
-
-    await dxccManager.loadDxcc();
-
-    return ScoreManager(
-      contestId: _appSettings.contestId,
-      stationCallsign: _appSettings.stationCallsign,
-      dxccManager: dxccManager,
-    );
-  }
-
-  void _generateAnswerAndNextCall() {
-    List<String> callSigns = _callsignLoader.callSigns;
-
-    final random = Random();
-    final index = random.nextInt(callSigns.length);
-    final callSign = callSigns[index];
-    final exchange = random.nextInt(3000) + 1;
-
-    _stateMachine.transition(
+    final (callSign, exchange) = _generateAnswer();
+    _stateMachine?.transition(
       NextCall(callAnswer: callSign, exchangeAnswer: '0$exchange'),
     );
   }
@@ -239,10 +249,12 @@ class ContestManager {
     isContestRunning = false;
     _isContestRunningStreamController.sink.add(false);
     scoreManager = null;
+    _stateMachine?.dispose();
+    _stateMachine = null;
   }
 
   void transition(SingleCallRunEvent event) {
-    _stateMachine.transition(event);
+    _stateMachine?.transition(event);
   }
 
   void onKeyEvent(KeyEvent event) {
