@@ -251,6 +251,7 @@ class ContestManager {
     scoreManager = null;
     _stateMachine?.dispose();
     _stateMachine = null;
+    _audioPlayer.stopPlay();
   }
 
   void transition(SingleCallRunEvent event) {

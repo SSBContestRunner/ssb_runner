@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:ssb_runner/main.dart';
 
 class AudioPlayer {
   AudioSource? _audioSource;
@@ -20,6 +21,7 @@ class AudioPlayer {
     return SoLoud.instance.setBufferStream(
       bufferingType: BufferingType.released,
       channels: Channels.mono,
+      bufferingTimeNeeds: 0.1,
     );
   }
 
@@ -58,6 +60,7 @@ class AudioPlayer {
     final audioSource = _audioSource;
 
     if (audioSource != null) {
+      logger.d('addAudioData! length=${pcmData.lengthInBytes}');
       SoLoud.instance.addAudioDataStream(audioSource, pcmData);
     }
   }
