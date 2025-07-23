@@ -21,6 +21,9 @@ import 'package:uuid/uuid.dart';
 
 const _timeoutDuration = Duration(seconds: 10);
 
+const fillRst = 10001;
+const clearInput = 10002;
+
 class ContestManager {
   Timer? _contestTimer;
   Timer? _retryTimer;
@@ -40,13 +43,14 @@ class ContestManager {
 
   ScoreManager? scoreManager;
 
-  final _fillCallAndRstStreamController = StreamController<int>();
-  Stream<int> get fillCallAndRstStream =>
-      _fillCallAndRstStreamController.stream;
+  final _inputControlStreamController = StreamController<int>();
+  Stream<int> get inputControlStream => _inputControlStreamController.stream;
 
   final _keyEventManager = KeyEventManager();
 
   StateMachine<SingleCallRunState, SingleCallRunEvent, Null>? _stateMachine;
+
+  final _keyEventHandler = KeyEventManager();
 
   final AppSettings _appSettings;
   final AppDatabase _appDatabase;
@@ -61,7 +65,86 @@ class ContestManager {
   }) : _appSettings = appSettings,
        _appDatabase = appDatabase,
        _audioPlayer = audioPlayer,
-       _callsignLoader = callsignLoader;
+       _callsignLoader = callsignLoader {
+    _initKeyEventHandling();
+  }
+
+  void _initKeyEventHandling() {
+    _keyEventHandler.operationEventStream.listen((event) {
+      handleOperationEvent(event);
+    });
+  }
+
+  Future<void> handleOperationEvent(OperationEvent event) async {
+    Uint8List? pcmData;
+
+    switch (event) {
+      case OperationEvent.cq:
+        pcmData = await cqAudioData(_appSettings.stationCallsign);
+        break;
+      case OperationEvent.exch:
+        pcmData = _exchange.isNotEmpty
+            ? await exchangeAudioData(_exchange)
+            : null;
+        break;
+      case OperationEvent.tu:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        break;
+      case OperationEvent.myCall:
+        pcmData = await payloadToAudioData(_appSettings.stationCallsign);
+        break;
+      case OperationEvent.hisCall:
+        pcmData = _hisCall.isNotEmpty
+            ? await payloadToAudioData(_hisCall)
+            : null;
+        break;
+      case OperationEvent.b4:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        break;
+      case OperationEvent.agn:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
+        break;
+      case OperationEvent.nil:
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        break;
+      case OperationEvent.submit:
+        _handleSubmit();
+        break;
+    }
+
+    final pcmDataVal = pcmData;
+    if (pcmDataVal != null) {
+      _audioPlayer.addAudioData(pcmDataVal);
+    }
+  }
+
+  void _handleSubmit() {
+    if (_hisCall.isEmpty && _exchange.isEmpty) {
+      transition(Retry());
+      return;
+    }
+
+    if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
+      transition(SubmitExchange(exchange: _exchange));
+      return;
+    }
+
+    if (_hisCall.isNotEmpty) {
+      transition(SubmitCall(call: _hisCall));
+      return;
+    }
+  }
+
+  String _hisCall = '';
+  String _exchange = '';
+
+  void onCallInput(String callSign) {
+    _hisCall = callSign;
+  }
+
+  void onExchangeInput(String exchange) {
+    _exchange = exchange;
+  }
 
   void startContest() {
     final contestRunId = Uuid().v4();
@@ -148,7 +231,7 @@ class ContestManager {
 
         if (transition.from is WaitingSubmitCall &&
             toState is WaitingSubmitExchange) {
-          _fillCallAndRstStreamController.sink.add(Random(null).nextInt(12093));
+          _inputControlStreamController.sink.add(fillRst);
         }
       },
     );
@@ -242,6 +325,8 @@ class ContestManager {
     _stateMachine?.transition(
       NextCall(callAnswer: callSign, exchangeAnswer: '0$exchange'),
     );
+
+    _inputControlStreamController.sink.add(clearInput);
   }
 
   void stopContest() {

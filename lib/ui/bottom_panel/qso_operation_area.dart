@@ -1,113 +1,31 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_runner/audio/audio_player.dart';
-import 'package:ssb_runner/audio/operation_event_audio.dart';
-import 'package:ssb_runner/audio/payload_to_audio.dart';
+import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
-import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
-import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
 class QsoOperationAreaCubit extends Cubit<int> {
-  final _keyEventHandler = KeyEventManager();
-
-  final AudioPlayer _audioPlayer;
-  final AppSettings _appSettings;
   final ContestManager _contestManager;
 
-  QsoOperationAreaCubit({
-    required AppSettings appSettings,
-    required AudioPlayer audioPlayer,
-    required ContestManager contestManager,
-  }) : _appSettings = appSettings,
-       _audioPlayer = audioPlayer,
-       _contestManager = contestManager,
-       super(0) {
-    _keyEventHandler.operationEventStream.listen((event) {
-      handleOperationEvent(event);
-    });
-
-    _contestManager.fillCallAndRstStream.listen((data) {
+  QsoOperationAreaCubit({required ContestManager contestManager})
+    : _contestManager = contestManager,
+      super(0) {
+    _contestManager.inputControlStream.listen((data) {
       emit(data);
     });
   }
 
-  Future<void> handleOperationEvent(OperationEvent event) async {
-    Uint8List? pcmData;
-
-    switch (event) {
-      case OperationEvent.cq:
-        pcmData = await cqAudioData(_appSettings.stationCallsign);
-        break;
-      case OperationEvent.exch:
-        pcmData = _exchange.isNotEmpty
-            ? await exchangeAudioData(_exchange)
-            : null;
-        break;
-      case OperationEvent.tu:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
-        break;
-      case OperationEvent.myCall:
-        pcmData = await payloadToAudioData(_appSettings.stationCallsign);
-        break;
-      case OperationEvent.hisCall:
-        pcmData = _hisCall.isNotEmpty
-            ? await payloadToAudioData(_hisCall)
-            : null;
-        break;
-      case OperationEvent.b4:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
-        break;
-      case OperationEvent.agn:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
-        break;
-      case OperationEvent.nil:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
-        break;
-      case OperationEvent.submit:
-        _handleSubmit();
-        break;
-    }
-
-    final pcmDataVal = pcmData;
-    if (pcmDataVal != null) {
-      _audioPlayer.addAudioData(pcmDataVal);
-    }
+  void handleOperationEvent(OperationEvent event) {
+    _contestManager.handleOperationEvent(event);
   }
-
-  void _handleSubmit() {
-    if (_hisCall.isEmpty && _exchange.isEmpty) {
-      _contestManager.transition(Retry());
-      return;
-    }
-
-    if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
-      _contestManager.transition(SubmitExchange(exchange: _exchange));
-      return;
-    }
-
-    if (_hisCall.isNotEmpty) {
-      _contestManager.transition(SubmitCall(call: _hisCall));
-      return;
-    }
-  }
-
-  String _hisCall = '';
-  String _exchange = '';
 
   void onCallInput(String callSign) {
-    _hisCall = callSign;
+    _contestManager.onCallInput(callSign);
   }
 
   void onExchangeInput(String exchange) {
-    _exchange = exchange;
-  }
-
-  void onKeyEvent(KeyEvent event) {
-    _keyEventHandler.onKeyEvent(event);
+    _contestManager.onExchangeInput(exchange);
   }
 }
 
@@ -117,12 +35,10 @@ class QsoOperationArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => QsoOperationAreaCubit(
-        contestManager: context.read(),
-        appSettings: context.read(),
-        audioPlayer: context.read(),
-      ),
-      child: BlocBuilder<QsoOperationAreaCubit, void>(
+      create: (context) =>
+          QsoOperationAreaCubit(contestManager: context.read()),
+      child: BlocBuilder<QsoOperationAreaCubit, int>(
+        buildWhen: (previous, current) => false,
         builder: (context, _) {
           return Flex(
             direction: Axis.vertical,
@@ -152,8 +68,11 @@ class QsoOperationArea extends StatelessWidget {
 
 class _QsoInputArea extends StatelessWidget {
   final _exchangeFocusonNode = FocusNode();
+  final _callSignFocusNode = FocusNode();
 
+  final _callSignEditorController = TextEditingController();
   final _rstEditorController = TextEditingController();
+  final _exchangeEditorController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -162,11 +81,21 @@ class _QsoInputArea extends StatelessWidget {
 
     return BlocConsumer<QsoOperationAreaCubit, int>(
       listener: (context, runNum) {
-        if (_rstEditorController.text.isEmpty) {
-          _rstEditorController.text = '59';
+        if (runNum == fillRst) {
+          if (_rstEditorController.text.isEmpty) {
+            _rstEditorController.text = '59';
+          }
+          _exchangeFocusonNode.requestFocus();
+          return;
         }
 
-        _exchangeFocusonNode.requestFocus();
+        if (runNum == clearInput) {
+          _callSignEditorController.clear();
+          _rstEditorController.clear();
+          _exchangeEditorController.clear();
+
+          _callSignFocusNode.requestFocus();
+        }
       },
       builder: (context, _) {
         return Container(
@@ -183,6 +112,9 @@ class _QsoInputArea extends StatelessWidget {
                 Expanded(
                   flex: 1,
                   child: TextField(
+                    controller: _callSignEditorController,
+                    focusNode: _callSignFocusNode,
+                    inputFormatters: [UpperCaseTextFormatter()],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'Call',
@@ -196,6 +128,7 @@ class _QsoInputArea extends StatelessWidget {
                   flex: 1,
                   child: TextField(
                     controller: _rstEditorController,
+                    inputFormatters: [UpperCaseTextFormatter()],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'RST',
@@ -205,7 +138,9 @@ class _QsoInputArea extends StatelessWidget {
                 Expanded(
                   flex: 1,
                   child: TextField(
+                    controller: _exchangeEditorController,
                     focusNode: _exchangeFocusonNode,
+                    inputFormatters: [UpperCaseTextFormatter()],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'Exchange',
@@ -281,36 +216,25 @@ class _FunctionKeys extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final qsoOperationAreaCubit = context.read<QsoOperationAreaCubit>();
-
-    final focusNode = FocusNode();
-
-    return KeyboardListener(
-      focusNode: focusNode,
-      autofocus: true,
-      onKeyEvent: (event) {
-        qsoOperationAreaCubit.onKeyEvent(event);
-      },
-      child: GridView.count(
-        crossAxisCount: 4,
-        mainAxisSpacing: 16.0,
-        crossAxisSpacing: 16.0,
-        childAspectRatio: 2.5,
-        children: _functionKeyBtns.map((element) {
-          final (text, event) = element;
-          return ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
-              ),
+    return GridView.count(
+      crossAxisCount: 4,
+      mainAxisSpacing: 16.0,
+      crossAxisSpacing: 16.0,
+      childAspectRatio: 2.5,
+      children: _functionKeyBtns.map((element) {
+        final (text, event) = element;
+        return ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
             ),
-            onPressed: () {
-              onOperationEvent(event);
-            },
-            child: Text(text),
-          );
-        }).toList(),
-      ),
+          ),
+          onPressed: () {
+            onOperationEvent(event);
+          },
+          child: Text(text),
+        );
+      }).toList(),
     );
   }
 }
