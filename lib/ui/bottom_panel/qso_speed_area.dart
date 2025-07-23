@@ -56,31 +56,74 @@ class _QsoRecordSpeed extends StatelessWidget {
   }
 }
 
+class _RunBtnCubit extends Cubit<bool> {
+  final ContestManager _contestManager;
+
+  _RunBtnCubit({required ContestManager contestManager})
+    : _contestManager = contestManager,
+      super(contestManager.isContestRunning) {
+    contestManager.isContestRunningStream.listen((isContestRunning) {
+      emit(isContestRunning);
+    });
+  }
+
+  void toggleContestRunning() {
+    final isRunning = state;
+    if (isRunning) {
+      _contestManager.stopContest();
+    } else {
+      _contestManager.startContest();
+    }
+  }
+}
+
 class _RunBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Expanded(
-          child: SizedBox(
-            height: 74,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadiusGeometry.circular(16.0),
-                ),
+
+    return BlocProvider(
+      create: (context) => _RunBtnCubit(contestManager: context.read()),
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 74,
+              child: BlocBuilder<_RunBtnCubit, bool>(
+                builder: (context, isContestRunning) {
+                  final shape = RoundedRectangleBorder(
+                    borderRadius: BorderRadiusGeometry.circular(16.0),
+                  );
+
+                  final colorScheme = theme.colorScheme;
+
+                  final buttonStyle = FilledButton.styleFrom(
+                    backgroundColor: isContestRunning
+                        ? colorScheme.error
+                        : colorScheme.primary,
+                    foregroundColor: isContestRunning
+                        ? colorScheme.onError
+                        : colorScheme.onPrimary,
+                    shape: shape,
+                  );
+
+                  return FilledButton(
+                    style: buttonStyle,
+                    onPressed: () {
+                      context.read<_RunBtnCubit>().toggleContestRunning();
+                    },
+                    child: Text(
+                      isContestRunning ? 'STOP' : 'RUN',
+                      style: theme.primaryTextTheme.headlineSmall,
+                    ),
+                  );
+                },
               ),
-              onPressed: () {
-                // TODO: Start Run
-                context.read<ContestManager>().startContest();
-              },
-              child: Text('RUN', style: theme.primaryTextTheme.headlineSmall),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

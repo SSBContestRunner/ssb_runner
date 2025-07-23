@@ -33,6 +33,7 @@ class ContestManager {
   final _elapseTimeStreamController = StreamController<Duration>();
   Stream<Duration> get elapseTimeStream => _elapseTimeStreamController.stream;
 
+  bool isContestRunning = false;
   final _isContestRunningStreamController = StreamController<bool>.broadcast();
   Stream<bool> get isContestRunningStream =>
       _isContestRunningStreamController.stream;
@@ -186,7 +187,7 @@ class ContestManager {
     }
 
     _generateAnswerAndNextCall();
-  
+
     final duration = Duration(minutes: _appSettings.contestDuration);
 
     _contestTimer = Timer.periodic(Duration(seconds: 1), (timer) {
@@ -195,6 +196,7 @@ class ContestManager {
       _elapseTimeStreamController.sink.add(elapseTime);
 
       if (elapseTime >= duration) {
+        isContestRunning = false;
         _isContestRunningStreamController.sink.add(false);
         timer.cancel();
       }
@@ -203,6 +205,7 @@ class ContestManager {
     final elapseTime = Duration.zero;
     _elapseTimeStreamController.sink.add(elapseTime);
 
+    isContestRunning = true;
     _isContestRunningStreamController.sink.add(true);
   }
 
@@ -233,6 +236,7 @@ class ContestManager {
 
   void stopContest() {
     _contestTimer?.cancel();
+    isContestRunning = false;
     _isContestRunningStreamController.sink.add(false);
     scoreManager = null;
   }
