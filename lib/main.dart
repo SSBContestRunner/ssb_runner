@@ -9,6 +9,7 @@ import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:worker_manager/worker_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,8 @@ void main() async {
   final prefs = await SharedPreferencesWithCache.create(
     cacheOptions: SharedPreferencesWithCacheOptions(),
   );
+
+  await workerManager.init(dynamicSpawning: true);
 
   runApp(MyApp(pref: prefs));
 }

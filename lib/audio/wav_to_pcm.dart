@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:worker_manager/worker_manager.dart';
 
 Future<Uint8List> wavToPcm(Uint8List wav) async {
-  return compute(_wavToPcm, wav);
+  return workerManager.execute(() {
+    return _wavToPcm(wav);
+  });
 }
 
 Uint8List _wavToPcm(Uint8List wavData) {
@@ -35,14 +38,14 @@ Uint8List _wavToPcm(Uint8List wavData) {
     if (chunkId == "data") {
       final dataStart = offset + 8;
       final dataEnd = dataStart + chunkSize;
-      
+
       if (dataEnd > wavData.length) {
         throw const FormatException("Invalid WAV: Corrupted data chunk");
       }
-      
+
       return wavData.sublist(dataStart, dataEnd);
     }
-    
+
     // 跳过当前块并继续查找
     offset += 8 + chunkSize;
   }

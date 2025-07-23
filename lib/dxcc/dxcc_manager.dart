@@ -5,6 +5,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 import 'package:ssb_runner/contest_run/log/extract_prefix.dart';
 import 'package:ssb_runner/db/app_database.dart';
+import 'package:worker_manager/worker_manager.dart';
 import 'package:xml/xml.dart';
 
 class DxccManager {
@@ -40,20 +41,22 @@ class DxccManager {
     _prefixes = prefixFromXml;
   }
 
-  Future<List<PrefixTableData>> _loadDxccInternal() async {
-    final bytes = Uint8List.sublistView(
-      await rootBundle.load('assets/dxcc/cty.xml.gz'),
-    );
+  Future<List<PrefixTableData>> _loadDxccInternal() {
+    return workerManager.execute(() async {
+      final bytes = Uint8List.sublistView(
+        await rootBundle.load('assets/dxcc/cty.xml.gz'),
+      );
 
-    final archiveBytes = GZipDecoder().decodeBytes(bytes);
+      final archiveBytes = GZipDecoder().decodeBytes(bytes);
 
-    final xmlString = utf8.decode(archiveBytes);
+      final xmlString = utf8.decode(archiveBytes);
 
-    if (xmlString.isEmpty) {
-      throw Exception('Failed to extract DXCC XML');
-    }
+      if (xmlString.isEmpty) {
+        throw Exception('Failed to extract DXCC XML');
+      }
 
-    return parseDxccXml(xmlString);
+      return parseDxccXml(xmlString);
+    });
   }
 
   Future<void> _saveToDb(List<PrefixTableData> prefixes) async {
@@ -69,23 +72,6 @@ class DxccManager {
       );
     }
   }
-}
-
-String extractDxccXml(Archive archive) {
-  print('extract archive $archive');
-
-  for (final entry in archive) {
-    print('extract archive!! $entry');
-    if (entry.isFile && entry.name == 'cty.xml') {
-      final xmlBytes = entry.readBytes();
-
-      if (xmlBytes != null) {
-        return utf8.decode(xmlBytes);
-      }
-    }
-  }
-
-  return '';
 }
 
 List<PrefixTableData> parseDxccXml(String xmlString) {
