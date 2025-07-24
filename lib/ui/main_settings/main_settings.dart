@@ -111,6 +111,9 @@ class _StationSettings extends StatelessWidget {
             border: OutlineInputBorder(),
             labelText: 'Callsign',
           ),
+          onChanged: (value) {
+            context.read<AppSettings>().stationCallsign = value;
+          },
         ),
       ],
     );
