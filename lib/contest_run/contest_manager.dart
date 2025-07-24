@@ -149,6 +149,12 @@ class ContestManager {
     _exchange = exchange;
   }
 
+  void _clearInput() {
+    _hisCall = '';
+    _exchange = '';
+    _inputControlStreamController.sink.add(clearInput);
+  }
+
   void startContest() {
     final contestRunId = Uuid().v4();
 
@@ -186,6 +192,7 @@ class ContestManager {
     isContestRunning = true;
     _isContestRunningStreamController.sink.add(true);
 
+    _clearInput();
     final (callSign, exchange) = _generateAnswer();
     final initialState = WaitingSubmitCall(
       currentCallAnswer: callSign,
@@ -327,7 +334,7 @@ class ContestManager {
       NextCall(callAnswer: callSign, exchangeAnswer: '0$exchange'),
     );
 
-    _inputControlStreamController.sink.add(clearInput);
+    _clearInput();
   }
 
   void stopContest() {

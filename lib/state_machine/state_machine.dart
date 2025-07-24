@@ -54,13 +54,14 @@ class StateMachine<S, E, Side> {
     );
 
     final toState = transitionDefinition.toState;
+    final previousState = currentState;
     currentState = toState;
 
     for (final listener in _transitionListeners) {
       listener.call(
         TransitionValid(
           event,
-          currentState,
+          previousState,
           toState,
           transitionDefinition.side,
         ),
