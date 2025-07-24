@@ -100,7 +100,7 @@ class _RunBtnCubit extends Cubit<bool> {
     }
 
     if (_appSettings.contestDuration <= 0) {
-      return 'Please set contest duration';
+      return 'Duration must be set and greater than 0';
     }
 
     return '';
