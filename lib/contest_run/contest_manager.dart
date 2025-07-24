@@ -50,8 +50,6 @@ class ContestManager {
 
   StateMachine<SingleCallRunState, SingleCallRunEvent, Null>? _stateMachine;
 
-  final _keyEventHandler = KeyEventManager();
-
   final AppSettings _appSettings;
   final AppDatabase _appDatabase;
   final AudioPlayer _audioPlayer;
@@ -70,7 +68,7 @@ class ContestManager {
   }
 
   void _initKeyEventHandling() {
-    _keyEventHandler.operationEventStream.listen((event) {
+    _keyEventManager.operationEventStream.listen((event) {
       handleOperationEvent(event);
     });
   }
