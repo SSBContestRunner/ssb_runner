@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/services.dart' hide KeyEventManager;
 import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/operation_event_audio.dart';
@@ -70,6 +72,11 @@ class ContestManager {
   void _initKeyEventHandling() {
     _keyEventManager.operationEventStream.listen((event) {
       handleOperationEvent(event);
+    });
+
+    ServicesBinding.instance.keyboard.addHandler((event) {
+      _keyEventManager.onKeyEvent(event);
+      return false;
     });
   }
 
@@ -339,9 +346,5 @@ class ContestManager {
 
   void transition(SingleCallRunEvent event) {
     _stateMachine?.transition(event);
-  }
-
-  void onKeyEvent(KeyEvent event) {
-    _keyEventManager.onKeyEvent(event);
   }
 }
