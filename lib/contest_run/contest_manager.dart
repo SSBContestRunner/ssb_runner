@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:developer';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/services.dart' hide KeyEventManager;
-import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
@@ -178,9 +176,7 @@ class ContestManager {
       _elapseTimeStreamController.sink.add(elapseTime);
 
       if (elapseTime >= duration) {
-        isContestRunning = false;
-        _isContestRunningStreamController.sink.add(false);
-        timer.cancel();
+        stopContest();
       }
     });
 
@@ -335,12 +331,21 @@ class ContestManager {
   }
 
   void stopContest() {
-    _contestTimer?.cancel();
+    final contestTimer = _contestTimer;
+
+    if (contestTimer != null && contestTimer.isActive) {
+      contestTimer.cancel();
+      _contestTimer = null;
+    }
+
     isContestRunning = false;
     _isContestRunningStreamController.sink.add(false);
+
     scoreManager = null;
+
     _stateMachine?.dispose();
     _stateMachine = null;
+
     _audioPlayer.stopPlay();
   }
 
