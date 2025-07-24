@@ -174,7 +174,7 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
 
   if (diff > 0) {
     return PlayCallExchange(
-      call: submitCall,
+      call: answerCall,
       exchange: answerExchange,
       isMe: false,
     );
