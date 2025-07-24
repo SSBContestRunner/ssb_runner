@@ -41,7 +41,7 @@ class KeyEventManager {
       _handleFunctionKeyPressed(key);
     }
 
-    if (key == LogicalKeyboardKey.enter && _pressedKeys.isEmpty) {
+    if (key == LogicalKeyboardKey.enter && _pressedKeys.length == 1) {
       _operationEventController.add(OperationEvent.submit);
     }
   }
