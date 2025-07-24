@@ -160,6 +160,7 @@ class ContestManager {
 
   String _hisCall = '';
   String _exchange = '';
+  bool _isRstFilled = false;
 
   void onCallInput(String callSign) {
     _hisCall = callSign;
@@ -172,6 +173,7 @@ class ContestManager {
   void _clearInput() {
     _hisCall = '';
     _exchange = '';
+    _isRstFilled = false;
     _inputControlStreamController.sink.add(clearInput);
   }
 
@@ -267,8 +269,8 @@ class ContestManager {
         final toState = transition.to;
         _handleToState(toState);
 
-        if (transition.from is WaitingSubmitCall &&
-            toState is WaitingSubmitExchange) {
+        if (toState is WaitingSubmitExchange && !_isRstFilled) {
+          _isRstFilled = true;
           _inputControlStreamController.sink.add(fillRst);
         }
       },
