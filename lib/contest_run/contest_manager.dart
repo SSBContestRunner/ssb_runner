@@ -85,6 +85,11 @@ class ContestManager {
   }
 
   Future<void> handleOperationEvent(OperationEvent event) async {
+    await _playAudioByOperationEvent(event);
+    await _handleOperationEventBusiness(event);
+  }
+
+  Future<void> _playAudioByOperationEvent(OperationEvent event) async {
     Uint8List? pcmData;
 
     switch (event) {
@@ -117,7 +122,6 @@ class ContestManager {
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
         break;
       case OperationEvent.submit:
-        await _handleSubmit();
         break;
     }
 
@@ -126,6 +130,26 @@ class ContestManager {
       _audioPlayer.addAudioData(pcmDataVal);
     }
   }
+
+  Future<void> _handleOperationEventBusiness(OperationEvent event) async {
+    switch (event) {
+      case OperationEvent.agn:
+        transition(Retry());
+        break;
+      case OperationEvent.nil:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case OperationEvent.submit:
+        _handleSubmit();
+        break;
+      default:
+        break;
+    }
+  }
+
+  String _hisCall = '';
+  String _exchange = '';
+  bool _isRstFilled = false;
 
   Future<void> _handleSubmit() async {
     if (_hisCall.isEmpty && _exchange.isEmpty) {
@@ -157,10 +181,6 @@ class ContestManager {
 
     return '${count + 1}';
   }
-
-  String _hisCall = '';
-  String _exchange = '';
-  bool _isRstFilled = false;
 
   void onCallInput(String callSign) {
     _hisCall = callSign;
