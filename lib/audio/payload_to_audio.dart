@@ -74,7 +74,9 @@ extension _CharToAudioFilenaem on String {
 
     return stringBuffer.toString();
   }
+}
 
+extension StringExtension on String {
   bool isNumber() {
     final codeUnit = codeUnitAt(0);
     return codeUnit ^ 0x30 <= 9;

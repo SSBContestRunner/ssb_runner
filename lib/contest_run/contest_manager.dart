@@ -13,6 +13,8 @@ import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state_machine.dart';
+import 'package:ssb_runner/contest_type/contest_type.dart';
+import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -54,6 +56,8 @@ class ContestManager {
   final AppDatabase _appDatabase;
   final AudioPlayer _audioPlayer;
   final CallsignLoader _callsignLoader;
+
+  late ContestType _contestType;
 
   ContestManager({
     required CallsignLoader callsignLoader,
@@ -167,6 +171,8 @@ class ContestManager {
   }
 
   void _startContestInternal() async {
+    await _createContestType();
+
     final scoreManager = await _createScoreManager();
     this.scoreManager = scoreManager;
 
@@ -202,15 +208,21 @@ class ContestManager {
     _setupStateMachine(initialState);
   }
 
-  Future<ScoreManager> _createScoreManager() async {
+  Future<void> _createContestType() async {
     final dxccManager = DxccManager(database: _appDatabase);
-
     await dxccManager.loadDxcc();
 
+    _contestType = CqWpxContestType(
+      stationCallsign: _appSettings.stationCallsign,
+      dxccManager: dxccManager,
+    );
+  }
+
+  Future<ScoreManager> _createScoreManager() async {
     return ScoreManager(
       contestId: _appSettings.contestId,
       stationCallsign: _appSettings.stationCallsign,
-      dxccManager: dxccManager,
+      scoreCalculator: _contestType.scoreCalculator,
     );
   }
 
@@ -220,7 +232,9 @@ class ContestManager {
     final random = Random();
     final index = random.nextInt(callSigns.length);
     final callSign = callSigns[index];
-    final exchange = random.nextInt(3000) + 1;
+
+    final exchangManager = _contestType.exchangeManager;
+    final exchange = exchangManager.generateExchange();
 
     return (callSign, exchange.toString());
   }
@@ -277,7 +291,10 @@ class ContestManager {
       case NoPlay():
         _audioPlayer.stopPlay();
       case PlayExchange():
-        final pcmData = await exchangeToAudioData(playType.exchange, isMe: false);
+        final pcmData = await exchangeToAudioData(
+          playType.exchangeToPlay,
+          isMe: false,
+        );
         await _playAudioInternal(pcmData);
       case PlayCallExchange():
         final payload = playType.call + playType.exchange;
@@ -317,7 +334,9 @@ class ContestManager {
         stationCallsign: _appSettings.stationCallsign,
         callsign: toState.submitCall,
         callsignCorrect: toState.currentCallAnswer,
-        exchange: toState.submitExchange,
+        exchange: _contestType.exchangeManager.processExchange(
+          toState.submitExchange,
+        ),
         exchangeCorrect: toState.currentExchangeAnswer,
       ),
     );
@@ -331,7 +350,7 @@ class ContestManager {
 
     final (callSign, exchange) = _generateAnswer();
     _stateMachine?.transition(
-      NextCall(callAnswer: callSign, exchangeAnswer: '0$exchange'),
+      NextCall(callAnswer: callSign, exchangeAnswer: exchange),
     );
 
     _clearInput();
