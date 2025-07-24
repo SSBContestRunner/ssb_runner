@@ -133,12 +133,10 @@ class ContestManager {
 
   Future<void> _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
+      case OperationEvent.cq:
       case OperationEvent.agn:
         transition(Retry());
         break;
-      case OperationEvent.nil:
-        // TODO: Handle this case.
-        throw UnimplementedError();
       case OperationEvent.submit:
         _handleSubmit();
         break;
