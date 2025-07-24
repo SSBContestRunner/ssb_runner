@@ -30,7 +30,7 @@ Future<Uint8List> exchangeToAudioData(
   bool isMe = false,
 }) async {
   final dirName = _obtainParentDirName(isMe);
-  final exchangeFilePath = isMe 
+  final exchangeFilePath = isMe
       ? '$dirName/RUN/exch.wav'
       : '$dirName/Common/roger you are 59.wav';
 
@@ -59,7 +59,7 @@ extension _CharToAudioFilenaem on String {
   String toAudioFilename() {
     final stringBuffer = StringBuffer();
 
-    if (isNumber()) {
+    if (isNumber() || this == '/') {
       stringBuffer.write('Number/');
     }
 
@@ -69,7 +69,11 @@ extension _CharToAudioFilenaem on String {
       stringBuffer.write('ICAO/');
     }
 
-    stringBuffer.write(uppercased);
+    if (this == '/') {
+      stringBuffer.write('Portable');
+    } else {
+      stringBuffer.write(uppercased);
+    }
     stringBuffer.write('.wav');
 
     return stringBuffer.toString();

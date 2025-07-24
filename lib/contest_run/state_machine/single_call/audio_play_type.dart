@@ -7,8 +7,9 @@ class NoPlay extends AudioPlayType {}
 
 class PlayExchange extends AudioPlayType {
   final String exchangeToPlay;
+  final bool isMe;
 
-  PlayExchange({required String exchange})
+  PlayExchange({required String exchange, required this.isMe})
     : exchangeToPlay = _padZerosIfNeeded(exchange);
 
   static String _padZerosIfNeeded(String exchange) {
@@ -34,6 +35,11 @@ class PlayExchange extends AudioPlayType {
 class PlayCallExchange extends AudioPlayType {
   final String call;
   final String exchange;
+  final bool isMe;
 
-  PlayCallExchange({required this.call, required this.exchange});
+  PlayCallExchange({
+    required this.call,
+    required this.exchange,
+    required this.isMe,
+  });
 }

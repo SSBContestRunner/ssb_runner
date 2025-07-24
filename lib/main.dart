@@ -13,7 +13,7 @@ import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
-final logger = Logger();
+final logger = Logger(printer: PrettyPrinter(methodCount: 5));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

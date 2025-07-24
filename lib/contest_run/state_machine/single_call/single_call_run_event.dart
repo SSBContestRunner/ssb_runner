@@ -18,8 +18,13 @@ class WorkedBefore extends SingleCallRunEvent {
 }
 
 class SubmitCall extends SingleCallRunEvent {
-  SubmitCall({required this.call});
+  SubmitCall({required this.call, required this.myExchange});
   final String call;
+  final String myExchange;
+}
+
+class ReceiveExchange extends SingleCallRunEvent {
+  ReceiveExchange();
 }
 
 class Retry extends SingleCallRunEvent {}

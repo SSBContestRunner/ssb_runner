@@ -47,7 +47,9 @@ class AudioPlayer {
       return false;
     }
 
-    return SoLoud.instance.getLength(audioSource) > Duration.zero;
+    final length = SoLoud.instance.getBufferSize(audioSource);
+    logger.d('isPlaying: $length');
+    return length > 0;
   }
 
   void addAudioData(Uint8List pcmData) {

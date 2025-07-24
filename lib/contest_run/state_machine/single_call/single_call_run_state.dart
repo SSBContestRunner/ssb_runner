@@ -11,6 +11,21 @@ class WaitingSubmitCall extends SingleCallRunState {
   final String currentExchangeAnswer;
 }
 
+class ReportMyExchange extends SingleCallRunState {
+  ReportMyExchange({
+    required this.currentCallAnswer,
+    required this.currentExchangeAnswer,
+    required this.submitCall,
+    required this.myExchange,
+    required this.audioPlayType,
+  });
+  final String currentCallAnswer;
+  final String currentExchangeAnswer;
+  final String submitCall;
+  final String myExchange;
+  final AudioPlayType audioPlayType;
+}
+
 class WaitingSubmitExchange extends SingleCallRunState {
   WaitingSubmitExchange({
     required this.currentCallAnswer,

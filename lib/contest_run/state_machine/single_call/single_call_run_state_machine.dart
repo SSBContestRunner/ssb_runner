@@ -47,16 +47,18 @@ initSingleCallRunStateMachine({
 
         final eventVal = event as SubmitCall;
         final submitCall = eventVal.call;
+        final myExchange = eventVal.myExchange;
 
         return definition.transitionTo(
-          WaitingSubmitExchange(
+          ReportMyExchange(
             currentCallAnswer: currentCallAnswer,
             currentExchangeAnswer: currentExchangeAnswer,
             submitCall: submitCall,
-            audioPlayType: _calcuateSingleCallAudioPlayType(
-              submitCall,
-              currentCallAnswer,
-              currentExchangeAnswer,
+            myExchange: myExchange,
+            audioPlayType: PlayCallExchange(
+              call: submitCall,
+              exchange: myExchange,
+              isMe: true,
             ),
           ),
         );
@@ -71,6 +73,25 @@ initSingleCallRunStateMachine({
           WaitingSubmitCall(
             currentCallAnswer: nextCallAnswer,
             currentExchangeAnswer: nextExchangeAnswer,
+          ),
+        );
+      });
+    });
+
+    builder.state(ReportMyExchange, (definition) {
+      definition.on(ReceiveExchange, (state, event) {
+        final stateVal = state as ReportMyExchange;
+
+        return definition.transitionTo(
+          WaitingSubmitExchange(
+            currentCallAnswer: state.currentCallAnswer,
+            currentExchangeAnswer: state.currentExchangeAnswer,
+            submitCall: state.submitCall,
+            audioPlayType: _calcuateSingleCallAudioPlayType(
+              state.submitCall,
+              state.currentCallAnswer,
+              state.currentExchangeAnswer,
+            ),
           ),
         );
       });
@@ -152,8 +173,12 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
   }
 
   if (diff > 0) {
-    return PlayCallExchange(call: submitCall, exchange: answerExchange);
+    return PlayCallExchange(
+      call: submitCall,
+      exchange: answerExchange,
+      isMe: false,
+    );
   }
 
-  return PlayExchange(exchange: answerExchange);
+  return PlayExchange(exchange: answerExchange, isMe: false);
 }
