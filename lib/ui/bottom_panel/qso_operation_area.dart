@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
-import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
 class QsoOperationAreaCubit extends Cubit<int> {

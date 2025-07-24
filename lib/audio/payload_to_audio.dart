@@ -3,9 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ssb_runner/audio/wav_to_pcm.dart';
+import 'package:ssb_runner/common/concat_bytes.dart';
 
 /// Helper method, to transfrom CALL or EXCHANGE to audio data
-Future<Uint8List> payloadToAudioData(String payload, {bool isMe = false}) async {
+Future<Uint8List> payloadToAudioData(
+  String payload, {
+  bool isMe = false,
+}) async {
   final result = BytesBuilder();
 
   for (final char in payload.characters) {
@@ -21,15 +25,25 @@ Future<Uint8List> payloadToAudioData(String payload, {bool isMe = false}) async 
   return result.toBytes();
 }
 
-Future<Uint8List> exchangeToAudioData({bool isMe = false}) async {
-  final parentDirName = _obtainParentDirName(isMe);
-  final filename = isMe ? 'RUN/exch.wav' : 'Common/5_9.wav';
-  final filePath = '$parentDirName/$filename';
-  return loadAssetsWavPcmData(filePath);
+Future<Uint8List> exchangeToAudioData(
+  String exchange, {
+  bool isMe = false,
+}) async {
+  final dirName = _obtainParentDirName(isMe);
+  final exchangeFilePath = isMe 
+      ? '$dirName/RUN/exch.wav'
+      : '$dirName/Common/roger you are 59.wav';
+
+  final exchangeAudioData = await loadAssetsWavPcmData(exchangeFilePath);
+
+  final payloadAudioData = await payloadToAudioData(exchange, isMe: isMe);
+  return concatUint8List([exchangeAudioData, payloadAudioData]);
 }
 
 Future<Uint8List> loadAssetsWavPcmData(String filePath) async {
-  final bytes = Uint8List.sublistView(await rootBundle.load('assets/voice/$filePath'));
+  final bytes = Uint8List.sublistView(
+    await rootBundle.load('assets/voice/$filePath'),
+  );
   final pcmData = await wavToPcm(bytes);
 
   return pcmData;

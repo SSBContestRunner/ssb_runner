@@ -277,7 +277,7 @@ class ContestManager {
       case NoPlay():
         _audioPlayer.stopPlay();
       case PlayExchange():
-        final pcmData = await payloadToAudioData(playType.exchange);
+        final pcmData = await exchangeToAudioData(playType.exchange, isMe: false);
         await _playAudioInternal(pcmData);
       case PlayCallExchange():
         final payload = playType.call + playType.exchange;
