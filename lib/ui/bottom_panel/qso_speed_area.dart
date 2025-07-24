@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
+import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:toastification/toastification.dart';
 
 class QsoSpeedArea extends StatelessWidget {
   const QsoSpeedArea({super.key});
@@ -58,22 +60,50 @@ class _QsoRecordSpeed extends StatelessWidget {
 
 class _RunBtnCubit extends Cubit<bool> {
   final ContestManager _contestManager;
+  final AppSettings _appSettings;
 
-  _RunBtnCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super(contestManager.isContestRunning) {
+  _RunBtnCubit({
+    required ContestManager contestManager,
+    required AppSettings appSettings,
+  }) : _contestManager = contestManager,
+       _appSettings = appSettings,
+       super(contestManager.isContestRunning) {
     contestManager.isContestRunningStream.listen((isContestRunning) {
       emit(isContestRunning);
     });
   }
 
   void toggleContestRunning() {
+    final errorMessage = _checkSettingComplete();
+
+    if (errorMessage.isNotEmpty) {
+      toastification.show(
+        title: Text(errorMessage),
+        autoCloseDuration: Duration(seconds: 5),
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+      );
+      return;
+    }
+
     final isRunning = state;
     if (isRunning) {
       _contestManager.stopContest();
     } else {
       _contestManager.startContest();
     }
+  }
+
+  String _checkSettingComplete() {
+    if (_appSettings.stationCallsign.isEmpty) {
+      return 'Please set station callsign';
+    }
+
+    if (_appSettings.contestDuration <= 0) {
+      return 'Please set contest duration';
+    }
+
+    return '';
   }
 }
 
@@ -83,7 +113,10 @@ class _RunBtn extends StatelessWidget {
     final theme = Theme.of(context);
 
     return BlocProvider(
-      create: (context) => _RunBtnCubit(contestManager: context.read()),
+      create: (context) => _RunBtnCubit(
+        contestManager: context.read(),
+        appSettings: context.read(),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.max,
         children: [

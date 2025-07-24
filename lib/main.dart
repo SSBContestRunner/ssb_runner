@@ -9,6 +9,7 @@ import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page.dart';
+import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
@@ -50,31 +51,33 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SSB Runner',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: _seedColor,
-          primary: _seedColor,
+    return ToastificationWrapper(
+      child: MaterialApp(
+        title: 'SSB Runner',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: _seedColor,
+            primary: _seedColor,
+          ),
         ),
-      ),
-      home: MultiRepositoryProvider(
-        providers: [
-          RepositoryProvider(create: (context) => AppDatabase()),
-          RepositoryProvider(create: (context) => AudioPlayer()),
-          RepositoryProvider(
-            create: (context) => CallsignLoader()..loadCallsigns(),
+        home: MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider(create: (context) => AppDatabase()),
+            RepositoryProvider(create: (context) => AudioPlayer()),
+            RepositoryProvider(
+              create: (context) => CallsignLoader()..loadCallsigns(),
+            ),
+            RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
+          ],
+          child: RepositoryProvider(
+            create: (context) => ContestManager(
+              callsignLoader: context.read(),
+              appSettings: context.read(),
+              appDatabase: context.read(),
+              audioPlayer: context.read(),
+            ),
+            child: Scaffold(body: MainPage()),
           ),
-          RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
-        ],
-        child: RepositoryProvider(
-          create: (context) => ContestManager(
-            callsignLoader: context.read(),
-            appSettings: context.read(),
-            appDatabase: context.read(),
-            audioPlayer: context.read(),
-          ),
-          child: Scaffold(body: MainPage()),
         ),
       ),
     );
