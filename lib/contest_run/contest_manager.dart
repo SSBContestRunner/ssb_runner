@@ -104,7 +104,7 @@ class ContestManager {
             : null;
         break;
       case OperationEvent.tu:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
         break;
       case OperationEvent.myCall:
         pcmData = await payloadToAudioData(
@@ -124,7 +124,7 @@ class ContestManager {
         pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
         break;
       case OperationEvent.nil:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
         break;
       case OperationEvent.submit:
         break;
@@ -329,7 +329,7 @@ class ContestManager {
         await _playAudioByPlayType(toState.audioPlayType);
         break;
       case QsoEnd():
-        final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
         _audioPlayer.addAudioData(pcmData);
         break;
       case ReportMyExchange():

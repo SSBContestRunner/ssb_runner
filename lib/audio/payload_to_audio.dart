@@ -32,7 +32,7 @@ Future<Uint8List> exchangeToAudioData(
   final dirName = _obtainParentDirName(isMe);
   final exchangeFilePath = isMe
       ? '$dirName/RUN/exch.wav'
-      : '$dirName/Common/roger you are 59.wav';
+      : '$dirName/Common/rogeryouare59.wav';
 
   final exchangeAudioData = await loadAssetsWavPcmData(exchangeFilePath);
 
