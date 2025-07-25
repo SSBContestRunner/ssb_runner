@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
+import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
 const maxCallsignLength = 15;
@@ -13,10 +15,18 @@ class QsoOperationAreaCubit extends Cubit<int> {
 
   QsoOperationAreaCubit({required ContestManager contestManager})
     : _contestManager = contestManager,
-      super(0) {
+      super(0);
+
+  bool _isAttachedInputControl = false;
+
+  void attachInputControl(void Function(int) callback) {
+    if (_isAttachedInputControl) {
+      return;
+    }
     _contestManager.inputControlStream.listen((data) {
-      emit(data);
+      callback(data);
     });
+    _isAttachedInputControl = true;
   }
 
   void handleOperationEvent(OperationEvent event) {
@@ -77,27 +87,34 @@ class _QsoInputArea extends StatelessWidget {
   final _rstEditorController = TextEditingController();
   final _exchangeEditorController = TextEditingController();
 
+  void _attachInputControl(BuildContext context) {
+    final cubit = context.read<QsoOperationAreaCubit>();
+
+    cubit.attachInputControl((inputControl) {
+      if (inputControl == fillRst) {
+        _rstEditorController.text = '59';
+        _exchangeFocusonNode.requestFocus();
+        return;
+      }
+
+      if (inputControl == clearInput) {
+        _callSignEditorController.clear();
+        _rstEditorController.clear();
+        _exchangeEditorController.clear();
+
+        _callSignFocusNode.requestFocus();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorSchema = Theme.of(context).colorScheme;
     final bgColor = colorSchema.primaryContainer;
+    _attachInputControl(context);
 
-    return BlocConsumer<QsoOperationAreaCubit, int>(
-      listener: (context, runNum) {
-        if (runNum == fillRst) {
-          _rstEditorController.text = '59';
-          _exchangeFocusonNode.requestFocus();
-          return;
-        }
-
-        if (runNum == clearInput) {
-          _callSignEditorController.clear();
-          _rstEditorController.clear();
-          _exchangeEditorController.clear();
-
-          _callSignFocusNode.requestFocus();
-        }
-      },
+    return BlocBuilder<QsoOperationAreaCubit, int>(
+      buildWhen: (previous, current) => false,
       builder: (context, _) {
         return Container(
           decoration: BoxDecoration(
