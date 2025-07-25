@@ -422,7 +422,11 @@ class ContestManager {
       return;
     }
 
-    final latestQsos = await _appDatabase.qsoTable.all().get();
+    final latestQsos =
+        await (_appDatabase.qsoTable.select()..where((qsoTable) {
+              return qsoTable.runId.equals(_contestRunId);
+            }))
+            .get();
     scoreManager?.addQso(latestQsos, submitQso);
 
     final (callSignAnswer, exchangeAnswer) = _generateAnswer();
