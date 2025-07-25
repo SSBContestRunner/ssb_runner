@@ -26,7 +26,7 @@ class _QsoRecordSpeedCubit extends Cubit<String> {
 
   _QsoRecordSpeedCubit({required ContestManager contestManager})
     : _contestManager = contestManager,
-      super('---$unit') {
+      super('--- $unit') {
     _contestManager.elapseTimeStream.listen((elapseTime) {
       _updateQsoSpeed(elapseTime);
     });
@@ -38,7 +38,7 @@ class _QsoRecordSpeedCubit extends Cubit<String> {
 
     final qsoSpeed = qsoCount / totalSeconds * 3600;
 
-    emit('${qsoSpeed.toStringAsFixed(1)}$unit');
+    emit('${qsoSpeed.toStringAsFixed(1)} $unit');
   }
 }
 
