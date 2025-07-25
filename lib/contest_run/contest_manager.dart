@@ -201,18 +201,12 @@ class ContestManager {
     _inputControlStreamController.sink.add(clearInput);
   }
 
-  void startContest() {
-    final contestRunId = Uuid().v4();
-
-    _contestRunId = contestRunId;
-    _contestRunIdStreamController.sink.add(contestRunId);
-
+  void startContest() async {
     _audioPlayer.startPlay();
-
-    _startContestInternal();
+    await _startContestInternal();
   }
 
-  void _startContestInternal() async {
+  Future<void> _startContestInternal() async {
     await _createContestType();
 
     final scoreManager = await _createScoreManager();
@@ -237,10 +231,15 @@ class ContestManager {
     final elapseTime = Duration.zero;
     _elapseTimeStreamController.sink.add(elapseTime);
 
+    final contestRunId = Uuid().v4();
+    _contestRunId = contestRunId;
+    _contestRunIdStreamController.sink.add(contestRunId);
+
     isContestRunning = true;
     _isContestRunningStreamController.sink.add(true);
 
     _clearInput();
+
     final (callSign, exchange) = _generateAnswer();
     final initialState = WaitingSubmitCall(
       currentCallAnswer: callSign,
