@@ -13,7 +13,7 @@ class BottomPanel extends StatelessWidget {
     return BlocBuilder<MainCubit, bool>(
       builder: (context, _) {
         return SizedBox(
-          height: 210,
+          height: 200,
           child: Flex(
             direction: Axis.horizontal,
             spacing: 18.0,
