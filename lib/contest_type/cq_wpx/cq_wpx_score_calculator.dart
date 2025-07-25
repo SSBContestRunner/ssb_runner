@@ -57,10 +57,6 @@ class WpxScoreCalculator implements ScoreCalculator {
       return 1;
     }
 
-    logger.i(
-      'qsoContinent: $qsoContinent, stationContinent: $stationContinent',
-    );
-
     if (qsoContinent != stationContinent) {
       return 3;
     }
