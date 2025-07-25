@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
@@ -112,7 +113,10 @@ class _QsoInputArea extends StatelessWidget {
                   child: TextField(
                     controller: _callSignEditorController,
                     focusNode: _callSignFocusNode,
-                    inputFormatters: [UpperCaseTextFormatter()],
+                    inputFormatters: [
+                      UpperCaseTextFormatter(),
+                      FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
+                    ],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'Call',
@@ -126,7 +130,7 @@ class _QsoInputArea extends StatelessWidget {
                   flex: 1,
                   child: TextField(
                     controller: _rstEditorController,
-                    inputFormatters: [UpperCaseTextFormatter()],
+                    readOnly: true,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'RST',
@@ -138,7 +142,10 @@ class _QsoInputArea extends StatelessWidget {
                   child: TextField(
                     controller: _exchangeEditorController,
                     focusNode: _exchangeFocusonNode,
-                    inputFormatters: [UpperCaseTextFormatter()],
+                    inputFormatters: [
+                      UpperCaseTextFormatter(),
+                      FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
+                    ],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'Exchange',
