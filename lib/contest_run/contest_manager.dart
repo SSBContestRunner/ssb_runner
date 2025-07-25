@@ -118,7 +118,7 @@ class ContestManager {
             : null;
         break;
       case OperationEvent.b4:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/Before.wav');
         break;
       case OperationEvent.agn:
         pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
