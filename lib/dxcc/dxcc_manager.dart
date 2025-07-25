@@ -58,12 +58,12 @@ class DxccManager {
     _prefixes = prefixFromXml;
   }
 
-  Future<List<PrefixTableData>> _loadDxccInternal() {
-    return workerManager.execute(() async {
-      final bytes = Uint8List.sublistView(
-        await rootBundle.load('assets/dxcc/cty.xml.gz'),
-      );
+  Future<List<PrefixTableData>> _loadDxccInternal() async {
+    final bytes = Uint8List.sublistView(
+      await rootBundle.load('assets/dxcc/cty.xml.gz'),
+    );
 
+    return workerManager.execute(() async {
       final archiveBytes = GZipDecoder().decodeBytes(bytes);
 
       final xmlString = utf8.decode(archiveBytes);
