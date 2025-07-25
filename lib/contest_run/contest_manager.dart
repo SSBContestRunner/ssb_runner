@@ -107,11 +107,14 @@ class ContestManager {
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU QRZ.wav');
         break;
       case OperationEvent.myCall:
-        pcmData = await payloadToAudioData(_appSettings.stationCallsign);
+        pcmData = await payloadToAudioData(
+          _appSettings.stationCallsign,
+          isMe: true,
+        );
         break;
       case OperationEvent.hisCall:
         pcmData = _hisCall.isNotEmpty
-            ? await payloadToAudioData(_hisCall)
+            ? await payloadToAudioData(_hisCall, isMe: true)
             : null;
         break;
       case OperationEvent.b4:
@@ -137,6 +140,7 @@ class ContestManager {
     switch (event) {
       case OperationEvent.cq:
       case OperationEvent.agn:
+      case OperationEvent.hisCall:
         transition(Retry());
         break;
       case OperationEvent.submit:
