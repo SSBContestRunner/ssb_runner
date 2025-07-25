@@ -399,16 +399,21 @@ class ContestManager {
   }
 
   Future<void> _handleQsoEnd(QsoEnd toState) async {
+    final callsign = _hisCall;
+    final exchange = _exchange;
+
+    if (callsign.isEmpty || exchange.isEmpty) {
+      return;
+    }
+
     final submitQso = await _appDatabase.qsoTable.insertReturningOrNull(
       QsoTableCompanion.insert(
         utcInSeconds: _elapseTime.inSeconds,
         runId: _contestRunId,
         stationCallsign: _appSettings.stationCallsign,
-        callsign: toState.submitCall,
+        callsign: callsign,
         callsignCorrect: toState.currentCallAnswer,
-        exchange: _contestType.exchangeManager.processExchange(
-          toState.submitExchange,
-        ),
+        exchange: _contestType.exchangeManager.processExchange(exchange),
         exchangeCorrect: toState.currentExchangeAnswer,
       ),
     );
