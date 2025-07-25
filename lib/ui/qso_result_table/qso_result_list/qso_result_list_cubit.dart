@@ -36,7 +36,6 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
 
     flatten.listen((qsos) {
       final qsoResults = qsos.map((qso) {
-        logger.d('qsoInSeconds: ${qso.utcInSeconds}');
         return QsoResult(
           call: QsoResultField(
             data: qso.callsign,

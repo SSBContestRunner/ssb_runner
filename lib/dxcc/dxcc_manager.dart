@@ -17,15 +17,32 @@ class DxccManager {
 
   String findCallSignContinet(String callsign) {
     final prefix = extractPrefix(callsign);
-    final matchPrefixData = _prefixes.firstWhereOrNull(
-      (element) => element.call == prefix,
-    );
+    final matchPrefixData = _findMatchPrefixData(prefix);
 
     if (matchPrefixData == null) {
       return '';
     }
 
     return matchPrefixData.continent;
+  }
+
+  PrefixTableData? _findMatchPrefixData(String prefix) {
+    String checkedPrefix = prefix;
+    PrefixTableData? matchPrefixData;
+
+    while (checkedPrefix.isNotEmpty) {
+      matchPrefixData = _prefixes.firstWhereOrNull(
+        (element) => element.call == checkedPrefix,
+      );
+
+      if (matchPrefixData != null) {
+        break;
+      }
+
+      checkedPrefix = checkedPrefix.substring(0, checkedPrefix.length - 1);
+    }
+
+    return matchPrefixData;
   }
 
   Future<void> loadDxcc() async {

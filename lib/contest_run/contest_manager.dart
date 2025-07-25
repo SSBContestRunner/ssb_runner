@@ -317,8 +317,6 @@ class ContestManager {
   Future<void> _playAudio(SingleCallRunState toState) async {
     switch (toState) {
       case WaitingSubmitCall():
-        final currentCallAnswer = toState.currentCallAnswer;
-        logger.i('play audio!!: $currentCallAnswer');
         final pcmData = await payloadToAudioData(toState.currentCallAnswer);
         await _playAudioInternal(pcmData);
         break;
