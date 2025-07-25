@@ -8,7 +8,6 @@ import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
-import 'package:ssb_runner/common/streams.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
@@ -19,7 +18,6 @@ import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
-import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 import 'package:uuid/uuid.dart';
@@ -86,6 +84,9 @@ class ContestManager {
   }
 
   Future<void> handleOperationEvent(OperationEvent event) async {
+    if (!isContestRunning) {
+      return;
+    }
     await _playAudioByOperationEvent(event);
     await _handleOperationEventBusiness(event);
   }
