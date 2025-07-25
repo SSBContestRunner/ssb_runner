@@ -4,6 +4,7 @@ import 'package:ssb_runner/common/streams.dart';
 import 'package:ssb_runner/common/time_format.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 
 class QsoRecordListCubit extends Cubit<List<QsoResult>> {
@@ -34,8 +35,9 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
     final flatten = flattenStreams(streams);
 
     flatten.listen((qsos) {
-      qsos.map((qso) {
-        QsoResult(
+      final qsoResults = qsos.map((qso) {
+        logger.d('qsoInSeconds: ${qso.utcInSeconds}');
+        return QsoResult(
           call: QsoResultField(
             data: qso.callsign,
             isCorrect: qso.callsignCorrect == qso.callsign,
@@ -47,7 +49,9 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
           utc: _utcTimeToString(qso.utcInSeconds),
           corrections: _calculateCorrection(qso),
         );
-      });
+      }).toList();
+
+      emit(qsoResults);
     });
   }
 

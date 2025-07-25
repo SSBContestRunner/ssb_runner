@@ -35,7 +35,7 @@ class QsoRecordList extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Row(
-                            children: [Text('00:00:00', style: bodySmall)],
+                            children: [Text(item.utc, style: bodySmall)],
                           ),
                         ),
                         Expanded(
