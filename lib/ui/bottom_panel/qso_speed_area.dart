@@ -33,8 +33,14 @@ class _QsoRecordSpeedCubit extends Cubit<String> {
   }
 
   void _updateQsoSpeed(Duration elapseTime) async {
-    final qsoCount = await _contestManager.countCurrentRunQso();
     final totalSeconds = elapseTime.inSeconds;
+
+    if (totalSeconds == 0) {
+      emit('--- $unit');
+      return;
+    }
+
+    final qsoCount = await _contestManager.countCurrentRunQso();
 
     final qsoSpeed = qsoCount / totalSeconds * 3600;
 
