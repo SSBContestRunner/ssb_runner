@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
@@ -18,7 +16,6 @@ import 'package:worker_manager/worker_manager.dart';
 final logger = Logger(printer: PrettyPrinter(methodCount: 5));
 
 void main() async {
-  DartPluginRegistrant.ensureInitialized();
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize the window manager plugin.
@@ -29,7 +26,7 @@ void main() async {
 
   final windowOptions = WindowOptions(size: Size(1280, 720), center: true);
 
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
+  await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
   });
