@@ -65,6 +65,9 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
     }
 
     if (qso.exchange != qso.exchangeCorrect) {
+      if (stringBuffer.isNotEmpty) {
+        stringBuffer.write(' ');
+      }
       stringBuffer.write(qso.exchangeCorrect);
     }
 
