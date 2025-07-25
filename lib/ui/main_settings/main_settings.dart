@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contests.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/ui/bottom_panel/qso_operation_area.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
 import 'package:ssb_runner/ui/setting_item.dart';
 
@@ -133,6 +136,11 @@ class _StationSettings extends StatelessWidget {
 
               return TextField(
                 controller: _controller,
+                inputFormatters: [
+                  UpperCaseTextFormatter(),
+                  LengthLimitingTextInputFormatter(maxCallsignLength),
+                  FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
+                ],
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
                   labelText: 'Callsign',

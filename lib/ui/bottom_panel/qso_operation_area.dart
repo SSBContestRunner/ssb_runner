@@ -6,6 +6,8 @@ import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
+const maxCallsignLength = 15;
+
 class QsoOperationAreaCubit extends Cubit<int> {
   final ContestManager _contestManager;
 
@@ -115,6 +117,7 @@ class _QsoInputArea extends StatelessWidget {
                     focusNode: _callSignFocusNode,
                     inputFormatters: [
                       UpperCaseTextFormatter(),
+                      LengthLimitingTextInputFormatter(maxCallsignLength),
                       FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
                     ],
                     decoration: InputDecoration(
