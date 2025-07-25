@@ -425,9 +425,9 @@ class ContestManager {
     final latestQsos = await _appDatabase.qsoTable.all().get();
     scoreManager?.addQso(latestQsos, submitQso);
 
-    final (callSign, exchange) = _generateAnswer();
+    final (callSignAnswer, exchangeAnswer) = _generateAnswer();
     _stateMachine?.transition(
-      NextCall(callAnswer: callSign, exchangeAnswer: exchange),
+      NextCall(callAnswer: callSignAnswer, exchangeAnswer: exchangeAnswer),
     );
 
     _clearInput();
