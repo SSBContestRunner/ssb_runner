@@ -199,7 +199,7 @@ class ContestManager {
   void startContest() {
     final contestRunId = Uuid().v4();
 
-    this._contestRunId = contestRunId;
+    _contestRunId = contestRunId;
     _contestRunIdStreamController.sink.add(contestRunId);
 
     _audioPlayer.startPlay();
@@ -457,21 +457,6 @@ class ContestManager {
 
   void transition(SingleCallRunEvent event) {
     _stateMachine?.transition(event);
-  }
-
-  Stream<List<QsoTableData>> obtainCurrentRunQsoStream() {
-    final streams = contestRunIdStream.map((id) {
-      if (id.isEmpty) {
-        return Stream<List<QsoTableData>>.empty();
-      }
-
-      return (_appDatabase.qsoTable.select()..where((qso) {
-            return qso.runId.equals(id);
-          }))
-          .watch();
-    });
-
-    return flattenStreams(streams);
   }
 
   Future<int> countCurrentRunQso() async {

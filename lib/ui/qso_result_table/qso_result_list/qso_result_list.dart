@@ -9,11 +9,7 @@ class QsoRecordList extends StatelessWidget {
   QsoRecordList({super.key});
 
   void _scrollToBottom() {
-    _scorllController.animateTo(
-      _scorllController.position.maxScrollExtent,
-      duration: Duration(microseconds: 500),
-      curve: Curves.fastOutSlowIn,
-    );
+    _scorllController.jumpTo(_scorllController.position.maxScrollExtent);
   }
 
   @override
@@ -30,9 +26,6 @@ class QsoRecordList extends StatelessWidget {
       ),
       child: BlocConsumer<QsoRecordListCubit, List<QsoResult>>(
         listener: (context, qsos) {
-          if (qsos.isNotEmpty) {
-            _scrollToBottom();
-          }
         },
         builder: (context, qsos) {
           return ListView.separated(
