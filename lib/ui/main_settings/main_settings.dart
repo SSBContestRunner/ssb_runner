@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contests.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -136,6 +137,7 @@ class _StationSettings extends StatelessWidget {
 
               return TextField(
                 controller: _controller,
+                style: TextStyle(fontFamily: qsoFontFamily),
                 inputFormatters: [
                   UpperCaseTextFormatter(),
                   LengthLimitingTextInputFormatter(maxCallsignLength),

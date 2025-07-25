@@ -117,3 +117,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+  fonts:
+    - family: Iosevka
+      fonts:
+        - asset: fonts/Iosevka-Regular-sub.ttf

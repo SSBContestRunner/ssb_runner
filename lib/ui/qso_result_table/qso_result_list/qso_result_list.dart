@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 
@@ -17,7 +18,14 @@ class QsoRecordList extends StatelessWidget {
     final colorScheme = ColorScheme.of(context);
     final surfaceContainerHighest = colorScheme.surfaceContainerHighest;
 
-    final bodySmall = TextTheme.of(context).bodySmall;
+    final qsoItemTextStyle = TextStyle(
+      fontSize: 14,
+      fontFamily: qsoFontFamily,
+      letterSpacing: 1,
+      height: 1.4,
+    );
+
+    TextTheme.of(context).bodySmall;
 
     return BlocProvider(
       create: (context) => QsoRecordListCubit(
@@ -25,8 +33,7 @@ class QsoRecordList extends StatelessWidget {
         contestManager: context.read(),
       ),
       child: BlocConsumer<QsoRecordListCubit, List<QsoResult>>(
-        listener: (context, qsos) {
-        },
+        listener: (context, qsos) {},
         builder: (context, qsos) {
           return ListView.separated(
             itemBuilder: (context, index) {
@@ -43,13 +50,13 @@ class QsoRecordList extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Row(
-                            children: [Text(item.utc, style: bodySmall)],
+                            children: [Text(item.utc, style: qsoItemTextStyle)],
                           ),
                         ),
                         Expanded(
                           child: Row(
                             children: [
-                              _textOfQso(colorScheme, bodySmall, item.call),
+                              _textOfQso(colorScheme, qsoItemTextStyle, item.call),
                             ],
                           ),
                         ),
@@ -60,7 +67,7 @@ class QsoRecordList extends StatelessWidget {
                                 item.rst,
                                 style: _obtainBodyTextStyle(
                                   colorScheme,
-                                  bodySmall,
+                                  qsoItemTextStyle,
                                   true,
                                 ),
                               ),
@@ -70,14 +77,14 @@ class QsoRecordList extends StatelessWidget {
                         Expanded(
                           child: Row(
                             children: [
-                              _textOfQso(colorScheme, bodySmall, item.exchange),
+                              _textOfQso(colorScheme, qsoItemTextStyle, item.exchange),
                             ],
                           ),
                         ),
                         Expanded(
                           child: Row(
                             children: [
-                              Text(item.corrections, style: bodySmall),
+                              Text(item.corrections, style: qsoItemTextStyle),
                             ],
                           ),
                         ),

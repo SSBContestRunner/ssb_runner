@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
-import 'package:ssb_runner/db/app_database.dart';
-import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 
 const maxCallsignLength = 15;
@@ -132,6 +131,7 @@ class _QsoInputArea extends StatelessWidget {
                   child: TextField(
                     controller: _callSignEditorController,
                     focusNode: _callSignFocusNode,
+                    style: TextStyle(fontFamily: qsoFontFamily),
                     inputFormatters: [
                       UpperCaseTextFormatter(),
                       LengthLimitingTextInputFormatter(maxCallsignLength),
@@ -151,6 +151,7 @@ class _QsoInputArea extends StatelessWidget {
                   child: TextField(
                     controller: _rstEditorController,
                     readOnly: true,
+                    style: TextStyle(fontFamily: qsoFontFamily),
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
                       labelText: 'RST',
@@ -162,6 +163,7 @@ class _QsoInputArea extends StatelessWidget {
                   child: TextField(
                     controller: _exchangeEditorController,
                     focusNode: _exchangeFocusonNode,
+                    style: TextStyle(fontFamily: qsoFontFamily),
                     inputFormatters: [
                       UpperCaseTextFormatter(),
                       FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
