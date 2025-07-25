@@ -4,7 +4,17 @@ import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 
 class QsoRecordList extends StatelessWidget {
-  const QsoRecordList({super.key});
+  final _scorllController = ScrollController();
+
+  QsoRecordList({super.key});
+
+  void _scrollToBottom() {
+    _scorllController.animateTo(
+      _scorllController.position.maxScrollExtent,
+      duration: Duration(microseconds: 500),
+      curve: Curves.fastOutSlowIn,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +28,10 @@ class QsoRecordList extends StatelessWidget {
         appDatabase: context.read(),
         contestManager: context.read(),
       ),
-      child: BlocBuilder<QsoRecordListCubit, List<QsoResult>>(
+      child: BlocConsumer<QsoRecordListCubit, List<QsoResult>>(
+        listener: (context, qsos) {
+          _scrollToBottom();
+        },
         builder: (context, qsos) {
           return ListView.separated(
             itemBuilder: (context, index) {
