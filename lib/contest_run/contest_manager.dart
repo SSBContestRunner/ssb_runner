@@ -8,6 +8,7 @@ import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
+import 'package:ssb_runner/common/streams.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
@@ -33,11 +34,11 @@ class ContestManager {
   Timer? _retryTimer;
 
   String _contestRunId = '';
-  final _contestRunIdStreamController = StreamController<String>();
+  final _contestRunIdStreamController = StreamController<String>.broadcast();
   Stream<String> get contestRunIdStream => _contestRunIdStreamController.stream;
 
   Duration _elapseTime = Duration.zero;
-  final _elapseTimeStreamController = StreamController<Duration>();
+  final _elapseTimeStreamController = StreamController<Duration>.broadcast();
   Stream<Duration> get elapseTimeStream => _elapseTimeStreamController.stream;
 
   bool isContestRunning = false;
@@ -198,7 +199,7 @@ class ContestManager {
   void startContest() {
     final contestRunId = Uuid().v4();
 
-    _contestRunId = contestRunId;
+    this._contestRunId = contestRunId;
     _contestRunIdStreamController.sink.add(contestRunId);
 
     _audioPlayer.startPlay();
@@ -456,5 +457,31 @@ class ContestManager {
 
   void transition(SingleCallRunEvent event) {
     _stateMachine?.transition(event);
+  }
+
+  Stream<List<QsoTableData>> obtainCurrentRunQsoStream() {
+    final streams = contestRunIdStream.map((id) {
+      if (id.isEmpty) {
+        return Stream<List<QsoTableData>>.empty();
+      }
+
+      return (_appDatabase.qsoTable.select()..where((qso) {
+            return qso.runId.equals(id);
+          }))
+          .watch();
+    });
+
+    return flattenStreams(streams);
+  }
+
+  Future<int> countCurrentRunQso() async {
+    return await _appDatabase.qsoTable
+            .count(
+              where: (row) {
+                return row.runId.equals(_contestRunId);
+              },
+            )
+            .getSingleOrNull() ??
+        0;
   }
 }

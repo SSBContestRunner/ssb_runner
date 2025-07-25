@@ -21,18 +21,7 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   }
 
   void _listenQsoUpdate() {
-    final streams = _contestManager.contestRunIdStream.map((id) {
-      if (id.isEmpty) {
-        return Stream<List<QsoTableData>>.empty();
-      }
-
-      return (_appDatabase.qsoTable.select()..where((qso) {
-            return qso.runId.equals(id);
-          }))
-          .watch();
-    });
-
-    final flatten = flattenStreams(streams);
+    final flatten = _contestManager.obtainCurrentRunQsoStream();
 
     flatten.listen((qsos) {
       final qsoResults = qsos.map((qso) {

@@ -1,6 +1,8 @@
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
+import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:toastification/toastification.dart';
 
@@ -14,6 +16,29 @@ class QsoSpeedArea extends StatelessWidget {
       spacing: 24,
       children: [_QsoRecordSpeed(), _RunBtn()],
     );
+  }
+}
+
+class _QsoRecordSpeedCubit extends Cubit<String> {
+  final ContestManager _contestManager;
+
+  static const unit = 'QSOs/h';
+
+  _QsoRecordSpeedCubit({required ContestManager contestManager})
+    : _contestManager = contestManager,
+      super('---$unit') {
+    _contestManager.elapseTimeStream.listen((elapseTime) {
+      _updateQsoSpeed(elapseTime);
+    });
+  }
+
+  void _updateQsoSpeed(Duration elapseTime) async {
+    final qsoCount = await _contestManager.countCurrentRunQso();
+    final totalSeconds = elapseTime.inSeconds;
+
+    final qsoSpeed = qsoCount / totalSeconds * 3600;
+
+    emit('${qsoSpeed.toStringAsFixed(1)}$unit');
   }
 }
 
@@ -40,14 +65,25 @@ class _QsoRecordSpeed extends StatelessWidget {
 
           Positioned(
             top: 46,
-            left: 60,
-            right: 60,
+            left: 40,
+            right: 40,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  '---qsos/h',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w300),
+                BlocProvider(
+                  create: (context) =>
+                      _QsoRecordSpeedCubit(contestManager: context.read()),
+                  child: BlocBuilder<_QsoRecordSpeedCubit, String>(
+                    builder: (context, speedText) {
+                      return Text(
+                        speedText,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
