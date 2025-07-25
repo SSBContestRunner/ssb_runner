@@ -11,11 +11,11 @@ class ScoreAreaCubit extends Cubit<ScoreAreaData> {
   StreamSubscription<ScoreData>? _rawScoreDataSubscription;
   StreamSubscription<ScoreData>? _verifiedScoreDataSubscription;
 
-  ScoreAreaCubit({required BuildContext context}) : super(_obtainScoreData()) {
+  ScoreAreaCubit({required BuildContext context}) : super(_initialScoreData()) {
     _subscribeContestChange(context);
   }
 
-  static ScoreAreaData _obtainScoreData() {
+  static ScoreAreaData _initialScoreData() {
     return ScoreAreaData(
       rawScore: ScoreData.initial(),
       verifiedScore: ScoreData.initial(),
@@ -27,6 +27,7 @@ class ScoreAreaCubit extends Cubit<ScoreAreaData> {
 
     contestManager.contestRunIdStream.listen((_) {
       _unsubscribeScoreUpdate();
+      emit(_initialScoreData());
 
       final scoreManager = contestManager.scoreManager;
       if (scoreManager != null) {
