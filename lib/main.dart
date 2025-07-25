@@ -29,6 +29,7 @@ void main() async {
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
+    await windowManager.setResizable(false);
   });
 
   final prefs = await SharedPreferencesWithCache.create(
