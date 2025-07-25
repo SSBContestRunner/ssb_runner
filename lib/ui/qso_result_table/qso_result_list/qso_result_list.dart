@@ -30,7 +30,9 @@ class QsoRecordList extends StatelessWidget {
       ),
       child: BlocConsumer<QsoRecordListCubit, List<QsoResult>>(
         listener: (context, qsos) {
-          _scrollToBottom();
+          if (qsos.isNotEmpty) {
+            _scrollToBottom();
+          }
         },
         builder: (context, qsos) {
           return ListView.separated(
