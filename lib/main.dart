@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
@@ -6,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
+import 'package:ssb_runner/crash_repoter.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page.dart';
@@ -18,6 +21,7 @@ final logger = Logger(printer: PrettyPrinter(methodCount: 5));
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await _initCrashHandling();
   // Initialize the window manager plugin.
   await windowManager.ensureInitialized();
 
@@ -39,6 +43,24 @@ void main() async {
   await workerManager.init(dynamicSpawning: true);
 
   runApp(MyApp(pref: prefs));
+}
+
+Future<void> _initCrashHandling() async {
+  // 初始化日志系统
+  final crashLogger = CrashLogger();
+  await crashLogger.initialize();
+
+  // 设置全局异常处理
+  FlutterError.onError = (FlutterErrorDetails details) {
+    crashLogger.logCrash(details.exceptionAsString(), details.stack);
+    FlutterError.presentError(details); // 保留默认错误显示
+  };
+
+  // 捕获异步异常
+  PlatformDispatcher.instance.onError = (error, stack) {
+    crashLogger.logCrash(error.toString(), stack);
+    return true;
+  };
 }
 
 const _seedColor = Color(0xFF0059BA);
