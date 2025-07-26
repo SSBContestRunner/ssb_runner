@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ssb_contest_runner"
+    namespace = "com.example.ssb_runner"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.ssb_contest_runner"
+        applicationId = "com.example.ssb_runner"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
