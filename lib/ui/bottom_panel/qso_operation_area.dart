@@ -13,8 +13,8 @@ class QsoOperationAreaCubit extends Cubit<int> {
   final ContestManager _contestManager;
 
   QsoOperationAreaCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super(0);
+      : _contestManager = contestManager,
+        super(0);
 
   bool _isAttachedInputControl = false;
 
@@ -62,8 +62,8 @@ class QsoOperationArea extends StatelessWidget {
                 child: _FunctionKeysPad(
                   onOperationEvent: (event) {
                     context.read<QsoOperationAreaCubit>().handleOperationEvent(
-                      event,
-                    );
+                          event,
+                        );
                   },
                   onInfoIconPressed: () {
                     context.read<MainCubit>().showKeyTips();
@@ -78,7 +78,14 @@ class QsoOperationArea extends StatelessWidget {
   }
 }
 
-class _QsoInputArea extends StatelessWidget {
+class _QsoInputArea extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() {
+    return _QsoInputAreaState();
+  }
+}
+
+class _QsoInputAreaState extends State<_QsoInputArea> {
   final _exchangeFocusonNode = FocusNode();
   final _callSignFocusNode = FocusNode();
 
@@ -174,8 +181,8 @@ class _QsoInputArea extends StatelessWidget {
                     ),
                     onChanged: (value) {
                       context.read<QsoOperationAreaCubit>().onExchangeInput(
-                        value,
-                      );
+                            value,
+                          );
                     },
                   ),
                 ),
@@ -185,6 +192,17 @@ class _QsoInputArea extends StatelessWidget {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _callSignEditorController.dispose();
+    _rstEditorController.dispose();
+    _exchangeEditorController.dispose();
+
+    _callSignFocusNode.dispose();
+    _exchangeEditorController.dispose();
+    super.dispose();
   }
 }
 

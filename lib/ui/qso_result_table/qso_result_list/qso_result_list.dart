@@ -139,7 +139,7 @@ class _QsoResultListState extends State<QsoRecordList> {
 
   @override
   void dispose() {
-    super.dispose();
     _controller.dispose();
+    super.dispose();
   }
 }
