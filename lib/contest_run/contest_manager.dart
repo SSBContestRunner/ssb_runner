@@ -141,7 +141,6 @@ class ContestManager {
     switch (event) {
       case OperationEvent.cq:
       case OperationEvent.agn:
-      case OperationEvent.hisCall:
         transition(Retry());
         break;
       case OperationEvent.submit:
