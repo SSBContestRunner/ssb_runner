@@ -1,4 +1,7 @@
+import 'dart:math';
+
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/contests.dart';
 
 class AppSettings {
@@ -19,9 +22,17 @@ class AppSettings {
   set stationCallsign(String value) =>
       _prefs.setString(_settingStationCallsign, value);
 
-  int get contestDuration => _prefs.getInt(_settingContestDuration) ?? 0;
+  int get contestDuration {
+    final durationInMinutes = _prefs.getInt(_settingContestDuration) ?? 0;
+    return _limitContestDuration(durationInMinutes);
+  }
+
   set contestDuration(int value) =>
-      _prefs.setInt(_settingContestDuration, value);
+      _prefs.setInt(_settingContestDuration, _limitContestDuration(value));
+
+  int _limitContestDuration(int durationInMinutes) {
+    return max(durationInMinutes, maxDurationInMinutesPerRun);
+  }
 }
 
 const _settingContestId = 'setting_contest_id';

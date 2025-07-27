@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:toastification/toastification.dart';
 
 class _Options {
   final String modeId;
@@ -20,16 +22,14 @@ class _Options {
 class _OptionsSettingCubit extends Cubit<_Options> {
   final AppSettings _appSettings;
 
-  String _modeString = '';
-
   _OptionsSettingCubit({required AppSettings appSettings})
-    : _appSettings = appSettings,
-      super(
-        _Options(
-          modeId: appSettings.contestModeId,
-          durationInMinutes: appSettings.contestDuration,
-        ),
-      );
+      : _appSettings = appSettings,
+        super(
+          _Options(
+            modeId: appSettings.contestModeId,
+            durationInMinutes: appSettings.contestDuration,
+          ),
+        );
 
   void changeMode(String modeId) {
     _appSettings.contestModeId = modeId;
@@ -37,8 +37,19 @@ class _OptionsSettingCubit extends Cubit<_Options> {
   }
 
   void changeDuration(String modeString) {
-    _modeString = modeString;
     final durationInMinutes = int.tryParse(modeString) ?? 0;
+
+    if (durationInMinutes > maxDurationInMinutesPerRun) {
+      toastification.show(
+        title: Text('Max duration is $maxDurationInMinutesPerRun minutes'),
+        autoCloseDuration: Duration(seconds: 2),
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+      );
+      emit(state.copyWith(durationInMinutes: maxDurationInMinutesPerRun));
+      return;
+    }
+
     _appSettings.contestDuration = durationInMinutes;
   }
 }
@@ -98,5 +109,8 @@ class OptionsSetting extends StatelessWidget {
   void _updateState(_Options options) {
     _modeController.text = options.modeId;
     _durationController.text = options.durationInMinutes.toString();
+    _durationController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _durationController.text.length),
+    );
   }
 }
