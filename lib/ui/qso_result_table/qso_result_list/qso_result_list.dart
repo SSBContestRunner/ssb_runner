@@ -4,13 +4,24 @@ import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 
-class QsoRecordList extends StatelessWidget {
-  final _scorllController = ScrollController();
+class QsoRecordList extends StatefulWidget {
+  const QsoRecordList({super.key});
 
-  QsoRecordList({super.key});
+  @override
+  State<StatefulWidget> createState() {
+    return _QsoResultListState();
+  }
+}
 
-  void _scrollToBottom() {
-    _scorllController.jumpTo(_scorllController.position.maxScrollExtent);
+class _QsoResultListState extends State<QsoRecordList> {
+  final _controller = ScrollController();
+
+  _QsoResultListState();
+
+  void _setupAutoScroll() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.jumpTo(_controller.position.maxScrollExtent);
+    });
   }
 
   @override
@@ -25,17 +36,16 @@ class QsoRecordList extends StatelessWidget {
       height: 1.4,
     );
 
-    TextTheme.of(context).bodySmall;
-
     return BlocProvider(
       create: (context) => QsoRecordListCubit(
         appDatabase: context.read(),
         contestManager: context.read(),
       ),
-      child: BlocConsumer<QsoRecordListCubit, List<QsoResult>>(
-        listener: (context, qsos) {},
+      child: BlocBuilder<QsoRecordListCubit, List<QsoResult>>(
         builder: (context, qsos) {
+          _setupAutoScroll();
           return ListView.separated(
+            controller: _controller,
             itemBuilder: (context, index) {
               final item = qsos[index];
               return SizedBox(
@@ -56,7 +66,8 @@ class QsoRecordList extends StatelessWidget {
                         Expanded(
                           child: Row(
                             children: [
-                              _textOfQso(colorScheme, qsoItemTextStyle, item.call),
+                              _textOfQso(
+                                  colorScheme, qsoItemTextStyle, item.call),
                             ],
                           ),
                         ),
@@ -77,7 +88,8 @@ class QsoRecordList extends StatelessWidget {
                         Expanded(
                           child: Row(
                             children: [
-                              _textOfQso(colorScheme, qsoItemTextStyle, item.exchange),
+                              _textOfQso(
+                                  colorScheme, qsoItemTextStyle, item.exchange),
                             ],
                           ),
                         ),
@@ -123,5 +135,11 @@ class QsoRecordList extends StatelessWidget {
 
     final color = isCorrect ? onSurface : error;
     return textStyle?.copyWith(color: color);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _controller.dispose();
   }
 }
