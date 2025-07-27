@@ -358,6 +358,7 @@ class ContestManager {
         final exchangePcmData = await exchangeToAudioData(
           playType.exchange,
           isMe: playType.isMe,
+          isCallsignCorrect: false,
         );
         final pcmData = concatUint8List([callSignPcmData, exchangePcmData]);
         await _playAudioInternal(pcmData);
