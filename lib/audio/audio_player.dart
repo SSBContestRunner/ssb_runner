@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter_soloud/flutter_soloud.dart';
-import 'package:ssb_runner/main.dart';
 
 class AudioPlayer {
   AudioSource? _audioSource;
