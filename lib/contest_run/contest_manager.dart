@@ -7,7 +7,9 @@ import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
+import 'package:ssb_runner/common/calculate_list_diff.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
+import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/key_event_manager.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
@@ -65,10 +67,10 @@ class ContestManager {
     required AppSettings appSettings,
     required AppDatabase appDatabase,
     required AudioPlayer audioPlayer,
-  }) : _appSettings = appSettings,
-       _appDatabase = appDatabase,
-       _audioPlayer = audioPlayer,
-       _callsignLoader = callsignLoader {
+  })  : _appSettings = appSettings,
+        _appDatabase = appDatabase,
+        _audioPlayer = audioPlayer,
+        _callsignLoader = callsignLoader {
     _initKeyEventHandling();
   }
 
@@ -99,9 +101,8 @@ class ContestManager {
         pcmData = await cqAudioData(_appSettings.stationCallsign);
         break;
       case OperationEvent.exch:
-        pcmData = _exchange.isNotEmpty
-            ? await exchangeAudioData(_exchange)
-            : null;
+        pcmData =
+            _exchange.isNotEmpty ? await exchangeAudioData(_exchange) : null;
         break;
       case OperationEvent.tu:
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
@@ -175,13 +176,11 @@ class ContestManager {
   }
 
   Future<String> _obtainMyExchange() async {
-    final count = await _appDatabase.qsoTable
-        .count(
-          where: (row) {
-            return row.runId.equals(_contestRunId);
-          },
-        )
-        .getSingle();
+    final count = await _appDatabase.qsoTable.count(
+      where: (row) {
+        return row.runId.equals(_contestRunId);
+      },
+    ).getSingle();
 
     return '${count + 1}';
   }
@@ -322,8 +321,7 @@ class ContestManager {
   Future<void> _playAudio(SingleCallRunState toState) async {
     switch (toState) {
       case WaitingSubmitCall():
-        final pcmData = await payloadToAudioData(toState.currentCallAnswer);
-        await _playAudioInternal(pcmData);
+        await _playAudioByPlayType(toState.audioPlayType);
         break;
       case WaitingSubmitExchange():
         await _playAudioByPlayType(toState.audioPlayType);
@@ -341,7 +339,7 @@ class ContestManager {
   Future<void> _playAudioByPlayType(AudioPlayType playType) async {
     switch (playType) {
       case NoPlay():
-        _audioPlayer.stopPlay();
+        // play nothing
         break;
       case PlayExchange():
         final pcmData = await exchangeToAudioData(
@@ -361,6 +359,11 @@ class ContestManager {
           isCallsignCorrect: false,
         );
         final pcmData = concatUint8List([callSignPcmData, exchangePcmData]);
+        await _playAudioInternal(pcmData);
+        break;
+      case PlayCall():
+        final pcmData =
+            await payloadToAudioData(playType.callToPlay, isMe: playType.isMe);
         await _playAudioInternal(pcmData);
         break;
     }
@@ -393,7 +396,15 @@ class ContestManager {
   Future<void> _handleReportMyExchange(ReportMyExchange toState) async {
     await _waitAudioNotPlaying();
     await Future.delayed(Duration(milliseconds: 500));
-    _stateMachine?.transition(ReceiveExchange());
+
+    final misMatchCallsignLength = calculateMismatch(
+        answer: toState.currentCallAnswer, submit: toState.submitCall);
+
+    if (misMatchCallsignLength >= callsignMismatchThreadshold) {
+      _stateMachine?.transition(CallsignInvalid());
+    } else {
+      _stateMachine?.transition(ReceiveExchange());
+    }
   }
 
   Future<void> _waitAudioNotPlaying() async {
@@ -426,11 +437,11 @@ class ContestManager {
       return;
     }
 
-    final latestQsos =
-        await (_appDatabase.qsoTable.select()..where((qsoTable) {
-              return qsoTable.runId.equals(_contestRunId);
-            }))
-            .get();
+    final latestQsos = await (_appDatabase.qsoTable.select()
+          ..where((qsoTable) {
+            return qsoTable.runId.equals(_contestRunId);
+          }))
+        .get();
     scoreManager?.addQso(latestQsos, submitQso);
 
     final (callSignAnswer, exchangeAnswer) = _generateAnswer();
@@ -465,13 +476,11 @@ class ContestManager {
   }
 
   Future<int> countCurrentRunQso() async {
-    return await _appDatabase.qsoTable
-            .count(
-              where: (row) {
-                return row.runId.equals(_contestRunId);
-              },
-            )
-            .getSingleOrNull() ??
+    return await _appDatabase.qsoTable.count(
+          where: (row) {
+            return row.runId.equals(_contestRunId);
+          },
+        ).getSingleOrNull() ??
         0;
   }
 }
