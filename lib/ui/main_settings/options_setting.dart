@@ -54,11 +54,18 @@ class _OptionsSettingCubit extends Cubit<_Options> {
   }
 }
 
-class OptionsSetting extends StatelessWidget {
+class OptionsSetting extends StatefulWidget {
+  const OptionsSetting({super.key});
+
+  @override
+  State<StatefulWidget> createState() {
+    return _OptionsSettingState();
+  }
+}
+
+class _OptionsSettingState extends State<OptionsSetting> {
   final _modeController = TextEditingController();
   final _durationController = TextEditingController();
-
-  OptionsSetting({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -112,5 +119,12 @@ class OptionsSetting extends StatelessWidget {
     _durationController.selection = TextSelection.fromPosition(
       TextPosition(offset: _durationController.text.length),
     );
+  }
+
+  @override
+  void dispose() {
+    _modeController.dispose();
+    _durationController.dispose();
+    super.dispose();
   }
 }

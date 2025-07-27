@@ -33,12 +33,12 @@ class ContestSettingCubit extends Cubit<Contest> {
   final AppSettings _appSettings;
 
   ContestSettingCubit({required AppSettings appSettings})
-    : _appSettings = appSettings,
-      super(
-        supportedContests.firstWhere(
-          (element) => element.id == appSettings.contestId,
-        ),
-      );
+      : _appSettings = appSettings,
+        super(
+          supportedContests.firstWhere(
+            (element) => element.id == appSettings.contestId,
+          ),
+        );
 
   void changeContest(String contestId) {
     final contest = supportedContests.firstWhere(
@@ -50,7 +50,14 @@ class ContestSettingCubit extends Cubit<Contest> {
   }
 }
 
-class _ContestSettings extends StatelessWidget {
+class _ContestSettings extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() {
+    return _ContestSettingsState();
+  }
+}
+
+class _ContestSettingsState extends State<_ContestSettings> {
   final _contestNameController = TextEditingController();
   final _contestExchangeController = TextEditingController();
 
@@ -86,7 +93,6 @@ class _ContestSettings extends StatelessWidget {
                 ),
               ),
             ),
-
             Expanded(
               flex: 1,
               child: TextField(
@@ -103,21 +109,35 @@ class _ContestSettings extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _contestExchangeController.dispose();
+    _contestNameController.dispose();
+    super.dispose();
+  }
 }
 
 class _StationSettingsCubit extends Cubit<String> {
   final AppSettings _appSettings;
 
   _StationSettingsCubit({required AppSettings appSettings})
-    : _appSettings = appSettings,
-      super(appSettings.stationCallsign);
+      : _appSettings = appSettings,
+        super(appSettings.stationCallsign);
 
   void onCallSignChange(String callSign) {
     _appSettings.stationCallsign = callSign;
   }
 }
 
-class _StationSettings extends StatelessWidget {
+class _StationSettings extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() {
+    return _StationSettingsState();
+  }
+}
+
+class _StationSettingsState extends State<_StationSettings> {
   final _controller = TextEditingController();
 
   @override
@@ -156,5 +176,11 @@ class _StationSettings extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }
