@@ -33,12 +33,12 @@ class ContestSettingCubit extends Cubit<Contest> {
   final AppSettings _appSettings;
 
   ContestSettingCubit({required AppSettings appSettings})
-      : _appSettings = appSettings,
-        super(
-          supportedContests.firstWhere(
-            (element) => element.id == appSettings.contestId,
-          ),
-        );
+    : _appSettings = appSettings,
+      super(
+        supportedContests.firstWhere(
+          (element) => element.id == appSettings.contestId,
+        ),
+      );
 
   void changeContest(String contestId) {
     final contest = supportedContests.firstWhere(
@@ -122,8 +122,8 @@ class _StationSettingsCubit extends Cubit<String> {
   final AppSettings _appSettings;
 
   _StationSettingsCubit({required AppSettings appSettings})
-      : _appSettings = appSettings,
-        super(appSettings.stationCallsign);
+    : _appSettings = appSettings,
+      super(appSettings.stationCallsign);
 
   void onCallSignChange(String callSign) {
     _appSettings.stationCallsign = callSign;
@@ -145,16 +145,17 @@ class _StationSettingsState extends State<_StationSettings> {
     return Column(
       children: [
         BlocProvider(
-          create: (context) =>
-              _StationSettingsCubit(appSettings: context.read()),
+          create: (context) {
+            final cubit = _StationSettingsCubit(appSettings: context.read());
+            _controller.text = cubit.state;
+            return cubit;
+          },
           child: BlocConsumer<_StationSettingsCubit, String>(
             listener: (context, callSign) {
               _controller.text = callSign;
             },
             buildWhen: (previous, current) => false,
             builder: (context, callSign) {
-              _controller.text = callSign;
-
               return TextField(
                 controller: _controller,
                 style: TextStyle(fontFamily: qsoFontFamily),
