@@ -67,7 +67,7 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
         home: BlocProvider(
-          create: (context) => _MyAppCubit(),
+          create: (context) => _MyAppCubit()..load(),
           child: BlocBuilder<_MyAppCubit, _AppDeps?>(
             builder: (context, appDeps) {
               if (appDeps == null) {
