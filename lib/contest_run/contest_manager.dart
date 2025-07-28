@@ -135,7 +135,11 @@ class ContestManager {
 
     final pcmDataVal = pcmData;
     if (pcmDataVal != null) {
-      _audioPlayer.addAudioData(pcmDataVal, isResetCurrentStream: true);
+      _audioPlayer.addAudioData(
+        pcmDataVal,
+        isResetCurrentStream: true,
+        isOperationAudio: true,
+      );
     }
   }
 
@@ -301,7 +305,7 @@ class ContestManager {
         }
 
         final toState = transition.to;
-        _handleToState(toState);
+        _handleToState(toState, event: transition.event);
 
         if (toState is WaitingSubmitExchange && !_isRstFilled) {
           _isRstFilled = true;
@@ -313,10 +317,13 @@ class ContestManager {
     _handleToState(waitingSubmitCall);
   }
 
-  Future<void> _handleToState(SingleCallRunState toState) async {
+  Future<void> _handleToState(
+    SingleCallRunState toState, {
+    SingleCallRunEvent? event,
+  }) async {
     _setupRetryTimer(toState);
 
-    await _playAudioByStateChange(toState);
+    await _playAudioByStateChange(toState, event);
 
     switch (toState) {
       case ReportMyExchange():
@@ -330,25 +337,37 @@ class ContestManager {
     }
   }
 
-  Future<void> _playAudioByStateChange(SingleCallRunState toState) async {
+  Future<void> _playAudioByStateChange(
+    SingleCallRunState toState,
+    SingleCallRunEvent? event,
+  ) async {
     switch (toState) {
       case WaitingSubmitCall():
         await _playAudioByPlayType(toState.audioPlayType);
         break;
       case WaitingSubmitExchange():
-        await _playAudioByPlayType(toState.audioPlayType);
+        await _playAudioByPlayType(
+          toState.audioPlayType,
+          isResetAudioStream: event is SubmitCall,
+        );
         break;
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
         _audioPlayer.addAudioData(pcmData, isResetCurrentStream: true);
         break;
       case ReportMyExchange():
-        await _playAudioByPlayType(toState.audioPlayType);
+        await _playAudioByPlayType(
+          toState.audioPlayType,
+          isResetAudioStream: true,
+        );
         break;
     }
   }
 
-  Future<void> _playAudioByPlayType(AudioPlayType playType) async {
+  Future<void> _playAudioByPlayType(
+    AudioPlayType playType, {
+    bool isResetAudioStream = false,
+  }) async {
     switch (playType) {
       case NoPlay():
         // play nothing
@@ -358,7 +377,10 @@ class ContestManager {
           playType.exchangeToPlay,
           isMe: playType.isMe,
         );
-        _exePlayAudioByPlayType(pcmData);
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: isResetAudioStream,
+        );
         break;
       case PlayCallExchange():
         final callSignPcmData = await payloadToAudioData(
@@ -371,21 +393,21 @@ class ContestManager {
           isCallsignCorrect: false,
         );
         final pcmData = concatUint8List([callSignPcmData, exchangePcmData]);
-        _exePlayAudioByPlayType(pcmData);
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: isResetAudioStream,
+        );
         break;
       case PlayCall():
         final pcmData = await payloadToAudioData(
           playType.callToPlay,
           isMe: playType.isMe,
         );
-        _exePlayAudioByPlayType(pcmData);
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: isResetAudioStream,
+        );
         break;
-    }
-  }
-
-  void _exePlayAudioByPlayType(Uint8List pcmData) {
-    if (!_audioPlayer.isPlaying()) {
-      _audioPlayer.addAudioData(pcmData);
     }
   }
 
