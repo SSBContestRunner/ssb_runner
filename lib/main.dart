@@ -17,37 +17,16 @@ import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
 final logger = Logger(printer: PrettyPrinter(methodCount: 5));
+final crashLogger = CrashLogger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await _initCrashHandling();
-  // Initialize the window manager plugin.
-  await windowManager.ensureInitialized();
-
-  // Initialize the player.
-  await SoLoud.instance.init(channels: Channels.mono);
-
-  final windowOptions = WindowOptions(size: Size(1280, 720), center: true);
-
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
-    await windowManager.setResizable(false);
-  });
-
-  final prefs = await SharedPreferencesWithCache.create(
-    cacheOptions: SharedPreferencesWithCacheOptions(),
-  );
-
-  await workerManager.init(dynamicSpawning: true);
-
-  runApp(MyApp(pref: prefs));
+  runApp(MyApp());
 }
 
 Future<void> _initCrashHandling() async {
   // 初始化日志系统
-  final crashLogger = CrashLogger();
   await crashLogger.initialize();
 
   // 设置全局异常处理
@@ -65,12 +44,16 @@ Future<void> _initCrashHandling() async {
 
 const _seedColor = Color(0xFF0059BA);
 
-class MyApp extends StatelessWidget {
-  final SharedPreferencesWithCache _prefs;
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
 
-  const MyApp({super.key, required SharedPreferencesWithCache pref})
-    : _prefs = pref;
+  @override
+  State<StatefulWidget> createState() {
+    return _MyAppState();
+  }
+}
 
+class _MyAppState extends State<MyApp> {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -83,25 +66,88 @@ class MyApp extends StatelessWidget {
             primary: _seedColor,
           ),
         ),
-        home: MultiRepositoryProvider(
-          providers: [
-            RepositoryProvider(create: (context) => AppDatabase()),
-            RepositoryProvider(create: (context) => AudioPlayer()),
-            RepositoryProvider(
-              create: (context) => CallsignLoader()..loadCallsigns(),
-            ),
-            RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
-          ],
-          child: RepositoryProvider(
-            create: (context) => ContestManager(
-              callsignLoader: context.read(),
-              appSettings: context.read(),
-              appDatabase: context.read(),
-              audioPlayer: context.read(),
-            ),
-            child: Scaffold(body: MainPage()),
+        home: BlocProvider(
+          create: (context) => _MyAppCubit(),
+          child: BlocBuilder<_MyAppCubit, _AppDeps?>(
+            builder: (context, appDeps) {
+              if (appDeps == null) {
+                return const Center(child: CircularProgressIndicator());
+              } else {
+                return _HomePage(prefs: appDeps.prefs);
+              }
+            },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AppDeps {
+  final SharedPreferencesWithCache prefs;
+
+  _AppDeps({required this.prefs});
+}
+
+class _MyAppCubit extends Cubit<_AppDeps?> {
+  _MyAppCubit() : super(null);
+
+  void load() async {
+    await _initCrashHandling();
+
+    // Initialize the window manager plugin.
+    await windowManager.ensureInitialized();
+
+    // Initialize the player.
+    try {
+      await SoLoud.instance.init(channels: Channels.mono);
+    } on Exception catch (e, stack) {
+      crashLogger.logCrash(e.toString(), stack);
+    }
+
+    final windowOptions = WindowOptions(size: Size(1280, 720), center: true);
+
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+      await windowManager.setResizable(false);
+    });
+
+    final prefs = await SharedPreferencesWithCache.create(
+      cacheOptions: SharedPreferencesWithCacheOptions(),
+    );
+
+    await workerManager.init(dynamicSpawning: true);
+
+    emit(_AppDeps(prefs: prefs));
+  }
+}
+
+class _HomePage extends StatelessWidget {
+  final SharedPreferencesWithCache _prefs;
+
+  const _HomePage({required SharedPreferencesWithCache prefs})
+    : _prefs = prefs;
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider(create: (context) => AppDatabase()),
+        RepositoryProvider(create: (context) => AudioPlayer()),
+        RepositoryProvider(
+          create: (context) => CallsignLoader()..loadCallsigns(),
+        ),
+        RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
+      ],
+      child: RepositoryProvider(
+        create: (context) => ContestManager(
+          callsignLoader: context.read(),
+          appSettings: context.read(),
+          appDatabase: context.read(),
+          audioPlayer: context.read(),
+        ),
+        child: Scaffold(body: MainPage()),
       ),
     );
   }
