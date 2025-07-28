@@ -18,6 +18,7 @@ import 'package:worker_manager/worker_manager.dart';
 
 final logger = Logger(printer: PrettyPrinter(methodCount: 5));
 final crashLogger = CrashLogger();
+const _seedColor = Color(0xFF0059BA);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +43,6 @@ Future<void> _initCrashHandling() async {
   };
 }
 
-const _seedColor = Color(0xFF0059BA);
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
