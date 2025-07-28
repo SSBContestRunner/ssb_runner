@@ -90,7 +90,7 @@ class ContestManager {
       return;
     }
     await _playAudioByOperationEvent(event);
-    await _handleOperationEventBusiness(event);
+    _handleOperationEventBusiness(event);
   }
 
   Future<void> _playAudioByOperationEvent(OperationEvent event) async {
@@ -133,11 +133,11 @@ class ContestManager {
 
     final pcmDataVal = pcmData;
     if (pcmDataVal != null) {
-      _audioPlayer.addAudioData(pcmDataVal);
+      _audioPlayer.addAudioData(pcmDataVal, isResetCurrentStream: true);
     }
   }
 
-  Future<void> _handleOperationEventBusiness(OperationEvent event) async {
+  void _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
       case OperationEvent.cq:
       case OperationEvent.agn:
@@ -303,7 +303,7 @@ class ContestManager {
   Future<void> _handleToState(SingleCallRunState toState) async {
     _setupRetryTimer(toState);
 
-    await _playAudio(toState);
+    await _playAudioByStateChange(toState);
 
     switch (toState) {
       case ReportMyExchange():
@@ -317,7 +317,7 @@ class ContestManager {
     }
   }
 
-  Future<void> _playAudio(SingleCallRunState toState) async {
+  Future<void> _playAudioByStateChange(SingleCallRunState toState) async {
     switch (toState) {
       case WaitingSubmitCall():
         await _playAudioByPlayType(toState.audioPlayType);
@@ -345,7 +345,7 @@ class ContestManager {
           playType.exchangeToPlay,
           isMe: playType.isMe,
         );
-        await _playAudioInternal(pcmData);
+        _exePlayAudioByPlayType(pcmData);
         break;
       case PlayCallExchange():
         final callSignPcmData = await payloadToAudioData(
@@ -358,22 +358,20 @@ class ContestManager {
           isCallsignCorrect: false,
         );
         final pcmData = concatUint8List([callSignPcmData, exchangePcmData]);
-        await _playAudioInternal(pcmData);
+        _exePlayAudioByPlayType(pcmData);
         break;
       case PlayCall():
         final pcmData =
             await payloadToAudioData(playType.callToPlay, isMe: playType.isMe);
-        await _playAudioInternal(pcmData);
+        _exePlayAudioByPlayType(pcmData);
         break;
     }
   }
 
-  Future<void> _playAudioInternal(Uint8List pcmData) async {
-    if (!_audioPlayer.isStarted) {
-      await _audioPlayer.startPlay();
+  void _exePlayAudioByPlayType(Uint8List pcmData) {
+    if (!_audioPlayer.isPlaying()) {
+      _audioPlayer.addAudioData(pcmData);
     }
-
-    _audioPlayer.addAudioData(pcmData);
   }
 
   void _setupRetryTimer(SingleCallRunState toState) {

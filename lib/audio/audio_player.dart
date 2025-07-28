@@ -49,7 +49,7 @@ class AudioPlayer {
     return SoLoud.instance.getBufferSize(audioSource) > 0;
   }
 
-  void addAudioData(Uint8List pcmData) {
+  void addAudioData(Uint8List pcmData, {bool isResetCurrentStream = false}) {
     final handleVal = _handle;
 
     if (handleVal == null) {
@@ -59,6 +59,11 @@ class AudioPlayer {
     final audioSource = _audioSource;
 
     if (audioSource != null) {
+
+      if (isResetCurrentStream) {
+        SoLoud.instance.resetBufferStream(audioSource);
+      }
+
       SoLoud.instance.addAudioDataStream(audioSource, pcmData);
     }
   }
