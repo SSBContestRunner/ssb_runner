@@ -31,7 +31,7 @@ class AppSettings {
       _prefs.setInt(_settingContestDuration, _limitContestDuration(value));
 
   int _limitContestDuration(int durationInMinutes) {
-    return max(durationInMinutes, maxDurationInMinutesPerRun);
+    return min(durationInMinutes, maxDurationInMinutesPerRun);
   }
 }
 
