@@ -60,7 +60,6 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _listener = AppLifecycleListener(onExitRequested: () async {
       SoLoud.instance.deinit();
-      workerManager.dispose();
       return AppExitResponse.exit;
     });
   }
