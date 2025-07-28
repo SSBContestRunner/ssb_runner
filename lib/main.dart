@@ -83,7 +83,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
-    SoLoud.instance.deinit();
+    // SoLoud.instance.deinit();
     workerManager.dispose();
     super.dispose();
   }
@@ -105,11 +105,11 @@ class _MyAppCubit extends Cubit<_AppDeps?> {
     await windowManager.ensureInitialized();
 
     // Initialize the player.
-    try {
-      await SoLoud.instance.init(channels: Channels.mono);
-    } on Exception catch (e, stack) {
-      crashLogger.logCrash(e.toString(), stack);
-    }
+    // try {
+    //   await SoLoud.instance.init(channels: Channels.mono);
+    // } on Exception catch (e, stack) {
+    //   crashLogger.logCrash(e.toString(), stack);
+    // }
 
     final windowOptions = WindowOptions(size: Size(1280, 720), center: true);
 
