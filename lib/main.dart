@@ -43,7 +43,6 @@ Future<void> _initCrashHandling() async {
   };
 }
 
-
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -85,6 +84,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     SoLoud.instance.deinit();
+    workerManager.dispose();
     super.dispose();
   }
 }
