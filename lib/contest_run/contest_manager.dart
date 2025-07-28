@@ -129,6 +129,7 @@ class ContestManager {
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
         break;
       case OperationEvent.submit:
+      case OperationEvent.cancel:
         break;
     }
 
@@ -146,6 +147,9 @@ class ContestManager {
         break;
       case OperationEvent.submit:
         _handleSubmit();
+        break;
+      case OperationEvent.cancel:
+        _handleCancel();
         break;
       default:
         break;
@@ -185,6 +189,12 @@ class ContestManager {
         .getSingle();
 
     return '${count + 1}';
+  }
+
+  void _handleCancel() {
+    if (_audioPlayer.isMePlaying()) {
+      _audioPlayer.resetStream();
+    }
   }
 
   void onCallInput(String callSign) {
@@ -330,7 +340,7 @@ class ContestManager {
         break;
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
-        _audioPlayer.addAudioData(pcmData);
+        _audioPlayer.addAudioData(pcmData, isResetCurrentStream: true);
         break;
       case ReportMyExchange():
         await _playAudioByPlayType(toState.audioPlayType);

@@ -6,6 +6,8 @@ class AudioPlayer {
   AudioSource? _audioSource;
   SoundHandle? _handle;
 
+  bool _isMyAudio = false;
+
   bool get isStarted {
     return _handle != null;
   }
@@ -49,6 +51,22 @@ class AudioPlayer {
     return SoLoud.instance.getBufferSize(audioSource) > 0;
   }
 
+  bool isMePlaying() {
+    return isPlaying() && _isMyAudio;
+  }
+
+  void resetStream() {
+    _isMyAudio = false;
+
+    final audioSource = _audioSource;
+
+    if (audioSource == null) {
+      return;
+    }
+
+    SoLoud.instance.resetBufferStream(audioSource);
+  }
+
   void addAudioData(Uint8List pcmData, {bool isResetCurrentStream = false}) {
     final handleVal = _handle;
 
@@ -58,13 +76,17 @@ class AudioPlayer {
 
     final audioSource = _audioSource;
 
-    if (audioSource != null) {
-
-      if (isResetCurrentStream) {
-        SoLoud.instance.resetBufferStream(audioSource);
-      }
-
-      SoLoud.instance.addAudioDataStream(audioSource, pcmData);
+    if (audioSource == null) {
+      return;
     }
+
+    if (isResetCurrentStream) {
+      _isMyAudio = true;
+      SoLoud.instance.resetBufferStream(audioSource);
+    } else {
+      _isMyAudio = false;
+    }
+
+    SoLoud.instance.addAudioDataStream(audioSource, pcmData);
   }
 }
