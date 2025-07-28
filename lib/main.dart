@@ -80,7 +80,10 @@ class _MyAppState extends State<MyApp> {
           child: BlocBuilder<_MyAppCubit, _AppDeps?>(
             builder: (context, appDeps) {
               if (appDeps == null) {
-                return const Center(child: CircularProgressIndicator());
+                return Container(
+                  color: ColorScheme.of(context).surface,
+                  child: const Center(child: CircularProgressIndicator()),
+                );
               } else {
                 return _HomePage(prefs: appDeps.prefs);
               }
