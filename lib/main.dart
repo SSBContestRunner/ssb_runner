@@ -81,6 +81,12 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    SoLoud.instance.deinit();
+    super.dispose();
+  }
 }
 
 class _AppDeps {
@@ -126,8 +132,7 @@ class _MyAppCubit extends Cubit<_AppDeps?> {
 class _HomePage extends StatelessWidget {
   final SharedPreferencesWithCache _prefs;
 
-  const _HomePage({required SharedPreferencesWithCache prefs})
-    : _prefs = prefs;
+  const _HomePage({required SharedPreferencesWithCache prefs}) : _prefs = prefs;
 
   @override
   Widget build(BuildContext context) {
