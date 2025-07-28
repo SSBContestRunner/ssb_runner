@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/bottom_panel/bottom_panel.dart';
+import 'package:ssb_runner/ui/key_tips.dart';
 import 'package:ssb_runner/ui/main_cubit.dart';
 import 'package:ssb_runner/ui/main_settings/main_settings.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_record_table.dart';
@@ -15,23 +18,32 @@ class MainPage extends StatelessWidget {
       create: (context) => MainCubit(),
       child: BlocBuilder<MainCubit, bool>(
         builder: (context, isShowKeyTips) {
-          return Padding(
-            padding: const EdgeInsets.only(
-              top: 16.0,
-              bottom: 12.0,
-              left: 16.0,
-              right: 16.0,
-            ),
-            child: Flex(
-              direction: Axis.vertical,
-              spacing: 12.0,
-              children: [
-                Expanded(child: _TopPanel()),
-                BottomPanel(),
-              ],
-            ),
+          return Stack(
+            children: [
+              _mainPage(context),
+              if (isShowKeyTips) KeyTips(),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _mainPage(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: 16.0,
+        bottom: 12.0,
+        left: 16.0,
+        right: 16.0,
+      ),
+      child: Flex(
+        direction: Axis.vertical,
+        spacing: 12.0,
+        children: [
+          Expanded(child: _TopPanel()),
+          BottomPanel(),
+        ],
       ),
     );
   }

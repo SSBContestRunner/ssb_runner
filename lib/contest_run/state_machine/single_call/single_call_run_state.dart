@@ -6,9 +6,12 @@ class WaitingSubmitCall extends SingleCallRunState {
   WaitingSubmitCall({
     required this.currentCallAnswer,
     required this.currentExchangeAnswer,
-  });
+    AudioPlayType? audioPlayType,
+  }) : audioPlayType = audioPlayType ?? PlayCall(callToPlay: currentCallAnswer);
+
   final String currentCallAnswer;
   final String currentExchangeAnswer;
+  final AudioPlayType audioPlayType;
 }
 
 class ReportMyExchange extends SingleCallRunState {

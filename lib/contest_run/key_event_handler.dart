@@ -13,7 +13,7 @@ final functionKeysMap = {
   LogicalKeyboardKey.f8: OperationEvent.nil,
 };
 
-class KeyEventManager {
+class KeyEventHandler {
   bool _isFunctionKeyPressed = false;
 
   final Set<LogicalKeyboardKey> _pressedKeys = {};
@@ -43,6 +43,10 @@ class KeyEventManager {
 
     if (key == LogicalKeyboardKey.enter && _pressedKeys.length == 1) {
       _operationEventController.add(OperationEvent.submit);
+    }
+
+    if (key == LogicalKeyboardKey.escape && _pressedKeys.length == 1) {
+      _operationEventController.add(OperationEvent.cancel);
     }
   }
 
@@ -75,7 +79,8 @@ enum OperationEvent {
   b4(btnText: 'B4'),
   agn(btnText: 'AGN'),
   nil(btnText: 'NIL'),
-  submit(btnText: '');
+  submit(btnText: ''),
+  cancel(btnText: '');
 
   final String btnText;
 

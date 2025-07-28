@@ -2,13 +2,15 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/services.dart' hide KeyEventManager;
+import 'package:flutter/services.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
+import 'package:ssb_runner/common/calculate_list_diff.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
-import 'package:ssb_runner/contest_run/key_event_manager.dart';
+import 'package:ssb_runner/common/constants.dart';
+import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
@@ -49,7 +51,7 @@ class ContestManager {
   final _inputControlStreamController = StreamController<int>();
   Stream<int> get inputControlStream => _inputControlStreamController.stream;
 
-  final _keyEventManager = KeyEventManager();
+  final _keyEventManager = KeyEventHandler();
 
   StateMachine<SingleCallRunState, SingleCallRunEvent, Null>? _stateMachine;
 
@@ -88,7 +90,7 @@ class ContestManager {
       return;
     }
     await _playAudioByOperationEvent(event);
-    await _handleOperationEventBusiness(event);
+    _handleOperationEventBusiness(event);
   }
 
   Future<void> _playAudioByOperationEvent(OperationEvent event) async {
@@ -127,24 +129,31 @@ class ContestManager {
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
         break;
       case OperationEvent.submit:
+      case OperationEvent.cancel:
         break;
     }
 
     final pcmDataVal = pcmData;
     if (pcmDataVal != null) {
-      _audioPlayer.addAudioData(pcmDataVal);
+      _audioPlayer.addAudioData(
+        pcmDataVal,
+        isResetCurrentStream: true,
+        isOperationAudio: true,
+      );
     }
   }
 
-  Future<void> _handleOperationEventBusiness(OperationEvent event) async {
+  void _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
       case OperationEvent.cq:
       case OperationEvent.agn:
-      case OperationEvent.hisCall:
         transition(Retry());
         break;
       case OperationEvent.submit:
         _handleSubmit();
+        break;
+      case OperationEvent.cancel:
+        _handleCancel();
         break;
       default:
         break;
@@ -184,6 +193,12 @@ class ContestManager {
         .getSingle();
 
     return '${count + 1}';
+  }
+
+  void _handleCancel() {
+    if (_audioPlayer.isMePlaying()) {
+      _audioPlayer.resetStream();
+    }
   }
 
   void onCallInput(String callSign) {
@@ -290,7 +305,7 @@ class ContestManager {
         }
 
         final toState = transition.to;
-        _handleToState(toState);
+        _handleToState(toState, event: transition.event);
 
         if (toState is WaitingSubmitExchange && !_isRstFilled) {
           _isRstFilled = true;
@@ -302,10 +317,13 @@ class ContestManager {
     _handleToState(waitingSubmitCall);
   }
 
-  Future<void> _handleToState(SingleCallRunState toState) async {
+  Future<void> _handleToState(
+    SingleCallRunState toState, {
+    SingleCallRunEvent? event,
+  }) async {
     _setupRetryTimer(toState);
 
-    await _playAudio(toState);
+    await _playAudioByStateChange(toState, event);
 
     switch (toState) {
       case ReportMyExchange():
@@ -319,36 +337,50 @@ class ContestManager {
     }
   }
 
-  Future<void> _playAudio(SingleCallRunState toState) async {
+  Future<void> _playAudioByStateChange(
+    SingleCallRunState toState,
+    SingleCallRunEvent? event,
+  ) async {
     switch (toState) {
       case WaitingSubmitCall():
-        final pcmData = await payloadToAudioData(toState.currentCallAnswer);
-        await _playAudioInternal(pcmData);
+        await _playAudioByPlayType(toState.audioPlayType);
         break;
       case WaitingSubmitExchange():
-        await _playAudioByPlayType(toState.audioPlayType);
+        await _playAudioByPlayType(
+          toState.audioPlayType,
+          isResetAudioStream: event is SubmitCall,
+        );
         break;
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
-        _audioPlayer.addAudioData(pcmData);
+        _audioPlayer.addAudioData(pcmData, isResetCurrentStream: true);
         break;
       case ReportMyExchange():
-        await _playAudioByPlayType(toState.audioPlayType);
+        await _playAudioByPlayType(
+          toState.audioPlayType,
+          isResetAudioStream: true,
+        );
         break;
     }
   }
 
-  Future<void> _playAudioByPlayType(AudioPlayType playType) async {
+  Future<void> _playAudioByPlayType(
+    AudioPlayType playType, {
+    bool isResetAudioStream = false,
+  }) async {
     switch (playType) {
       case NoPlay():
-        _audioPlayer.stopPlay();
+        // play nothing
         break;
       case PlayExchange():
         final pcmData = await exchangeToAudioData(
           playType.exchangeToPlay,
           isMe: playType.isMe,
         );
-        await _playAudioInternal(pcmData);
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: isResetAudioStream,
+        );
         break;
       case PlayCallExchange():
         final callSignPcmData = await payloadToAudioData(
@@ -358,19 +390,25 @@ class ContestManager {
         final exchangePcmData = await exchangeToAudioData(
           playType.exchange,
           isMe: playType.isMe,
+          isCallsignCorrect: false,
         );
         final pcmData = concatUint8List([callSignPcmData, exchangePcmData]);
-        await _playAudioInternal(pcmData);
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: isResetAudioStream,
+        );
+        break;
+      case PlayCall():
+        final pcmData = await payloadToAudioData(
+          playType.callToPlay,
+          isMe: playType.isMe,
+        );
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: isResetAudioStream,
+        );
         break;
     }
-  }
-
-  Future<void> _playAudioInternal(Uint8List pcmData) async {
-    if (!_audioPlayer.isStarted) {
-      await _audioPlayer.startPlay();
-    }
-
-    _audioPlayer.addAudioData(pcmData);
   }
 
   void _setupRetryTimer(SingleCallRunState toState) {
@@ -392,7 +430,17 @@ class ContestManager {
   Future<void> _handleReportMyExchange(ReportMyExchange toState) async {
     await _waitAudioNotPlaying();
     await Future.delayed(Duration(milliseconds: 500));
-    _stateMachine?.transition(ReceiveExchange());
+
+    final misMatchCallsignLength = calculateMismatch(
+      answer: toState.currentCallAnswer,
+      submit: toState.submitCall,
+    );
+
+    if (misMatchCallsignLength >= callsignMismatchThreadshold) {
+      _stateMachine?.transition(CallsignInvalid());
+    } else {
+      _stateMachine?.transition(ReceiveExchange());
+    }
   }
 
   Future<void> _waitAudioNotPlaying() async {

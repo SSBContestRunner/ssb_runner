@@ -28,16 +28,24 @@ Future<Uint8List> payloadToAudioData(
 Future<Uint8List> exchangeToAudioData(
   String exchange, {
   bool isMe = false,
+  bool isCallsignCorrect = true,
 }) async {
   final dirName = _obtainParentDirName(isMe);
-  final exchangeFilePath = isMe
-      ? '$dirName/RUN/exch.wav'
-      : '$dirName/Common/rogeryouare59.wav';
+  final exchangeFilePath =
+      '$dirName/${_obtainExchangeFilePath(isMe, isCallsignCorrect)}';
 
   final exchangeAudioData = await loadAssetsWavPcmData(exchangeFilePath);
 
   final payloadAudioData = await payloadToAudioData(exchange, isMe: isMe);
   return concatUint8List([exchangeAudioData, payloadAudioData]);
+}
+
+String _obtainExchangeFilePath(bool isMe, bool isCallsignCorrect) {
+  if (isMe) {
+    return 'RUN/exch.wav';
+  }
+
+  return isCallsignCorrect ? 'Common/rogeryouare59.wav' : 'Common/5_9.wav';
 }
 
 Future<Uint8List> loadAssetsWavPcmData(String filePath) async {

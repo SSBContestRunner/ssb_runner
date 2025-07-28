@@ -23,6 +23,10 @@ class SubmitCall extends SingleCallRunEvent {
   final String myExchange;
 }
 
+class CallsignInvalid extends SingleCallRunEvent {
+  CallsignInvalid();
+}
+
 class ReceiveExchange extends SingleCallRunEvent {
   ReceiveExchange();
 }

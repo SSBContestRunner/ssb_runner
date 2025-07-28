@@ -1,4 +1,5 @@
 import 'package:ssb_runner/common/calculate_list_diff.dart';
+import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
@@ -6,10 +7,10 @@ import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-initSingleCallRunStateMachine({
+    initSingleCallRunStateMachine({
   required SingleCallRunState initialState,
   required TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>
-  transitionListener,
+      transitionListener,
 }) {
   return StateMachine.create((builder) {
     builder.initialState(initialState);
@@ -96,6 +97,18 @@ initSingleCallRunStateMachine({
           ),
         );
       });
+
+      definition.on(CallsignInvalid, (state, event) {
+        final stateVal = state as ReportMyExchange;
+
+        return definition.transitionTo(
+          WaitingSubmitCall(
+            currentCallAnswer: state.currentCallAnswer,
+            currentExchangeAnswer: state.currentExchangeAnswer,
+            audioPlayType: NoPlay(),
+          ),
+        );
+      });
     });
 
     builder.state(WaitingSubmitExchange, (definition) {
@@ -169,7 +182,7 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
 ) {
   int diff = calculateMismatch(answer: answerCall, submit: submitCall);
 
-  if (diff >= 3) {
+  if (diff >= callsignMismatchThreadshold) {
     return NoPlay();
   }
 

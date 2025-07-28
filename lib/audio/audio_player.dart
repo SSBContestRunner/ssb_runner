@@ -1,11 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter_soloud/flutter_soloud.dart';
-import 'package:ssb_runner/main.dart';
 
 class AudioPlayer {
   AudioSource? _audioSource;
   SoundHandle? _handle;
+
+  bool _isOperationAudio = false;
 
   bool get isStarted {
     return _handle != null;
@@ -50,7 +51,27 @@ class AudioPlayer {
     return SoLoud.instance.getBufferSize(audioSource) > 0;
   }
 
-  void addAudioData(Uint8List pcmData) {
+  bool isMePlaying() {
+    return isPlaying() && _isOperationAudio;
+  }
+
+  void resetStream() {
+    _isOperationAudio = false;
+
+    final audioSource = _audioSource;
+
+    if (audioSource == null) {
+      return;
+    }
+
+    SoLoud.instance.resetBufferStream(audioSource);
+  }
+
+  void addAudioData(
+    Uint8List pcmData, {
+    bool isResetCurrentStream = false,
+    bool isOperationAudio = false,
+  }) {
     final handleVal = _handle;
 
     if (handleVal == null) {
@@ -59,8 +80,15 @@ class AudioPlayer {
 
     final audioSource = _audioSource;
 
-    if (audioSource != null) {
-      SoLoud.instance.addAudioDataStream(audioSource, pcmData);
+    if (audioSource == null) {
+      return;
     }
+
+    if (isResetCurrentStream) {
+      SoLoud.instance.resetBufferStream(audioSource);
+    }
+
+    _isOperationAudio = isOperationAudio;
+    SoLoud.instance.addAudioDataStream(audioSource, pcmData);
   }
 }

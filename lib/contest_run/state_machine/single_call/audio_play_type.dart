@@ -5,12 +5,19 @@ sealed class AudioPlayType {}
 
 class NoPlay extends AudioPlayType {}
 
+class PlayCall extends AudioPlayType {
+  final String callToPlay;
+  final bool isMe;
+
+  PlayCall({required this.callToPlay, this.isMe = false});
+}
+
 class PlayExchange extends AudioPlayType {
   final String exchangeToPlay;
   final bool isMe;
 
   PlayExchange({required String exchange, required this.isMe})
-    : exchangeToPlay = _padZerosIfNeeded(exchange);
+      : exchangeToPlay = _padZerosIfNeeded(exchange);
 
   static String _padZerosIfNeeded(String exchange) {
     if (exchange.isEmpty ||
