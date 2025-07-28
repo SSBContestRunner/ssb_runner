@@ -1,8 +1,6 @@
-import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
-import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:toastification/toastification.dart';
 

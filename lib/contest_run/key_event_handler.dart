@@ -13,7 +13,7 @@ final functionKeysMap = {
   LogicalKeyboardKey.f8: OperationEvent.nil,
 };
 
-class KeyEventManager {
+class KeyEventHandler {
   bool _isFunctionKeyPressed = false;
 
   final Set<LogicalKeyboardKey> _pressedKeys = {};
