@@ -59,6 +59,7 @@ class ContestManager {
   final AppDatabase _appDatabase;
   final AudioPlayer _audioPlayer;
   final CallsignLoader _callsignLoader;
+  final DxccManager _dxccManager;
 
   late ContestType _contestType;
 
@@ -67,10 +68,12 @@ class ContestManager {
     required AppSettings appSettings,
     required AppDatabase appDatabase,
     required AudioPlayer audioPlayer,
+    required DxccManager dxccManager,
   }) : _appSettings = appSettings,
        _appDatabase = appDatabase,
        _audioPlayer = audioPlayer,
-       _callsignLoader = callsignLoader {
+       _callsignLoader = callsignLoader,
+       _dxccManager = dxccManager {
     _initKeyEventHandling();
   }
 
@@ -265,12 +268,9 @@ class ContestManager {
   }
 
   Future<void> _createContestType() async {
-    final dxccManager = DxccManager(database: _appDatabase);
-    await dxccManager.loadDxcc();
-
     _contestType = CqWpxContestType(
       stationCallsign: _appSettings.stationCallsign,
-      dxccManager: dxccManager,
+      dxccManager: _dxccManager,
     );
   }
 

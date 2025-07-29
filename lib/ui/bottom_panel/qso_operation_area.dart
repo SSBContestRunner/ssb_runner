@@ -5,7 +5,7 @@ import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
-import 'package:ssb_runner/ui/main_cubit.dart';
+import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 const maxCallsignLength = 15;
 
@@ -13,8 +13,8 @@ class QsoOperationAreaCubit extends Cubit<int> {
   final ContestManager _contestManager;
 
   QsoOperationAreaCubit({required ContestManager contestManager})
-      : _contestManager = contestManager,
-        super(0);
+    : _contestManager = contestManager,
+      super(0);
 
   bool _isAttachedInputControl = false;
 
@@ -62,11 +62,11 @@ class QsoOperationArea extends StatelessWidget {
                 child: _FunctionKeysPad(
                   onOperationEvent: (event) {
                     context.read<QsoOperationAreaCubit>().handleOperationEvent(
-                          event,
-                        );
+                      event,
+                    );
                   },
                   onInfoIconPressed: () {
-                    context.read<MainCubit>().showKeyTips();
+                    context.read<MainPageCubit>().showKeyTips();
                   },
                 ),
               ),
@@ -181,8 +181,8 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                     ),
                     onChanged: (value) {
                       context.read<QsoOperationAreaCubit>().onExchangeInput(
-                            value,
-                          );
+                        value,
+                      );
                     },
                   ),
                 ),
