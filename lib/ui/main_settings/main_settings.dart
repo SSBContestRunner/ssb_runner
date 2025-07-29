@@ -1,13 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
+import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/contests.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/bottom_panel/qso_operation_area.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
 import 'package:ssb_runner/ui/common/setting_item.dart';
+
+class MainSettingsCubit extends Cubit<bool> {
+  final ContestManager _contestManager;
+
+  MainSettingsCubit({required ContestManager contestManager})
+    : _contestManager = contestManager,
+      super(contestManager.isContestRunning) {
+    _contestManager.isContestRunningStream.listen((isContestRunning) {
+      emit(isContestRunning);
+    });
+  }
+}
 
 class MainSettings extends StatelessWidget {
   const MainSettings({super.key});
@@ -16,14 +30,24 @@ class MainSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 370,
-      child: Flex(
-        direction: Axis.vertical,
-        spacing: 12.0,
-        children: [
-          SettingItem(title: 'Contest', content: _ContestSettings()),
-          SettingItem(title: 'Station', content: _StationSettings()),
-          SettingItem(title: 'Options', content: OptionsSetting()),
-        ],
+      child: BlocProvider(
+        create: (context) => MainSettingsCubit(contestManager: context.read()),
+        child: BlocBuilder<MainSettingsCubit, bool>(
+          builder: (context, isContestRunning) {
+            return ExcludeFocus(
+              excluding: isContestRunning,
+              child: Flex(
+                direction: Axis.vertical,
+                spacing: 12.0,
+                children: [
+                  SettingItem(title: 'Contest', content: _ContestSettings()),
+                  SettingItem(title: 'Station', content: _StationSettings()),
+                  SettingItem(title: 'Options', content: OptionsSetting()),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

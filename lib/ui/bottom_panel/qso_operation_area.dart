@@ -59,15 +59,17 @@ class QsoOperationArea extends StatelessWidget {
               _QsoInputArea(),
               Expanded(
                 flex: 1,
-                child: _FunctionKeysPad(
-                  onOperationEvent: (event) {
-                    context.read<QsoOperationAreaCubit>().handleOperationEvent(
-                      event,
-                    );
-                  },
-                  onInfoIconPressed: () {
-                    context.read<MainPageCubit>().showKeyTips();
-                  },
+                child: ExcludeFocus(
+                  child: _FunctionKeysPad(
+                    onOperationEvent: (event) {
+                      context
+                          .read<QsoOperationAreaCubit>()
+                          .handleOperationEvent(event);
+                    },
+                    onInfoIconPressed: () {
+                      context.read<MainPageCubit>().showKeyTips();
+                    },
+                  ),
                 ),
               ),
             ],
