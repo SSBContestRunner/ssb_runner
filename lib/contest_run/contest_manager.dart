@@ -386,7 +386,7 @@ class ContestManager {
           isMe: playType.isMe,
         );
         final exchangePcmData = await exchangeToAudioData(
-          playType.exchange,
+          playType.exchangeToPlay,
           isMe: playType.isMe,
           isCallsignCorrect: false,
         );

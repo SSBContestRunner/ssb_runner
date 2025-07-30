@@ -22,15 +22,17 @@ class PlayExchange extends AudioPlayType {
 
 class PlayCallExchange extends AudioPlayType {
   final String call;
-  final String exchange;
+  final String exchangeToPlay;
   final bool isMe;
 
   PlayCallExchange({
     required this.call,
-    required this.exchange,
+    required String exchange,
     required this.isMe,
-  });
+  }) : exchangeToPlay = exchange.exchangePadZerosIfNeeded();
 }
+
+const _exchangeMinLength = 3;
 
 extension ExchangePadZeroExtension on String {
   String exchangePadZerosIfNeeded() {
@@ -38,16 +40,6 @@ extension ExchangePadZeroExtension on String {
       return this;
     }
 
-    int padLength;
-
-    if (length == 1) {
-      padLength = 2;
-    } else if (length == 2) {
-      padLength = 1;
-    } else {
-      padLength = 0;
-    }
-
-    return padLeft(padLength, '0');
+    return padLeft(_exchangeMinLength, '0');
   }
 }
