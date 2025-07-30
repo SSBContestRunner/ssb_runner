@@ -178,6 +178,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                 Expanded(
                   flex: 1,
                   child: TextField(
+                    textInputAction: TextInputAction.none,
                     controller: _callSignEditorController,
                     focusNode: _callSignFocusNode,
                     style: TextStyle(fontFamily: qsoFontFamily),
@@ -199,6 +200,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                   flex: 1,
                   child: TextField(
                     controller: _rstEditorController,
+                    textInputAction: TextInputAction.none,
                     readOnly: true,
                     style: TextStyle(fontFamily: qsoFontFamily),
                     decoration: InputDecoration(
@@ -211,6 +213,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                   flex: 1,
                   child: TextField(
                     controller: _exchangeEditorController,
+                    textInputAction: TextInputAction.none,
                     focusNode: _exchangeFocusonNode,
                     style: TextStyle(fontFamily: qsoFontFamily),
                     inputFormatters: [
