@@ -104,9 +104,7 @@ class ContestManager {
         pcmData = await cqAudioData(_appSettings.stationCallsign);
         break;
       case OperationEvent.exch:
-        pcmData = _exchange.isNotEmpty
-            ? await exchangeAudioData(_exchange)
-            : null;
+        pcmData = await exchangeAudioData(await _obtainMyExchange());
         break;
       case OperationEvent.tu:
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');

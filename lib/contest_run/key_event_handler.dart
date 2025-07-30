@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 
 final functionKeysMap = {
   LogicalKeyboardKey.f1: OperationEvent.cq,
