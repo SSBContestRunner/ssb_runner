@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,16 +18,28 @@ class QsoOperationAreaCubit extends Cubit<int> {
     : _contestManager = contestManager,
       super(0);
 
-  bool _isAttachedInputControl = false;
+  StreamSubscription? _inputControlStreamSubscription;
+  StreamSubscription? _inputAreaEventStreamSubscription;
 
   void attachInputControl(void Function(int) callback) {
-    if (_isAttachedInputControl) {
+    if (_inputControlStreamSubscription != null) {
       return;
     }
-    _contestManager.inputControlStream.listen((data) {
-      callback(data);
-    });
-    _isAttachedInputControl = true;
+
+    _inputControlStreamSubscription = _contestManager.inputControlStream.listen(
+      (data) {
+        callback(data);
+      },
+    );
+  }
+
+  void attachInputAreaEvent(void Function(InputAreaEvent) callback) {
+    _inputAreaEventStreamSubscription = _contestManager
+        .keyEventManager
+        .inputAreaEventStream
+        .listen((inputAreaEvent) {
+          callback(inputAreaEvent);
+        });
   }
 
   void handleOperationEvent(OperationEvent event) {
@@ -38,6 +52,14 @@ class QsoOperationAreaCubit extends Cubit<int> {
 
   void onExchangeInput(String exchange) {
     _contestManager.onExchangeInput(exchange);
+  }
+
+  void dispose() {
+    _inputControlStreamSubscription?.cancel();
+    _inputControlStreamSubscription = null;
+
+    _inputAreaEventStreamSubscription?.cancel();
+    _inputAreaEventStreamSubscription = null;
   }
 }
 
@@ -95,6 +117,8 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   final _rstEditorController = TextEditingController();
   final _exchangeEditorController = TextEditingController();
 
+  QsoOperationAreaCubit? _cubit;
+
   void _attachInputControl(BuildContext context) {
     final cubit = context.read<QsoOperationAreaCubit>();
 
@@ -113,10 +137,26 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
         _callSignFocusNode.requestFocus();
       }
     });
+
+    cubit.attachInputAreaEvent((inputEvent) {
+      switch (inputEvent) {
+        case InputAreaEvent.switchCallsignAndExchange:
+          if (!_callSignFocusNode.hasFocus && !_exchangeFocusonNode.hasFocus) {
+            return;
+          }
+
+          _callSignFocusNode.hasFocus
+              ? _exchangeFocusonNode.requestFocus()
+              : _callSignFocusNode.requestFocus();
+          break;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    _cubit = context.read<QsoOperationAreaCubit>();
+
     final colorSchema = Theme.of(context).colorScheme;
     final bgColor = colorSchema.primaryContainer;
     _attachInputControl(context);
@@ -204,6 +244,8 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 
     _callSignFocusNode.dispose();
     _exchangeEditorController.dispose();
+
+    _cubit?.dispose();
     super.dispose();
   }
 }

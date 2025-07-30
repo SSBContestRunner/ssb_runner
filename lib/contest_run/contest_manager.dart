@@ -51,7 +51,7 @@ class ContestManager {
   final _inputControlStreamController = StreamController<int>();
   Stream<int> get inputControlStream => _inputControlStreamController.stream;
 
-  final _keyEventManager = KeyEventHandler();
+  final keyEventManager = KeyEventHandler();
 
   StateMachine<SingleCallRunState, SingleCallRunEvent, Null>? _stateMachine;
 
@@ -78,12 +78,12 @@ class ContestManager {
   }
 
   void _initKeyEventHandling() {
-    _keyEventManager.operationEventStream.listen((event) {
+    keyEventManager.operationEventStream.listen((event) {
       handleOperationEvent(event);
     });
 
     ServicesBinding.instance.keyboard.addHandler((event) {
-      _keyEventManager.onKeyEvent(event);
+      keyEventManager.onKeyEvent(event);
       return false;
     });
   }

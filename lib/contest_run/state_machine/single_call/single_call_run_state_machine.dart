@@ -7,10 +7,10 @@ import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-    initSingleCallRunStateMachine({
+initSingleCallRunStateMachine({
   required SingleCallRunState initialState,
   required TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>
-      transitionListener,
+  transitionListener,
 }) {
   return StateMachine.create((builder) {
     builder.initialState(initialState);
@@ -82,7 +82,7 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
 
     builder.state(ReportMyExchange, (definition) {
       definition.on(ReceiveExchange, (state, event) {
-        final stateVal = state as ReportMyExchange;
+        state as ReportMyExchange;
 
         return definition.transitionTo(
           WaitingSubmitExchange(
@@ -99,7 +99,7 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
       });
 
       definition.on(CallsignInvalid, (state, event) {
-        final stateVal = state as ReportMyExchange;
+        state as ReportMyExchange;
 
         return definition.transitionTo(
           WaitingSubmitCall(
