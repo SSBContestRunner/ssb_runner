@@ -12,6 +12,20 @@ class WaitingSubmitCall extends SingleCallRunState {
   final String currentCallAnswer;
   final String currentExchangeAnswer;
   final AudioPlayType audioPlayType;
+
+  // copy with
+  WaitingSubmitCall copyWith({
+    String? currentCallAnswer,
+    String? currentExchangeAnswer,
+    AudioPlayType? audioPlayType,
+  }) {
+    return WaitingSubmitCall(
+      currentCallAnswer: currentCallAnswer ?? this.currentCallAnswer,
+      currentExchangeAnswer:
+          currentExchangeAnswer ?? this.currentExchangeAnswer,
+      audioPlayType: audioPlayType ?? this.audioPlayType,
+    );
+  }
 }
 
 class ReportMyExchange extends SingleCallRunState {
@@ -45,6 +59,23 @@ class WaitingSubmitExchange extends SingleCallRunState {
   final String submitCall;
   final AudioPlayType audioPlayType;
   final bool isOperateInput;
+
+  WaitingSubmitExchange copyWith({
+    String? currentCallAnswer,
+    String? currentExchangeAnswer,
+    String? submitCall,
+    AudioPlayType? audioPlayType,
+    bool? isOperateInput,
+  }) {
+    return WaitingSubmitExchange(
+      currentCallAnswer: currentCallAnswer ?? this.currentCallAnswer,
+      currentExchangeAnswer:
+          currentExchangeAnswer ?? this.currentExchangeAnswer,
+      submitCall: submitCall ?? this.submitCall,
+      audioPlayType: audioPlayType ?? this.audioPlayType,
+      isOperateInput: isOperateInput ?? this.isOperateInput,
+    );
+  }
 }
 
 class QsoEnd extends SingleCallRunState {
@@ -60,12 +91,4 @@ class QsoEnd extends SingleCallRunState {
 
   final String submitCall;
   final String submitExchange;
-}
-
-class CanceledState extends SingleCallRunState {
-  CanceledState({
-    required this.fromState,
-  });
-
-  final SingleCallRunState fromState;
 }

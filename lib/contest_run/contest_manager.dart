@@ -420,8 +420,6 @@ class ContestManager {
           isResetAudioStream: true,
         );
         break;
-      case CanceledState():
-        break;
     }
   }
 
@@ -485,7 +483,6 @@ class ContestManager {
 
     switch (toState) {
       case WaitingSubmitCall():
-      case CanceledState():
       case WaitingSubmitExchange():
         _retryTimer = Timer(_timeoutDuration, () {
           _stateMachine?.transition(Retry());
