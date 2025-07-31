@@ -16,6 +16,10 @@ initSingleCallRunStateMachine({
     builder.initialState(initialState);
 
     builder.state(WaitingSubmitCall, (definition) {
+      definition.on(Cancel, (state, event) {
+        return definition.transitionTo(CanceledState(fromState: state));
+      });
+
       definition.on(WorkedBefore, (state, event) {
         final eventVal = event as WorkedBefore;
         final currentCallAnswer = eventVal.nextCallAnswer;
@@ -82,6 +86,18 @@ initSingleCallRunStateMachine({
     });
 
     builder.state(ReportMyExchange, (definition) {
+      definition.on(Cancel, (state, event) {
+        state as ReportMyExchange;
+        return definition.transitionTo(
+          CanceledState(
+            fromState: WaitingSubmitCall(
+              currentCallAnswer: state.currentCallAnswer,
+              currentExchangeAnswer: state.currentExchangeAnswer,
+            ),
+          ),
+        );
+      });
+
       definition.on(ReceiveExchange, (state, event) {
         state as ReportMyExchange;
 
@@ -114,6 +130,10 @@ initSingleCallRunStateMachine({
     });
 
     builder.state(WaitingSubmitExchange, (definition) {
+      definition.on(Cancel, (state, event) {
+        return definition.transitionTo(CanceledState(fromState: state));
+      });
+
       definition.on(Retry, (state, event) {
         final stateVal = state as WaitingSubmitExchange;
 
@@ -166,6 +186,13 @@ initSingleCallRunStateMachine({
             currentExchangeAnswer: eventVal.exchangeAnswer,
           ),
         );
+      });
+    });
+
+    builder.state(CanceledState, (definition) {
+      definition.on(Retry, (state, event) {
+        final stateVal = state as CanceledState;
+        return definition.transitionTo(stateVal.fromState);
       });
     });
 

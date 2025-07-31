@@ -52,7 +52,8 @@ class AudioPlayer {
       return false;
     }
 
-    return SoLoud.instance.getBufferSize(audioSource) > 0;
+    final bufferSize = SoLoud.instance.getBufferSize(audioSource);
+    return bufferSize > 0;
   }
 
   bool isMePlaying() {
@@ -117,12 +118,18 @@ class AudioPlayer {
 
     SoLoud.instance.addAudioDataStream(audioSource, pcmData);
 
-    final currentBufferedDuration = SoLoud.instance.getLength(audioSource);
+    final currentBufferSize = SoLoud.instance.getBufferSize(audioSource);
+    final currentBufferedDuration = _calcualtePcmDataLength(currentBufferSize);
 
     final taggedTime =
         alreadyPlayedDuration.inMilliseconds +
-        currentBufferedDuration.inMilliseconds +
-        3200;
+        currentBufferedDuration.inMilliseconds;
     _isMyAudioMap[taggedTime] = isMyAudio;
+  }
+
+  Duration _calcualtePcmDataLength(int size) {
+    final sampleCount = size * 8 / 16;
+    final seconds = sampleCount / 24000;
+    return Duration(milliseconds: (seconds * 1000).toInt());
   }
 }

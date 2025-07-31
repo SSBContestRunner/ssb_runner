@@ -61,3 +61,11 @@ class QsoEnd extends SingleCallRunState {
   final String submitCall;
   final String submitExchange;
 }
+
+class CanceledState extends SingleCallRunState {
+  CanceledState({
+    required this.fromState,
+  });
+
+  final SingleCallRunState fromState;
+}

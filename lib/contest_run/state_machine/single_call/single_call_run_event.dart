@@ -48,3 +48,5 @@ class NextCall extends SingleCallRunEvent {
   final String callAnswer;
   final String exchangeAnswer;
 }
+
+class Cancel extends SingleCallRunEvent {}

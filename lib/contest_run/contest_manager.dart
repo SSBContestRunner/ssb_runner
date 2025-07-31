@@ -20,6 +20,7 @@ import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 import 'package:uuid/uuid.dart';
@@ -226,6 +227,7 @@ class ContestManager {
 
   void _handleCancel() {
     if (_audioPlayer.isMePlaying()) {
+      _stateMachine?.transition(Cancel());
       _audioPlayer.resetStream();
     }
   }
@@ -418,6 +420,8 @@ class ContestManager {
           isResetAudioStream: true,
         );
         break;
+      case CanceledState():
+        break;
     }
   }
 
@@ -481,6 +485,7 @@ class ContestManager {
 
     switch (toState) {
       case WaitingSubmitCall():
+      case CanceledState():
       case WaitingSubmitExchange():
         _retryTimer = Timer(_timeoutDuration, () {
           _stateMachine?.transition(Retry());
@@ -493,7 +498,15 @@ class ContestManager {
   }
 
   Future<void> _handleReportMyExchange(ReportMyExchange toState) async {
+    logger.d('_handleReportMyExchange!');
     await _waitAudioNotPlaying();
+
+    final currentState = _stateMachine?.currentState;
+    logger.d('currentState: $currentState');
+    if (_stateMachine?.currentState is! ReportMyExchange) {
+      return;
+    }
+
     await Future.delayed(Duration(milliseconds: 500));
 
     final misMatchCallsignLength = calculateMismatch(
