@@ -53,6 +53,10 @@ class KeyEventHandler {
       _operationEventController.add(OperationEvent.cancel);
     });
 
+    _checkOnlyKeyPressed(key, LogicalKeyboardKey.semicolon, () {
+      _operationEventController.add(OperationEvent.hisCallAndMyExchange);
+    });
+
     _checkOnlyKeyPressed(key, LogicalKeyboardKey.space, () {
       _inputAreaEventController.add(InputAreaEvent.switchCallsignAndExchange);
     });
@@ -98,7 +102,8 @@ enum OperationEvent {
   agn(btnText: 'AGN'),
   nil(btnText: 'NIL'),
   submit(btnText: ''),
-  cancel(btnText: '');
+  cancel(btnText: ''),
+  hisCallAndMyExchange(btnText: '');
 
   final String btnText;
 

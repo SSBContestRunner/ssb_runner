@@ -129,6 +129,21 @@ class ContestManager {
       case OperationEvent.nil:
         pcmData = await loadAssetsWavPcmData('$globalRunPath/NoCopy.wav');
         break;
+      case OperationEvent.hisCallAndMyExchange:
+        final hisCall = _hisCall;
+        if (hisCall.isEmpty) {
+          break;
+        }
+
+        final hisCallPcmData = await payloadToAudioData(hisCall, isMe: true);
+
+        final myExchangePcmData = await payloadToAudioData(
+          await _obtainMyExchange(),
+          isMe: true,
+        );
+
+        pcmData = concatUint8List([hisCallPcmData, myExchangePcmData]);
+        break;
       case OperationEvent.submit:
       case OperationEvent.cancel:
         break;
@@ -155,6 +170,9 @@ class ContestManager {
         break;
       case OperationEvent.cancel:
         _handleCancel();
+        break;
+      case OperationEvent.hisCallAndMyExchange:
+        _handleHisCallAndMyExchange();
         break;
       default:
         break;
@@ -199,6 +217,12 @@ class ContestManager {
   void _handleCancel() {
     if (_audioPlayer.isMePlaying()) {
       _audioPlayer.resetStream();
+    }
+  }
+
+  void _handleHisCallAndMyExchange() {
+    if (_stateMachine?.currentState is WaitingSubmitCall) {
+      _handleSubmit();
     }
   }
 
