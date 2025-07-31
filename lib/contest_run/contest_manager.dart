@@ -556,11 +556,12 @@ class ContestManager {
     scoreManager?.addQso(latestQsos, submitQso);
 
     final (callSignAnswer, exchangeAnswer) = _generateAnswer();
+    _clearInput();
+
+    await _waitAudioNotPlaying();
     _stateMachine?.transition(
       NextCall(callAnswer: callSignAnswer, exchangeAnswer: exchangeAnswer),
     );
-
-    _clearInput();
   }
 
   void stopContest() {
