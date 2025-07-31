@@ -175,6 +175,9 @@ class ContestManager {
       case OperationEvent.cancel:
         _handleCancel();
         break;
+      case OperationEvent.hisCall:
+        _handleHisCall();
+        break;
       case OperationEvent.hisCallAndMyExchange:
         _handleHisCallAndMyExchange();
         break;
@@ -228,7 +231,7 @@ class ContestManager {
     }
   }
 
-  void _handleHisCallAndMyExchange() {
+  void _handleHisCall() {
     if (_stateMachine?.currentState is WaitingSubmitCall) {
       _handleSubmit(isOperateInput: false);
       return;
@@ -238,6 +241,10 @@ class ContestManager {
       transition(Retry());
       return;
     }
+  }
+
+  void _handleHisCallAndMyExchange() {
+    _handleHisCall();
   }
 
   void _handleInputAreaEvent(InputAreaEvent event) {
