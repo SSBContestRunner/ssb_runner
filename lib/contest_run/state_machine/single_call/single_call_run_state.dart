@@ -21,12 +21,14 @@ class ReportMyExchange extends SingleCallRunState {
     required this.submitCall,
     required this.myExchange,
     required this.audioPlayType,
+    required this.isOperateInput,
   });
   final String currentCallAnswer;
   final String currentExchangeAnswer;
   final String submitCall;
   final String myExchange;
   final AudioPlayType audioPlayType;
+  final bool isOperateInput;
 }
 
 class WaitingSubmitExchange extends SingleCallRunState {
@@ -35,12 +37,14 @@ class WaitingSubmitExchange extends SingleCallRunState {
     required this.currentExchangeAnswer,
     required this.submitCall,
     required this.audioPlayType,
+    required this.isOperateInput,
   });
   final String currentCallAnswer;
   final String currentExchangeAnswer;
 
   final String submitCall;
   final AudioPlayType audioPlayType;
+  final bool isOperateInput;
 }
 
 class QsoEnd extends SingleCallRunState {

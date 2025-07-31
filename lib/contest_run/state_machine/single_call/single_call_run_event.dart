@@ -18,9 +18,14 @@ class WorkedBefore extends SingleCallRunEvent {
 }
 
 class SubmitCall extends SingleCallRunEvent {
-  SubmitCall({required this.call, required this.myExchange});
+  SubmitCall({
+    required this.call,
+    required this.myExchange,
+    required this.isOperateInput,
+  });
   final String call;
   final String myExchange;
+  final bool isOperateInput;
 }
 
 class CallsignInvalid extends SingleCallRunEvent {

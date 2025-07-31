@@ -33,15 +33,6 @@ class QsoOperationAreaCubit extends Cubit<int> {
     );
   }
 
-  void attachInputAreaEvent(void Function(InputAreaEvent) callback) {
-    _inputAreaEventStreamSubscription = _contestManager
-        .keyEventManager
-        .inputAreaEventStream
-        .listen((inputAreaEvent) {
-          callback(inputAreaEvent);
-        });
-  }
-
   void handleOperationEvent(OperationEvent event) {
     _contestManager.handleOperationEvent(event);
   }
@@ -117,40 +108,47 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   final _rstEditorController = TextEditingController();
   final _exchangeEditorController = TextEditingController();
 
+  late final Map<int, void Function()> _inputControlMap;
+
+  _QsoInputAreaState() {
+    _inputControlMap = {
+      fillRst: _fillRst,
+      clearInput: _clearInput,
+      switchCallsignAndExchange: _switchCallsignAndExchange,
+    };
+  }
+
   QsoOperationAreaCubit? _cubit;
 
   void _attachInputControl(BuildContext context) {
     final cubit = context.read<QsoOperationAreaCubit>();
 
     cubit.attachInputControl((inputControl) {
-      if (inputControl == fillRst) {
-        _rstEditorController.text = '59';
-        _exchangeFocusonNode.requestFocus();
-        return;
-      }
-
-      if (inputControl == clearInput) {
-        _callSignEditorController.clear();
-        _rstEditorController.clear();
-        _exchangeEditorController.clear();
-
-        _callSignFocusNode.requestFocus();
-      }
+      _inputControlMap[inputControl]?.call();
     });
+  }
 
-    cubit.attachInputAreaEvent((inputEvent) {
-      switch (inputEvent) {
-        case InputAreaEvent.switchCallsignAndExchange:
-          if (!_callSignFocusNode.hasFocus && !_exchangeFocusonNode.hasFocus) {
-            return;
-          }
+  void _fillRst() {
+    _rstEditorController.text = '59';
+    _exchangeFocusonNode.requestFocus();
+  }
 
-          _callSignFocusNode.hasFocus
-              ? _exchangeFocusonNode.requestFocus()
-              : _callSignFocusNode.requestFocus();
-          break;
-      }
-    });
+  void _clearInput() {
+    _callSignEditorController.clear();
+    _rstEditorController.clear();
+    _exchangeEditorController.clear();
+
+    _callSignFocusNode.requestFocus();
+  }
+
+  void _switchCallsignAndExchange() {
+    if (!_callSignFocusNode.hasFocus && !_exchangeFocusonNode.hasFocus) {
+      return;
+    }
+
+    _callSignFocusNode.hasFocus
+        ? _fillRst()
+        : _callSignFocusNode.requestFocus();
   }
 
   @override

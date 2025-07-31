@@ -28,6 +28,7 @@ const _timeoutDuration = Duration(seconds: 10);
 
 const fillRst = 10001;
 const clearInput = 10002;
+const switchCallsignAndExchange = 10003;
 
 class ContestManager {
   Timer? _contestTimer;
@@ -51,7 +52,7 @@ class ContestManager {
   final _inputControlStreamController = StreamController<int>();
   Stream<int> get inputControlStream => _inputControlStreamController.stream;
 
-  final keyEventManager = KeyEventHandler();
+  final _keyEventManager = KeyEventHandler();
 
   StateMachine<SingleCallRunState, SingleCallRunEvent, Null>? _stateMachine;
 
@@ -78,12 +79,16 @@ class ContestManager {
   }
 
   void _initKeyEventHandling() {
-    keyEventManager.operationEventStream.listen((event) {
+    _keyEventManager.operationEventStream.listen((event) {
       handleOperationEvent(event);
     });
 
+    _keyEventManager.inputAreaEventStream.listen((event) {
+      _handleInputAreaEvent(event);
+    });
+
     ServicesBinding.instance.keyboard.addHandler((event) {
-      keyEventManager.onKeyEvent(event);
+      _keyEventManager.onKeyEvent(event);
       return false;
     });
   }
@@ -136,8 +141,10 @@ class ContestManager {
         }
 
         final hisCallPcmData = await payloadToAudioData(hisCall, isMe: true);
-        final myExchangePcmData = await exchangeAudioData(await _obtainMyExchange());
-        
+        final myExchangePcmData = await exchangeAudioData(
+          await _obtainMyExchange(),
+        );
+
         pcmData = concatUint8List([hisCallPcmData, myExchangePcmData]);
         break;
       case OperationEvent.submit:
@@ -179,7 +186,7 @@ class ContestManager {
   String _exchange = '';
   bool _isRstFilled = false;
 
-  Future<void> _handleSubmit() async {
+  Future<void> _handleSubmit({bool isOperateInput = true}) async {
     if (_hisCall.isEmpty && _exchange.isEmpty) {
       transition(Retry());
       return;
@@ -192,7 +199,11 @@ class ContestManager {
 
     if (_hisCall.isNotEmpty) {
       transition(
-        SubmitCall(call: _hisCall, myExchange: await _obtainMyExchange()),
+        SubmitCall(
+          call: _hisCall,
+          myExchange: await _obtainMyExchange(),
+          isOperateInput: isOperateInput,
+        ),
       );
       return;
     }
@@ -218,7 +229,16 @@ class ContestManager {
 
   void _handleHisCallAndMyExchange() {
     if (_stateMachine?.currentState is WaitingSubmitCall) {
-      _handleSubmit();
+      _handleSubmit(isOperateInput: false);
+    }
+  }
+
+  void _handleInputAreaEvent(InputAreaEvent event) {
+    switch (event) {
+      case InputAreaEvent.switchCallsignAndExchange:
+        _inputControlStreamController.sink.add(switchCallsignAndExchange);
+        _isRstFilled = true;
+        break;
     }
   }
 
@@ -325,7 +345,9 @@ class ContestManager {
         final toState = transition.to;
         _handleToState(toState, event: transition.event);
 
-        if (toState is WaitingSubmitExchange && !_isRstFilled) {
+        if (toState is WaitingSubmitExchange &&
+            toState.isOperateInput &&
+            !_isRstFilled) {
           _isRstFilled = true;
           _inputControlStreamController.sink.add(fillRst);
         }

@@ -62,6 +62,7 @@ initSingleCallRunStateMachine({
               exchange: myExchange,
               isMe: true,
             ),
+            isOperateInput: eventVal.isOperateInput,
           ),
         );
       });
@@ -94,6 +95,7 @@ initSingleCallRunStateMachine({
               state.currentCallAnswer,
               state.currentExchangeAnswer,
             ),
+            isOperateInput: state.isOperateInput,
           ),
         );
       });
@@ -121,6 +123,7 @@ initSingleCallRunStateMachine({
             currentExchangeAnswer: stateVal.currentExchangeAnswer,
             submitCall: stateVal.submitCall,
             audioPlayType: stateVal.audioPlayType,
+            isOperateInput: stateVal.isOperateInput,
           ),
         );
       });
