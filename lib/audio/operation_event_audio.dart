@@ -9,7 +9,7 @@ const globalRunPath = 'Global/RUN';
 Future<Uint8List> cqAudioData(String callSign) async {
   final cqAudioData = await loadAssetsWavPcmData('$globalRunPath/CQ.wav');
   final callSignAudioData = await payloadToAudioData(callSign, isMe: true);
-  return concatUint8List([cqAudioData, callSignAudioData]);
+  return await concatUint8List([cqAudioData, callSignAudioData]);
 }
 
 Future<Uint8List> exchangeAudioData(String exchange) async {

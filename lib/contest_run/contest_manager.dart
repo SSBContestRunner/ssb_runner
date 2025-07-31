@@ -23,6 +23,7 @@ import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 import 'package:uuid/uuid.dart';
+import 'package:worker_manager/worker_manager.dart';
 
 const _timeoutDuration = Duration(seconds: 10);
 
@@ -145,7 +146,7 @@ class ContestManager {
           await _obtainMyExchange(),
         );
 
-        pcmData = concatUint8List([hisCallPcmData, myExchangePcmData]);
+        pcmData = await concatUint8List([hisCallPcmData, myExchangePcmData]);
         break;
       case OperationEvent.submit:
       case OperationEvent.cancel:
@@ -230,6 +231,12 @@ class ContestManager {
   void _handleHisCallAndMyExchange() {
     if (_stateMachine?.currentState is WaitingSubmitCall) {
       _handleSubmit(isOperateInput: false);
+      return;
+    }
+
+    if (_stateMachine?.currentState is WaitingSubmitExchange) {
+      transition(Retry());
+      return;
     }
   }
 
@@ -432,7 +439,12 @@ class ContestManager {
           isMe: playType.isMe,
           isCallsignCorrect: false,
         );
-        final pcmData = concatUint8List([callSignPcmData, exchangePcmData]);
+
+        final pcmData = await concatUint8List([
+          callSignPcmData,
+          exchangePcmData,
+        ]);
+
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
