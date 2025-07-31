@@ -23,7 +23,6 @@ import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 import 'package:uuid/uuid.dart';
-import 'package:worker_manager/worker_manager.dart';
 
 const _timeoutDuration = Duration(seconds: 10);
 
@@ -158,7 +157,7 @@ class ContestManager {
       _audioPlayer.addAudioData(
         pcmDataVal,
         isResetCurrentStream: true,
-        isOperationAudio: true,
+        isMyAudio: true,
       );
     }
   }
@@ -407,7 +406,11 @@ class ContestManager {
         break;
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
-        _audioPlayer.addAudioData(pcmData, isResetCurrentStream: true);
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: true,
+          isMyAudio: true,
+        );
         break;
       case ReportMyExchange():
         await _playAudioByPlayType(
@@ -434,6 +437,7 @@ class ContestManager {
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
+          isMyAudio: playType.isMe,
         );
         break;
       case PlayCallExchange():
@@ -455,6 +459,7 @@ class ContestManager {
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
+          isMyAudio: playType.isMe,
         );
         break;
       case PlayCall():
@@ -465,6 +470,7 @@ class ContestManager {
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
+          isMyAudio: playType.isMe,
         );
         break;
     }
