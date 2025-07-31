@@ -136,12 +136,8 @@ class ContestManager {
         }
 
         final hisCallPcmData = await payloadToAudioData(hisCall, isMe: true);
-
-        final myExchangePcmData = await payloadToAudioData(
-          await _obtainMyExchange(),
-          isMe: true,
-        );
-
+        final myExchangePcmData = await exchangeAudioData(await _obtainMyExchange());
+        
         pcmData = concatUint8List([hisCallPcmData, myExchangePcmData]);
         break;
       case OperationEvent.submit:
