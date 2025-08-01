@@ -99,7 +99,7 @@ class ContestManager {
       return;
     }
     await _playAudioByOperationEvent(event);
-    _handleOperationEventBusiness(event);
+    await _handleOperationEventBusiness(event);
   }
 
   Future<void> _playAudioByOperationEvent(OperationEvent event) async {
@@ -110,7 +110,7 @@ class ContestManager {
         pcmData = await cqAudioData(_appSettings.stationCallsign);
         break;
       case OperationEvent.exch:
-        pcmData = await exchangeAudioData(await _obtainMyExchange());
+        pcmData = await exchangeAudioData(await _obtainHisExchange());
         break;
       case OperationEvent.tu:
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
@@ -143,7 +143,7 @@ class ContestManager {
 
         final hisCallPcmData = await payloadToAudioData(hisCall, isMe: true);
         final myExchangePcmData = await exchangeAudioData(
-          await _obtainMyExchange(),
+          await _obtainHisExchange(),
         );
 
         pcmData = await concatUint8List([hisCallPcmData, myExchangePcmData]);
@@ -163,7 +163,7 @@ class ContestManager {
     }
   }
 
-  void _handleOperationEventBusiness(OperationEvent event) async {
+  Future<void> _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
       case OperationEvent.cq:
       case OperationEvent.agn:
@@ -181,6 +181,9 @@ class ContestManager {
       case OperationEvent.hisCallAndMyExchange:
         _handleHisCallAndMyExchange();
         break;
+      case OperationEvent.exch:
+        _handleExchEvent();
+        break;
       default:
         break;
     }
@@ -197,15 +200,15 @@ class ContestManager {
     }
 
     if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
-      transition(SubmitExchange(exchange: _exchange));
+      transition(SubmitMyExchange(exchange: _exchange));
       return;
     }
 
     if (_hisCall.isNotEmpty) {
       transition(
-        SubmitCall(
+        SubmitCallAndHisExchange(
           call: _hisCall,
-          myExchange: await _obtainMyExchange(),
+          hisExchange: await _obtainHisExchange(),
           isOperateInput: isOperateInput,
         ),
       );
@@ -213,7 +216,7 @@ class ContestManager {
     }
   }
 
-  Future<String> _obtainMyExchange() async {
+  Future<String> _obtainHisExchange() async {
     final count = await _appDatabase.qsoTable
         .count(
           where: (row) {
@@ -232,20 +235,41 @@ class ContestManager {
     }
   }
 
-  void _handleHisCall() {
-    if (_stateMachine?.currentState is WaitingSubmitCall) {
-      _handleSubmit(isOperateInput: false);
+  Future<void> _handleHisCall() async {
+    await _waitAudioNotPlaying();
+
+    if (_hisCall.isEmpty) {
       return;
     }
 
-    if (_stateMachine?.currentState is WaitingSubmitExchange) {
+    if (_stateMachine?.currentState is WaitingSubmitCall) {
+      _stateMachine?.transition(SubmitCall(call: _hisCall));
+      return;
+    }
+
+    if (_stateMachine?.currentState is HeAskForExchange) {
       transition(Retry());
       return;
     }
   }
 
   void _handleHisCallAndMyExchange() {
-    _handleHisCall();
+    if (_stateMachine?.currentState is WaitingSubmitCall) {
+      _handleSubmit(isOperateInput: false);
+      return;
+    }
+
+    if (_stateMachine?.currentState is WaitingSubmitMyExchange) {
+      transition(Retry());
+      return;
+    }
+  }
+
+  Future<void> _handleExchEvent() async {
+    logger.d('exch event');
+    _stateMachine?.transition(
+      SubmitHisExchange(exchange: await _obtainHisExchange()),
+    );
   }
 
   void _handleInputAreaEvent(InputAreaEvent event) {
@@ -360,7 +384,7 @@ class ContestManager {
         final toState = transition.to;
         _handleToState(toState, event: transition.event);
 
-        if (toState is WaitingSubmitExchange &&
+        if (toState is WaitingSubmitMyExchange &&
             toState.isOperateInput &&
             !_isRstFilled) {
           _isRstFilled = true;
@@ -400,10 +424,10 @@ class ContestManager {
       case WaitingSubmitCall():
         await _playAudioByPlayType(toState.audioPlayType);
         break;
-      case WaitingSubmitExchange():
+      case WaitingSubmitMyExchange():
         await _playAudioByPlayType(
           toState.audioPlayType,
-          isResetAudioStream: event is SubmitCall,
+          isResetAudioStream: event is SubmitCallAndHisExchange,
         );
         break;
       case QsoEnd():
@@ -419,6 +443,20 @@ class ContestManager {
           toState.audioPlayType,
           isResetAudioStream: true,
         );
+        break;
+      case HeAskForExchange():
+        final list = [
+          if (toState.isPlayMyCall)
+            await payloadToAudioData(_appSettings.stationCallsign, isMe: false),
+          await loadAssetsWavPcmData('English-US/Common/NR.wav'),
+        ];
+
+        final pcmData = await concatUint8List(list);
+        _audioPlayer.addAudioData(pcmData);
+        break;
+      case HeRepeatCorrectCallAnswer():
+        final pcmData = await payloadToAudioData(toState.currentCallAnswer);
+        _audioPlayer.addAudioData(pcmData);
         break;
     }
   }
@@ -483,7 +521,9 @@ class ContestManager {
 
     switch (toState) {
       case WaitingSubmitCall():
-      case WaitingSubmitExchange():
+      case WaitingSubmitMyExchange():
+      case HeAskForExchange():
+      case HeRepeatCorrectCallAnswer():
         _retryTimer = Timer(_timeoutDuration, () {
           _stateMachine?.transition(Retry());
         });
