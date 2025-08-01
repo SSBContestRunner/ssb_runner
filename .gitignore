@@ -50,3 +50,6 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+
+# Fastforge dist
+/dist/
