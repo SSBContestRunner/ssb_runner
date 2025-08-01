@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class MainCubit extends Cubit<bool> {
-  MainCubit() : super(false);
+class MainPageCubit extends Cubit<bool> {
+  MainPageCubit() : super(false);
 
   void showKeyTips() {
     emit(true);

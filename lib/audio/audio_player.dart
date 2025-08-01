@@ -1,12 +1,14 @@
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:ssb_runner/main.dart';
 
 class AudioPlayer {
   AudioSource? _audioSource;
   SoundHandle? _handle;
 
-  bool _isOperationAudio = false;
+  final _isMyAudioMap = <int, bool>{};
 
   bool get isStarted {
     return _handle != null;
@@ -28,18 +30,20 @@ class AudioPlayer {
 
   void stopPlay() {
     final handleVal = _handle;
-    if (handleVal != null) {
-      SoLoud.instance.stop(handleVal);
-
-      final audioSource = _audioSource;
-      if (audioSource != null) {
-        SoLoud.instance.resetBufferStream(audioSource);
-        SoLoud.instance.disposeSource(audioSource);
-      }
-
-      _audioSource = null;
-      _handle = null;
+    if (handleVal == null) {
+      return;
     }
+    _isMyAudioMap.clear();
+    SoLoud.instance.stop(handleVal);
+
+    final audioSource = _audioSource;
+    if (audioSource != null) {
+      SoLoud.instance.resetBufferStream(audioSource);
+      SoLoud.instance.disposeSource(audioSource);
+    }
+
+    _audioSource = null;
+    _handle = null;
   }
 
   bool isPlaying() {
@@ -48,16 +52,35 @@ class AudioPlayer {
       return false;
     }
 
-    return SoLoud.instance.getBufferSize(audioSource) > 0;
+    final bufferSize = SoLoud.instance.getBufferSize(audioSource);
+    return bufferSize > 0;
   }
 
   bool isMePlaying() {
-    return isPlaying() && _isOperationAudio;
+    final audioSource = _audioSource;
+
+    if (audioSource == null) {
+      return false;
+    }
+
+    final alreadyPlayedTime = SoLoud.instance.getStreamTimeConsumed(
+      audioSource,
+    );
+
+    logger.d(
+      'alreadyPlayedTime: ${alreadyPlayedTime.inMilliseconds}, _isMyAudioPlaying: $_isMyAudioMap',
+    );
+
+    final isOperationAudio =
+        _isMyAudioMap.entries.firstWhereOrNull((entry) {
+          return entry.key > alreadyPlayedTime.inMilliseconds;
+        })?.value ==
+        true;
+
+    return isPlaying() && isOperationAudio;
   }
 
   void resetStream() {
-    _isOperationAudio = false;
-
     final audioSource = _audioSource;
 
     if (audioSource == null) {
@@ -70,7 +93,7 @@ class AudioPlayer {
   void addAudioData(
     Uint8List pcmData, {
     bool isResetCurrentStream = false,
-    bool isOperationAudio = false,
+    bool isMyAudio = false,
   }) {
     final handleVal = _handle;
 
@@ -86,9 +109,27 @@ class AudioPlayer {
 
     if (isResetCurrentStream) {
       SoLoud.instance.resetBufferStream(audioSource);
+      _isMyAudioMap.clear();
     }
 
-    _isOperationAudio = isOperationAudio;
+    final alreadyPlayedDuration = SoLoud.instance.getStreamTimeConsumed(
+      audioSource,
+    );
+
     SoLoud.instance.addAudioDataStream(audioSource, pcmData);
+
+    final currentBufferSize = SoLoud.instance.getBufferSize(audioSource);
+    final currentBufferedDuration = _calcualtePcmDataLength(currentBufferSize);
+
+    final taggedTime =
+        alreadyPlayedDuration.inMilliseconds +
+        currentBufferedDuration.inMilliseconds;
+    _isMyAudioMap[taggedTime] = isMyAudio;
+  }
+
+  Duration _calcualtePcmDataLength(int size) {
+    final sampleCount = size * 8 / 16;
+    final seconds = sampleCount / 24000;
+    return Duration(milliseconds: (seconds * 1000).toInt());
   }
 }

@@ -20,6 +20,7 @@ import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 import 'package:uuid/uuid.dart';
@@ -28,6 +29,7 @@ const _timeoutDuration = Duration(seconds: 10);
 
 const fillRst = 10001;
 const clearInput = 10002;
+const switchCallsignAndExchange = 10003;
 
 class ContestManager {
   Timer? _contestTimer;
@@ -59,6 +61,7 @@ class ContestManager {
   final AppDatabase _appDatabase;
   final AudioPlayer _audioPlayer;
   final CallsignLoader _callsignLoader;
+  final DxccManager _dxccManager;
 
   late ContestType _contestType;
 
@@ -67,16 +70,22 @@ class ContestManager {
     required AppSettings appSettings,
     required AppDatabase appDatabase,
     required AudioPlayer audioPlayer,
+    required DxccManager dxccManager,
   }) : _appSettings = appSettings,
        _appDatabase = appDatabase,
        _audioPlayer = audioPlayer,
-       _callsignLoader = callsignLoader {
+       _callsignLoader = callsignLoader,
+       _dxccManager = dxccManager {
     _initKeyEventHandling();
   }
 
   void _initKeyEventHandling() {
     _keyEventManager.operationEventStream.listen((event) {
       handleOperationEvent(event);
+    });
+
+    _keyEventManager.inputAreaEventStream.listen((event) {
+      _handleInputAreaEvent(event);
     });
 
     ServicesBinding.instance.keyboard.addHandler((event) {
@@ -90,7 +99,7 @@ class ContestManager {
       return;
     }
     await _playAudioByOperationEvent(event);
-    _handleOperationEventBusiness(event);
+    await _handleOperationEventBusiness(event);
   }
 
   Future<void> _playAudioByOperationEvent(OperationEvent event) async {
@@ -101,9 +110,7 @@ class ContestManager {
         pcmData = await cqAudioData(_appSettings.stationCallsign);
         break;
       case OperationEvent.exch:
-        pcmData = _exchange.isNotEmpty
-            ? await exchangeAudioData(_exchange)
-            : null;
+        pcmData = await exchangeAudioData(await _obtainHisExchange());
         break;
       case OperationEvent.tu:
         pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
@@ -126,7 +133,20 @@ class ContestManager {
         pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
         break;
       case OperationEvent.nil:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
+        pcmData = await loadAssetsWavPcmData('$globalRunPath/NoCopy.wav');
+        break;
+      case OperationEvent.hisCallAndMyExchange:
+        final hisCall = _hisCall;
+        if (hisCall.isEmpty) {
+          break;
+        }
+
+        final hisCallPcmData = await payloadToAudioData(hisCall, isMe: true);
+        final myExchangePcmData = await exchangeAudioData(
+          await _obtainHisExchange(),
+        );
+
+        pcmData = await concatUint8List([hisCallPcmData, myExchangePcmData]);
         break;
       case OperationEvent.submit:
       case OperationEvent.cancel:
@@ -138,12 +158,12 @@ class ContestManager {
       _audioPlayer.addAudioData(
         pcmDataVal,
         isResetCurrentStream: true,
-        isOperationAudio: true,
+        isMyAudio: true,
       );
     }
   }
 
-  void _handleOperationEventBusiness(OperationEvent event) async {
+  Future<void> _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
       case OperationEvent.cq:
       case OperationEvent.agn:
@@ -155,6 +175,15 @@ class ContestManager {
       case OperationEvent.cancel:
         _handleCancel();
         break;
+      case OperationEvent.hisCall:
+        _handleHisCall();
+        break;
+      case OperationEvent.hisCallAndMyExchange:
+        _handleHisCallAndMyExchange();
+        break;
+      case OperationEvent.exch:
+        _handleExchEvent();
+        break;
       default:
         break;
     }
@@ -164,26 +193,30 @@ class ContestManager {
   String _exchange = '';
   bool _isRstFilled = false;
 
-  Future<void> _handleSubmit() async {
+  Future<void> _handleSubmit({bool isOperateInput = true}) async {
     if (_hisCall.isEmpty && _exchange.isEmpty) {
       transition(Retry());
       return;
     }
 
     if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
-      transition(SubmitExchange(exchange: _exchange));
+      transition(SubmitMyExchange(exchange: _exchange));
       return;
     }
 
     if (_hisCall.isNotEmpty) {
       transition(
-        SubmitCall(call: _hisCall, myExchange: await _obtainMyExchange()),
+        SubmitCallAndHisExchange(
+          call: _hisCall,
+          hisExchange: await _obtainHisExchange(),
+          isOperateInput: isOperateInput,
+        ),
       );
       return;
     }
   }
 
-  Future<String> _obtainMyExchange() async {
+  Future<String> _obtainHisExchange() async {
     final count = await _appDatabase.qsoTable
         .count(
           where: (row) {
@@ -197,7 +230,54 @@ class ContestManager {
 
   void _handleCancel() {
     if (_audioPlayer.isMePlaying()) {
+      _stateMachine?.transition(Cancel());
       _audioPlayer.resetStream();
+    }
+  }
+
+  Future<void> _handleHisCall() async {
+    await _waitAudioNotPlaying();
+
+    if (_hisCall.isEmpty) {
+      return;
+    }
+
+    if (_stateMachine?.currentState is WaitingSubmitCall) {
+      _stateMachine?.transition(SubmitCall(call: _hisCall));
+      return;
+    }
+
+    if (_stateMachine?.currentState is HeAskForExchange) {
+      transition(Retry());
+      return;
+    }
+  }
+
+  void _handleHisCallAndMyExchange() {
+    if (_stateMachine?.currentState is WaitingSubmitCall) {
+      _handleSubmit(isOperateInput: false);
+      return;
+    }
+
+    if (_stateMachine?.currentState is WaitingSubmitMyExchange) {
+      transition(Retry());
+      return;
+    }
+  }
+
+  Future<void> _handleExchEvent() async {
+    logger.d('exch event');
+    _stateMachine?.transition(
+      SubmitHisExchange(exchange: await _obtainHisExchange()),
+    );
+  }
+
+  void _handleInputAreaEvent(InputAreaEvent event) {
+    switch (event) {
+      case InputAreaEvent.switchCallsignAndExchange:
+        _inputControlStreamController.sink.add(switchCallsignAndExchange);
+        _isRstFilled = true;
+        break;
     }
   }
 
@@ -265,12 +345,9 @@ class ContestManager {
   }
 
   Future<void> _createContestType() async {
-    final dxccManager = DxccManager(database: _appDatabase);
-    await dxccManager.loadDxcc();
-
     _contestType = CqWpxContestType(
       stationCallsign: _appSettings.stationCallsign,
-      dxccManager: dxccManager,
+      dxccManager: _dxccManager,
     );
   }
 
@@ -307,7 +384,9 @@ class ContestManager {
         final toState = transition.to;
         _handleToState(toState, event: transition.event);
 
-        if (toState is WaitingSubmitExchange && !_isRstFilled) {
+        if (toState is WaitingSubmitMyExchange &&
+            toState.isOperateInput &&
+            !_isRstFilled) {
           _isRstFilled = true;
           _inputControlStreamController.sink.add(fillRst);
         }
@@ -345,21 +424,39 @@ class ContestManager {
       case WaitingSubmitCall():
         await _playAudioByPlayType(toState.audioPlayType);
         break;
-      case WaitingSubmitExchange():
+      case WaitingSubmitMyExchange():
         await _playAudioByPlayType(
           toState.audioPlayType,
-          isResetAudioStream: event is SubmitCall,
+          isResetAudioStream: event is SubmitCallAndHisExchange,
         );
         break;
       case QsoEnd():
         final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
-        _audioPlayer.addAudioData(pcmData, isResetCurrentStream: true);
+        _audioPlayer.addAudioData(
+          pcmData,
+          isResetCurrentStream: true,
+          isMyAudio: true,
+        );
         break;
       case ReportMyExchange():
         await _playAudioByPlayType(
           toState.audioPlayType,
           isResetAudioStream: true,
         );
+        break;
+      case HeAskForExchange():
+        final list = [
+          if (toState.isPlayMyCall)
+            await payloadToAudioData(_appSettings.stationCallsign, isMe: false),
+          await loadAssetsWavPcmData('English-US/Common/NR.wav'),
+        ];
+
+        final pcmData = await concatUint8List(list);
+        _audioPlayer.addAudioData(pcmData);
+        break;
+      case HeRepeatCorrectCallAnswer():
+        final pcmData = await payloadToAudioData(toState.currentCallAnswer);
+        _audioPlayer.addAudioData(pcmData);
         break;
     }
   }
@@ -380,6 +477,7 @@ class ContestManager {
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
+          isMyAudio: playType.isMe,
         );
         break;
       case PlayCallExchange():
@@ -388,14 +486,20 @@ class ContestManager {
           isMe: playType.isMe,
         );
         final exchangePcmData = await exchangeToAudioData(
-          playType.exchange,
+          playType.exchangeToPlay,
           isMe: playType.isMe,
           isCallsignCorrect: false,
         );
-        final pcmData = concatUint8List([callSignPcmData, exchangePcmData]);
+
+        final pcmData = await concatUint8List([
+          callSignPcmData,
+          exchangePcmData,
+        ]);
+
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
+          isMyAudio: playType.isMe,
         );
         break;
       case PlayCall():
@@ -406,6 +510,7 @@ class ContestManager {
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
+          isMyAudio: playType.isMe,
         );
         break;
     }
@@ -416,7 +521,9 @@ class ContestManager {
 
     switch (toState) {
       case WaitingSubmitCall():
-      case WaitingSubmitExchange():
+      case WaitingSubmitMyExchange():
+      case HeAskForExchange():
+      case HeRepeatCorrectCallAnswer():
         _retryTimer = Timer(_timeoutDuration, () {
           _stateMachine?.transition(Retry());
         });
@@ -428,7 +535,15 @@ class ContestManager {
   }
 
   Future<void> _handleReportMyExchange(ReportMyExchange toState) async {
+    logger.d('_handleReportMyExchange!');
     await _waitAudioNotPlaying();
+
+    final currentState = _stateMachine?.currentState;
+    logger.d('currentState: $currentState');
+    if (_stateMachine?.currentState is! ReportMyExchange) {
+      return;
+    }
+
     await Future.delayed(Duration(milliseconds: 500));
 
     final misMatchCallsignLength = calculateMismatch(
@@ -481,11 +596,12 @@ class ContestManager {
     scoreManager?.addQso(latestQsos, submitQso);
 
     final (callSignAnswer, exchangeAnswer) = _generateAnswer();
+    _clearInput();
+
+    await _waitAudioNotPlaying();
     _stateMachine?.transition(
       NextCall(callAnswer: callSignAnswer, exchangeAnswer: exchangeAnswer),
     );
-
-    _clearInput();
   }
 
   void stopContest() {

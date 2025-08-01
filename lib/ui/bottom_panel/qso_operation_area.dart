@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,7 +7,7 @@ import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
-import 'package:ssb_runner/ui/main_cubit.dart';
+import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 const maxCallsignLength = 15;
 
@@ -13,19 +15,22 @@ class QsoOperationAreaCubit extends Cubit<int> {
   final ContestManager _contestManager;
 
   QsoOperationAreaCubit({required ContestManager contestManager})
-      : _contestManager = contestManager,
-        super(0);
+    : _contestManager = contestManager,
+      super(0);
 
-  bool _isAttachedInputControl = false;
+  StreamSubscription? _inputControlStreamSubscription;
+  StreamSubscription? _inputAreaEventStreamSubscription;
 
   void attachInputControl(void Function(int) callback) {
-    if (_isAttachedInputControl) {
+    if (_inputControlStreamSubscription != null) {
       return;
     }
-    _contestManager.inputControlStream.listen((data) {
-      callback(data);
-    });
-    _isAttachedInputControl = true;
+
+    _inputControlStreamSubscription = _contestManager.inputControlStream.listen(
+      (data) {
+        callback(data);
+      },
+    );
   }
 
   void handleOperationEvent(OperationEvent event) {
@@ -38,6 +43,14 @@ class QsoOperationAreaCubit extends Cubit<int> {
 
   void onExchangeInput(String exchange) {
     _contestManager.onExchangeInput(exchange);
+  }
+
+  void dispose() {
+    _inputControlStreamSubscription?.cancel();
+    _inputControlStreamSubscription = null;
+
+    _inputAreaEventStreamSubscription?.cancel();
+    _inputAreaEventStreamSubscription = null;
   }
 }
 
@@ -59,15 +72,17 @@ class QsoOperationArea extends StatelessWidget {
               _QsoInputArea(),
               Expanded(
                 flex: 1,
-                child: _FunctionKeysPad(
-                  onOperationEvent: (event) {
-                    context.read<QsoOperationAreaCubit>().handleOperationEvent(
-                          event,
-                        );
-                  },
-                  onInfoIconPressed: () {
-                    context.read<MainCubit>().showKeyTips();
-                  },
+                child: ExcludeFocus(
+                  child: _FunctionKeysPad(
+                    onOperationEvent: (event) {
+                      context
+                          .read<QsoOperationAreaCubit>()
+                          .handleOperationEvent(event);
+                    },
+                    onInfoIconPressed: () {
+                      context.read<MainPageCubit>().showKeyTips();
+                    },
+                  ),
                 ),
               ),
             ],
@@ -93,28 +108,53 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   final _rstEditorController = TextEditingController();
   final _exchangeEditorController = TextEditingController();
 
+  late final Map<int, void Function()> _inputControlMap;
+
+  _QsoInputAreaState() {
+    _inputControlMap = {
+      fillRst: _fillRst,
+      clearInput: _clearInput,
+      switchCallsignAndExchange: _switchCallsignAndExchange,
+    };
+  }
+
+  QsoOperationAreaCubit? _cubit;
+
   void _attachInputControl(BuildContext context) {
     final cubit = context.read<QsoOperationAreaCubit>();
 
     cubit.attachInputControl((inputControl) {
-      if (inputControl == fillRst) {
-        _rstEditorController.text = '59';
-        _exchangeFocusonNode.requestFocus();
-        return;
-      }
-
-      if (inputControl == clearInput) {
-        _callSignEditorController.clear();
-        _rstEditorController.clear();
-        _exchangeEditorController.clear();
-
-        _callSignFocusNode.requestFocus();
-      }
+      _inputControlMap[inputControl]?.call();
     });
+  }
+
+  void _fillRst() {
+    _rstEditorController.text = '59';
+    _exchangeFocusonNode.requestFocus();
+  }
+
+  void _clearInput() {
+    _callSignEditorController.clear();
+    _rstEditorController.clear();
+    _exchangeEditorController.clear();
+
+    _callSignFocusNode.requestFocus();
+  }
+
+  void _switchCallsignAndExchange() {
+    if (!_callSignFocusNode.hasFocus && !_exchangeFocusonNode.hasFocus) {
+      return;
+    }
+
+    _callSignFocusNode.hasFocus
+        ? _fillRst()
+        : _callSignFocusNode.requestFocus();
   }
 
   @override
   Widget build(BuildContext context) {
+    _cubit = context.read<QsoOperationAreaCubit>();
+
     final colorSchema = Theme.of(context).colorScheme;
     final bgColor = colorSchema.primaryContainer;
     _attachInputControl(context);
@@ -136,6 +176,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                 Expanded(
                   flex: 1,
                   child: TextField(
+                    textInputAction: TextInputAction.none,
                     controller: _callSignEditorController,
                     focusNode: _callSignFocusNode,
                     style: TextStyle(fontFamily: qsoFontFamily),
@@ -157,6 +198,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                   flex: 1,
                   child: TextField(
                     controller: _rstEditorController,
+                    textInputAction: TextInputAction.none,
                     readOnly: true,
                     style: TextStyle(fontFamily: qsoFontFamily),
                     decoration: InputDecoration(
@@ -169,6 +211,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                   flex: 1,
                   child: TextField(
                     controller: _exchangeEditorController,
+                    textInputAction: TextInputAction.none,
                     focusNode: _exchangeFocusonNode,
                     style: TextStyle(fontFamily: qsoFontFamily),
                     inputFormatters: [
@@ -181,8 +224,8 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                     ),
                     onChanged: (value) {
                       context.read<QsoOperationAreaCubit>().onExchangeInput(
-                            value,
-                          );
+                        value,
+                      );
                     },
                   ),
                 ),
@@ -202,6 +245,8 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 
     _callSignFocusNode.dispose();
     _exchangeEditorController.dispose();
+
+    _cubit?.dispose();
     super.dispose();
   }
 }

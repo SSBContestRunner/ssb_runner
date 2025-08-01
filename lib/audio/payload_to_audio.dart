@@ -37,7 +37,7 @@ Future<Uint8List> exchangeToAudioData(
   final exchangeAudioData = await loadAssetsWavPcmData(exchangeFilePath);
 
   final payloadAudioData = await payloadToAudioData(exchange, isMe: isMe);
-  return concatUint8List([exchangeAudioData, payloadAudioData]);
+  return await concatUint8List([exchangeAudioData, payloadAudioData]);
 }
 
 String _obtainExchangeFilePath(bool isMe, bool isCallsignCorrect) {

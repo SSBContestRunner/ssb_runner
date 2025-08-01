@@ -1,3 +1,4 @@
 {
-    "license.author": "SSB Contest Runner Dev Group"
+  "license.author": "SSB Contest Runner Dev Group",
+  "dart.flutterSdkPath": ".fvm/versions/3.32.8"
 }

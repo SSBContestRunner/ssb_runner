@@ -17,36 +17,29 @@ class PlayExchange extends AudioPlayType {
   final bool isMe;
 
   PlayExchange({required String exchange, required this.isMe})
-      : exchangeToPlay = _padZerosIfNeeded(exchange);
-
-  static String _padZerosIfNeeded(String exchange) {
-    if (exchange.isEmpty ||
-        !exchange.characters.every((chat) => chat.isNumber())) {
-      return exchange;
-    }
-
-    int padLength;
-
-    if (exchange.length == 1) {
-      padLength = 2;
-    } else if (exchange.length == 2) {
-      padLength = 1;
-    } else {
-      padLength = 0;
-    }
-
-    return exchange.padLeft(padLength, '0');
-  }
+    : exchangeToPlay = exchange.exchangePadZerosIfNeeded();
 }
 
 class PlayCallExchange extends AudioPlayType {
   final String call;
-  final String exchange;
+  final String exchangeToPlay;
   final bool isMe;
 
   PlayCallExchange({
     required this.call,
-    required this.exchange,
+    required String exchange,
     required this.isMe,
-  });
+  }) : exchangeToPlay = exchange.exchangePadZerosIfNeeded();
+}
+
+const _exchangeMinLength = 3;
+
+extension ExchangePadZeroExtension on String {
+  String exchangePadZerosIfNeeded() {
+    if (isEmpty || !characters.every((chat) => chat.isNumber())) {
+      return this;
+    }
+
+    return padLeft(_exchangeMinLength, '0');
+  }
 }

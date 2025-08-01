@@ -7,15 +7,20 @@ import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-    initSingleCallRunStateMachine({
+initSingleCallRunStateMachine({
   required SingleCallRunState initialState,
   required TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>
-      transitionListener,
+  transitionListener,
 }) {
   return StateMachine.create((builder) {
     builder.initialState(initialState);
 
     builder.state(WaitingSubmitCall, (definition) {
+      definition.on(Cancel, (state, event) {
+        state as WaitingSubmitCall;
+        return definition.transitionTo(state.copyWith(audioPlayType: NoPlay()));
+      });
+
       definition.on(WorkedBefore, (state, event) {
         final eventVal = event as WorkedBefore;
         final currentCallAnswer = eventVal.nextCallAnswer;
@@ -42,14 +47,14 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
         );
       });
 
-      definition.on(SubmitCall, (state, event) {
+      definition.on(SubmitCallAndHisExchange, (state, event) {
         final stateVal = state as WaitingSubmitCall;
         final currentCallAnswer = stateVal.currentCallAnswer;
         final currentExchangeAnswer = stateVal.currentExchangeAnswer;
 
-        final eventVal = event as SubmitCall;
+        final eventVal = event as SubmitCallAndHisExchange;
         final submitCall = eventVal.call;
-        final myExchange = eventVal.myExchange;
+        final myExchange = eventVal.hisExchange;
 
         return definition.transitionTo(
           ReportMyExchange(
@@ -62,6 +67,7 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
               exchange: myExchange,
               isMe: true,
             ),
+            isOperateInput: eventVal.isOperateInput,
           ),
         );
       });
@@ -78,14 +84,108 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
           ),
         );
       });
+
+      definition.on(SubmitCall, (state, event) {
+        state as WaitingSubmitCall;
+        event as SubmitCall;
+
+        final submitCall = event.call;
+
+        final diff = calculateMismatch(
+          answer: state.currentCallAnswer,
+          submit: submitCall,
+        );
+
+        if (diff > callsignMismatchThreadshold) {
+          return definition.transitionTo(
+            state.copyWith(audioPlayType: NoPlay()),
+          );
+        }
+
+        if (diff > 0) {
+          return definition.transitionTo(
+            HeRepeatCorrectCallAnswer(
+              currentCallAnswer: state.currentCallAnswer,
+              currentExchangeAnswer: state.currentExchangeAnswer,
+              submitCall: submitCall,
+            ),
+          );
+        }
+
+        return definition.transitionTo(
+          HeAskForExchange(
+            currentCallAnswer: state.currentCallAnswer,
+            currentExchangeAnswer: state.currentExchangeAnswer,
+            submitCall: event.call,
+            isPlayMyCall: false,
+          ),
+        );
+      });
+    });
+
+    builder.state(HeAskForExchange, (definition) {
+      definition.on(Retry, (state, event) {
+        state as HeAskForExchange;
+        return definition.transitionTo(state.copyWith(isPlayMyCall: true));
+      });
+
+      definition.on(SubmitHisExchange, (state, event) {
+        state as HeAskForExchange;
+
+        return definition.transitionTo(
+          WaitingSubmitMyExchange(
+            currentCallAnswer: state.currentCallAnswer,
+            currentExchangeAnswer: state.currentExchangeAnswer,
+            submitCall: state.submitCall,
+            audioPlayType: PlayExchange(
+              exchange: state.currentExchangeAnswer,
+              isMe: false,
+            ),
+            isOperateInput: false,
+          ),
+        );
+      });
+    });
+
+    builder.state(HeRepeatCorrectCallAnswer, (definition) {
+      definition.on(Retry, (state, event) {
+        return definition.transitionTo(state);
+      });
+
+      definition.on(SubmitHisExchange, (state, event) {
+        state as HeRepeatCorrectCallAnswer;
+        return definition.transitionTo(
+          WaitingSubmitMyExchange(
+            currentCallAnswer: state.currentCallAnswer,
+            currentExchangeAnswer: state.currentExchangeAnswer,
+            submitCall: state.submitCall,
+            audioPlayType: PlayExchange(
+              exchange: state.currentExchangeAnswer,
+              isMe: false,
+            ),
+            isOperateInput: false,
+          ),
+        );
+      });
     });
 
     builder.state(ReportMyExchange, (definition) {
+      definition.on(Cancel, (state, event) {
+        state as ReportMyExchange;
+        return definition.transitionTo(
+          WaitingSubmitCall(
+            currentCallAnswer: state.currentCallAnswer,
+            currentExchangeAnswer: state.currentExchangeAnswer,
+            audioPlayType: NoPlay(),
+          ),
+        );
+      });
+
       definition.on(ReceiveExchange, (state, event) {
-        final stateVal = state as ReportMyExchange;
+        state as ReportMyExchange;
 
         return definition.transitionTo(
-          WaitingSubmitExchange(
+          WaitingSubmitMyExchange(
             currentCallAnswer: state.currentCallAnswer,
             currentExchangeAnswer: state.currentExchangeAnswer,
             submitCall: state.submitCall,
@@ -94,12 +194,13 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
               state.currentCallAnswer,
               state.currentExchangeAnswer,
             ),
+            isOperateInput: state.isOperateInput,
           ),
         );
       });
 
       definition.on(CallsignInvalid, (state, event) {
-        final stateVal = state as ReportMyExchange;
+        state as ReportMyExchange;
 
         return definition.transitionTo(
           WaitingSubmitCall(
@@ -111,23 +212,29 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
       });
     });
 
-    builder.state(WaitingSubmitExchange, (definition) {
+    builder.state(WaitingSubmitMyExchange, (definition) {
+      definition.on(Cancel, (state, event) {
+        state as WaitingSubmitMyExchange;
+        return definition.transitionTo(state.copyWith(audioPlayType: NoPlay()));
+      });
+
       definition.on(Retry, (state, event) {
-        final stateVal = state as WaitingSubmitExchange;
+        final stateVal = state as WaitingSubmitMyExchange;
 
         return definition.transitionTo(
-          WaitingSubmitExchange(
+          WaitingSubmitMyExchange(
             currentCallAnswer: stateVal.currentCallAnswer,
             currentExchangeAnswer: stateVal.currentExchangeAnswer,
             submitCall: stateVal.submitCall,
             audioPlayType: stateVal.audioPlayType,
+            isOperateInput: stateVal.isOperateInput,
           ),
         );
       });
 
-      definition.on(SubmitExchange, (state, event) {
-        final stateVal = state as WaitingSubmitExchange;
-        final eventVal = event as SubmitExchange;
+      definition.on(SubmitMyExchange, (state, event) {
+        final stateVal = state as WaitingSubmitMyExchange;
+        final eventVal = event as SubmitMyExchange;
 
         return definition.transitionTo(
           QsoEnd(

@@ -20,9 +20,13 @@ class KeyEventHandler {
 
   final StreamController<OperationEvent> _operationEventController =
       StreamController.broadcast(sync: false);
-
   Stream<OperationEvent> get operationEventStream =>
       _operationEventController.stream;
+
+  final StreamController<InputAreaEvent> _inputAreaEventController =
+      StreamController.broadcast(sync: false);
+  Stream<InputAreaEvent> get inputAreaEventStream =>
+      _inputAreaEventController.stream;
 
   void onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
@@ -41,12 +45,30 @@ class KeyEventHandler {
       _handleFunctionKeyPressed(key);
     }
 
-    if (key == LogicalKeyboardKey.enter && _pressedKeys.length == 1) {
+    _checkOnlyKeyPressed(key, LogicalKeyboardKey.enter, () {
       _operationEventController.add(OperationEvent.submit);
-    }
+    });
 
-    if (key == LogicalKeyboardKey.escape && _pressedKeys.length == 1) {
+    _checkOnlyKeyPressed(key, LogicalKeyboardKey.escape, () {
       _operationEventController.add(OperationEvent.cancel);
+    });
+
+    _checkOnlyKeyPressed(key, LogicalKeyboardKey.semicolon, () {
+      _operationEventController.add(OperationEvent.hisCallAndMyExchange);
+    });
+
+    _checkOnlyKeyPressed(key, LogicalKeyboardKey.space, () {
+      _inputAreaEventController.add(InputAreaEvent.switchCallsignAndExchange);
+    });
+  }
+
+  void _checkOnlyKeyPressed(
+    LogicalKeyboardKey key,
+    LogicalKeyboardKey referenceKey,
+    void Function() block,
+  ) {
+    if (key == referenceKey && _pressedKeys.length == 1) {
+      block();
     }
   }
 
@@ -80,9 +102,12 @@ enum OperationEvent {
   agn(btnText: 'AGN'),
   nil(btnText: 'NIL'),
   submit(btnText: ''),
-  cancel(btnText: '');
+  cancel(btnText: ''),
+  hisCallAndMyExchange(btnText: '');
 
   final String btnText;
 
   const OperationEvent({required this.btnText});
 }
+
+enum InputAreaEvent { switchCallsignAndExchange }

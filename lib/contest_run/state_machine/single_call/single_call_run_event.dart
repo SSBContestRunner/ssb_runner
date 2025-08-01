@@ -17,10 +17,20 @@ class WorkedBefore extends SingleCallRunEvent {
   });
 }
 
-class SubmitCall extends SingleCallRunEvent {
-  SubmitCall({required this.call, required this.myExchange});
+class SubmitCallAndHisExchange extends SingleCallRunEvent {
+  SubmitCallAndHisExchange({
+    required this.call,
+    required this.hisExchange,
+    required this.isOperateInput,
+  });
   final String call;
-  final String myExchange;
+  final String hisExchange;
+  final bool isOperateInput;
+}
+
+class SubmitCall extends SingleCallRunEvent {
+  SubmitCall({required this.call});
+  final String call;
 }
 
 class CallsignInvalid extends SingleCallRunEvent {
@@ -33,8 +43,13 @@ class ReceiveExchange extends SingleCallRunEvent {
 
 class Retry extends SingleCallRunEvent {}
 
-class SubmitExchange extends SingleCallRunEvent {
-  SubmitExchange({required this.exchange});
+class SubmitMyExchange extends SingleCallRunEvent {
+  SubmitMyExchange({required this.exchange});
+  final String exchange;
+}
+
+class SubmitHisExchange extends SingleCallRunEvent {
+  SubmitHisExchange({required this.exchange});
   final String exchange;
 }
 
@@ -43,3 +58,5 @@ class NextCall extends SingleCallRunEvent {
   final String callAnswer;
   final String exchangeAnswer;
 }
+
+class Cancel extends SingleCallRunEvent {}
