@@ -1,16 +1,27 @@
-# ssb_runner
+# SSB Runner
 
-A new Flutter project.
+![logo](img/logo_128.png)
 
-## Getting Started
+SSB Contest Listening and Training Software
 
-This project is a starting point for a Flutter application.
+inspired by [MorseRunner](https://github.com/w7sst/MorseRunner)
 
-A few resources to get you started if this is your first Flutter project:
+## Downloads
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Please visit our [website](https://ssbrunner.com/) 
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+or download release from [Releases Page](https://github.com/SSBContestRunner/ssb_runner/releases) in GitHub
+
+## If you encounter crash
+
+<img src="img/crash_dialog.png" alt="Crash Dialog" width="1000"/>
+
+If you see the crash dialog, click **Accept**, there will be a log file in the following directory.
+
+Windows: `%USERPROFILE%\Documents\ssb_runner\log`
+
+macOS: `~/Documents/ssb_runner/log`
+
+Linux: `~/Documents/ssb_runner/log`
+
+Please [open an issue](https://github.com/SSBContestRunner/ssb_runner/issues/new) and attach the log file to it.
