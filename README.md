@@ -24,4 +24,4 @@ macOS: `~/Documents/ssb_runner/log`
 
 Linux: `~/Documents/ssb_runner/log`
 
-Please open an issue and attach the log file to it.
+Please [open an issue](https://github.com/SSBContestRunner/ssb_runner/issues/new) and attach the log file to it.
