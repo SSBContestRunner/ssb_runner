@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
 
   static QueryExecutor _openConnection() {
     return driftDatabase(
-      name: 'scr_database',
+      name: 'ssb_runner_database',
       native: DriftNativeOptions(
         databaseDirectory: () async {
           return '${await getAppDirectory()}/$dirDb';
