@@ -17,6 +17,4 @@ void main() async {
     debugConfig: debugOptions,
     releaseConfig: releaseOptions,
   );
-
-  Catcher2.sendTestException();
 }
