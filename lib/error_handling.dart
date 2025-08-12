@@ -10,6 +10,8 @@ import 'package:ssb_runner/common/dirs.dart';
 Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
   final appLogDirPath = '${await getAppDirectory()}/$dirLog';
 
+  await _clearOutdatedLogs(appLogDirPath);
+
   final fileHandler = FileHandler(
     File(''), // This file is no effect since we use fileSupplier
     fileSupplier: (report) {
