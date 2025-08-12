@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:ssb_runner/common/dirs.dart';
 import 'package:ssb_runner/db/table/prefix_table.dart';
 import 'package:ssb_runner/db/table/qso_table.dart';
 
@@ -15,6 +16,13 @@ class AppDatabase extends _$AppDatabase {
   int get schemaVersion => _schemaVerion;
 
   static QueryExecutor _openConnection() {
-    return driftDatabase(name: 'scr_database');
+    return driftDatabase(
+      name: 'scr_database',
+      native: DriftNativeOptions(
+        databaseDirectory: () async {
+          return '${await getAppDirectory()}/$dirDb';
+        },
+      ),
+    );
   }
 }

@@ -95,8 +95,6 @@ class _MainAppCubit extends Cubit<_AppDeps?> {
   _MainAppCubit() : super(null);
 
   void load({required DxccManager dxccManager}) async {
-    await initCrashHandling();
-
     // Initialize the player.
     try {
       await SoLoud.instance.init(channels: Channels.mono);
