@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:catcher_2/catcher_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
@@ -41,6 +42,7 @@ class _MainAppState extends State<MainApp> {
   Widget build(BuildContext context) {
     return ToastificationWrapper(
       child: MaterialApp(
+        navigatorKey: Catcher2.navigatorKey,
         title: 'SSB Runner',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
@@ -98,8 +100,8 @@ class _MainAppCubit extends Cubit<_AppDeps?> {
     // Initialize the player.
     try {
       await SoLoud.instance.init(channels: Channels.mono);
-    } on Exception catch (e, stack) {
-      crashLogger.logCrash(e.toString(), stack);
+    } on Exception catch (error, stackTrace) {
+      Catcher2.reportCheckedError(error, stackTrace);
     }
 
     // Initialize the window manager plugin.
