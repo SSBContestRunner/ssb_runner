@@ -14,7 +14,7 @@ or download release from [Releases Page](https://github.com/SSBContestRunner/ssb
 
 ## If you encounter crash
 
-<img src="img/crash_dialog.png" alt="Crash Dialog" width="400"/>
+<img src="img/crash_dialog.png" alt="Crash Dialog" width="1000"/>
 
 If you see the crash dialog, click **Accept**, there will be a log file in the following directory.
 
