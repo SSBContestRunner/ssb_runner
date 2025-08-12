@@ -2,7 +2,7 @@
 
 ![logo](img/logo_128.png)
 
-SSB Competition Listening Training Software
+SSB Contest Listening and Training Software
 
 inspired by [MorseRunner](https://github.com/w7sst/MorseRunner)
 
