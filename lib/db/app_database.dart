@@ -6,14 +6,14 @@ import 'package:ssb_runner/db/table/qso_table.dart';
 
 part 'app_database.g.dart';
 
-const _schemaVerion = 1;
+const _schemaVersion = 1;
 
 @DriftDatabase(tables: [PrefixTable, QsoTable])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => _schemaVerion;
+  int get schemaVersion => _schemaVersion;
 
   static QueryExecutor _openConnection() {
     return driftDatabase(
