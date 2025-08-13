@@ -2,4 +2,3 @@ output: dist/
 
 variables:
   FLUTTER_ROOT: .fvm/versions/3.32.8
-
