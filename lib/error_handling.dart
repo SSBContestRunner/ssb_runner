@@ -32,6 +32,11 @@ Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
 
 Future<void> _clearOutdatedLogs(String appLogDirPath) async {
   final appLogDir = Directory(appLogDirPath);
+
+  if (!(await appLogDir.exists())) {
+    return;
+  }
+
   await appLogDir
       .list()
       .where((fileEntry) {
