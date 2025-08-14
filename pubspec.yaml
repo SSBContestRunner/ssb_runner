@@ -83,7 +83,6 @@ flutter:
     - assets/voice/Global/ICAO/
     - assets/voice/Global/Number/
     - assets/voice/Global/RUN/
-    - assets/voice/English-US/Alphabet/
     - assets/voice/English-US/Common/
     - assets/voice/English-US/ICAO/
     - assets/voice/English-US/Location/
