@@ -19,6 +19,7 @@ class HomePage extends StatelessWidget {
         RepositoryProvider(
           create: (context) => ContestManager(
             callsignLoader: context.read(),
+            audioLoader: context.read(),
             appSettings: context.read(),
             appDatabase: context.read(),
             audioPlayer: context.read(),
