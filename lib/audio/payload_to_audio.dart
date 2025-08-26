@@ -42,7 +42,7 @@ Future<Uint8List> exchangeToAudioData(
 
 String _obtainExchangeFilePath(bool isMe, bool isCallsignCorrect) {
   if (isMe) {
-    return 'RUN/exch.wav';
+    return 'RUN/EXCH.wav';
   }
 
   return isCallsignCorrect ? 'Common/rogeryouare59.wav' : 'Common/5_9.wav';

@@ -1,5 +1,5 @@
 import 'package:ssb_runner/contest_run/data/score_data.dart';
-import 'package:ssb_runner/contest_run/log/extract_prefix.dart';
+import 'package:ssb_runner/common/extract_prefix.dart';
 import 'package:ssb_runner/contest_type/score_calculator.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
