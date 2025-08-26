@@ -101,6 +101,7 @@ class ContestManager {
     });
   }
 
+  // region operation event handler
   Future<void> handleOperationEvent(OperationEvent event) async {
     if (!isContestRunning) {
       return;
@@ -356,6 +357,8 @@ class ContestManager {
     _inputControlStreamController.sink.add(clearInput);
   }
 
+  // endregion
+
   void startContest() async {
     _audioPlayer.startPlay();
     await _startContestInternal();
@@ -456,6 +459,7 @@ class ContestManager {
     _handleToState(waitingSubmitCall);
   }
 
+  // region state change handler
   Future<void> _handleToState(
     SingleCallRunState toState, {
     SingleCallRunEvent? event,
@@ -666,6 +670,8 @@ class ContestManager {
       NextCall(callAnswer: callSignAnswer, exchangeAnswer: exchangeAnswer),
     );
   }
+
+  // endregion
 
   void stopContest() {
     final contestTimer = _contestTimer;
