@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/db/app_database.dart';
@@ -53,6 +54,7 @@ class _MainAppState extends State<MainApp> {
         home: MultiRepositoryProvider(
           providers: [
             RepositoryProvider(create: (context) => AppDatabase()),
+            RepositoryProvider(create: (context) => AudioLoader()),
             RepositoryProvider(create: (context) => AudioPlayer()),
             RepositoryProvider(create: (context) => CallsignLoader()),
             RepositoryProvider(

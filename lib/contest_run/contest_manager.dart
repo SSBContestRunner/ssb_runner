@@ -3,8 +3,8 @@ import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/services.dart';
+import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
-import 'package:ssb_runner/audio/operation_event_audio.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/common/calculate_list_diff.dart';
@@ -37,20 +37,24 @@ class ContestManager {
 
   String _contestRunId = '';
   final _contestRunIdStreamController = StreamController<String>.broadcast();
+
   Stream<String> get contestRunIdStream => _contestRunIdStreamController.stream;
 
   Duration _elapseTime = Duration.zero;
   final _elapseTimeStreamController = StreamController<Duration>.broadcast();
+
   Stream<Duration> get elapseTimeStream => _elapseTimeStreamController.stream;
 
   bool isContestRunning = false;
   final _isContestRunningStreamController = StreamController<bool>.broadcast();
+
   Stream<bool> get isContestRunningStream =>
       _isContestRunningStreamController.stream;
 
   ScoreManager? scoreManager;
 
   final _inputControlStreamController = StreamController<int>();
+
   Stream<int> get inputControlStream => _inputControlStreamController.stream;
 
   final _keyEventManager = KeyEventHandler();
@@ -60,6 +64,7 @@ class ContestManager {
   final AppSettings _appSettings;
   final AppDatabase _appDatabase;
   final AudioPlayer _audioPlayer;
+  final AudioLoader _audioLoader;
   final CallsignLoader _callsignLoader;
   final DxccManager _dxccManager;
 
@@ -70,10 +75,12 @@ class ContestManager {
     required AppSettings appSettings,
     required AppDatabase appDatabase,
     required AudioPlayer audioPlayer,
+    required AudioLoader audioLoader,
     required DxccManager dxccManager,
   }) : _appSettings = appSettings,
        _appDatabase = appDatabase,
        _audioPlayer = audioPlayer,
+       _audioLoader = audioLoader,
        _callsignLoader = callsignLoader,
        _dxccManager = dxccManager {
     _initKeyEventHandling();
@@ -107,46 +114,61 @@ class ContestManager {
 
     switch (event) {
       case OperationEvent.cq:
-        pcmData = await cqAudioData(_appSettings.stationCallsign);
+        pcmData = await obtainMyCqAudioData();
         break;
       case OperationEvent.exch:
-        pcmData = await exchangeAudioData(await _obtainHisExchange());
+        pcmData = await obtainMySentExchangeAudioData();
         break;
       case OperationEvent.tu:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
+        pcmData = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CommonPayload(fileName: 'TU_QRZ.wav'),
+        );
         break;
       case OperationEvent.myCall:
-        pcmData = await payloadToAudioData(
-          _appSettings.stationCallsign,
-          isMe: true,
+        pcmData = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CallsignPayload(
+            callsign: _appSettings.stationCallsign,
+            phonicType: PhonicType.standard,
+          ),
         );
         break;
       case OperationEvent.hisCall:
         pcmData = _hisCall.isNotEmpty
-            ? await payloadToAudioData(_hisCall, isMe: true)
+            ? await _audioLoader.loadAudio(
+                myAudioAccentDir,
+                CallsignPayload(
+                  callsign: _hisCall,
+                  phonicType: PhonicType.standard,
+                ),
+              )
             : null;
         break;
       case OperationEvent.b4:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/Before.wav');
+        pcmData = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CommonPayload(fileName: 'BEFORE.wav'),
+        );
         break;
       case OperationEvent.agn:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/AGN.wav');
+        pcmData = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CommonPayload(fileName: 'AGN.wav'),
+        );
         break;
       case OperationEvent.nil:
-        pcmData = await loadAssetsWavPcmData('$globalRunPath/NoCopy.wav');
+        pcmData = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CommonPayload(fileName: 'NO_COPY.wav'),
+        );
         break;
       case OperationEvent.hisCallAndMyExchange:
         final hisCall = _hisCall;
         if (hisCall.isEmpty) {
           break;
         }
-
-        final hisCallPcmData = await payloadToAudioData(hisCall, isMe: true);
-        final myExchangePcmData = await exchangeAudioData(
-          await _obtainHisExchange(),
-        );
-
-        pcmData = await concatUint8List([hisCallPcmData, myExchangePcmData]);
+        pcmData = await obtainHisCallAndMyExchange(hisCall);
         break;
       case OperationEvent.submit:
       case OperationEvent.cancel:
@@ -161,6 +183,44 @@ class ContestManager {
         isMyAudio: true,
       );
     }
+  }
+
+  Future<Uint8List> obtainMyCqAudioData() async {
+    final cqAudio = await _audioLoader.loadAudio(
+      myAudioAccentDir,
+      CommonPayload(fileName: 'CQ.wav'),
+    );
+    final myCallSign = _appSettings.stationCallsign;
+    final myCallSignAudio = await _audioLoader.loadAudio(
+      myAudioAccentDir,
+      CallsignPayload(callsign: myCallSign, phonicType: PhonicType.standard),
+    );
+    return await concatUint8List([cqAudio, myCallSignAudio]);
+  }
+
+  Future<Uint8List> obtainMySentExchangeAudioData() async {
+    return _audioLoader.loadAudio(
+      myAudioAccentDir,
+      CallsignPayload(
+        callsign: await _obtainHisExchange(),
+        phonicType: PhonicType.standard,
+      ),
+    );
+  }
+
+  Future<Uint8List> obtainHisCallAndMyExchange(String hisCall) async {
+    final hisCallPcmData = await _audioLoader.loadAudio(
+      myAudioAccentDir,
+      CallsignPayload(callsign: hisCall, phonicType: PhonicType.standard),
+    );
+    final myExchangePcmData = await _audioLoader.loadAudio(
+      myAudioAccentDir,
+      CallsignPayload(
+        callsign: await _obtainHisExchange(),
+        phonicType: PhonicType.standard,
+      ),
+    );
+    return await concatUint8List([hisCallPcmData, myExchangePcmData]);
   }
 
   Future<void> _handleOperationEventBusiness(OperationEvent event) async {
@@ -431,7 +491,10 @@ class ContestManager {
         );
         break;
       case QsoEnd():
-        final pcmData = await loadAssetsWavPcmData('$globalRunPath/TU_QRZ.wav');
+        final pcmData = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CommonPayload(fileName: 'TU_QRZ.wav'),
+        );
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: true,

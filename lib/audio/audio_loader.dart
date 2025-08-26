@@ -78,6 +78,8 @@ const List<String> _alphabetPhonicLetters = [
   'T',
 ];
 
+const myAudioAccentDir = 'Global';
+
 class AudioLoader {
   Future<Uint8List> loadAudio(
     String accentDir,
