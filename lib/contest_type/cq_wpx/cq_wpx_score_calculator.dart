@@ -13,7 +13,7 @@ class WpxScoreCalculator implements ScoreCalculator {
     required String stationCallsign,
     required this.dxccManager,
   }) : _stationCallsign = stationCallsign,
-       stationContinent = dxccManager.findCallSignContinet(stationCallsign);
+       stationContinent = dxccManager.findCallSignContinent(stationCallsign);
 
   @override
   String get stationCallsign => _stationCallsign;
@@ -50,7 +50,7 @@ class WpxScoreCalculator implements ScoreCalculator {
   }
 
   int _obtainQsoBasePoint(QsoTableData qso) {
-    final qsoContinent = dxccManager.findCallSignContinet(qso.callsign);
+    final qsoContinent = dxccManager.findCallSignContinent(qso.callsign);
 
     if (qsoContinent.isEmpty) {
       return 1;

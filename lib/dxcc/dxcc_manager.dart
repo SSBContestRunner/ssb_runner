@@ -15,7 +15,18 @@ class DxccManager {
 
   late final List<PrefixTableData> _prefixes;
 
-  String findCallSignContinet(String callsign) {
+  int findCallsignDxccId(String callsign) {
+    final prefix = extractPrefix(callsign);
+    final matchPrefixData = _findMatchPrefixData(prefix);
+
+    if (matchPrefixData == null) {
+      return -1;
+    }
+
+    return matchPrefixData.dxccId;
+  }
+
+  String findCallSignContinent(String callsign) {
     final prefix = extractPrefix(callsign);
     final matchPrefixData = _findMatchPrefixData(prefix);
 
