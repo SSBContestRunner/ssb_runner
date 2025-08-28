@@ -1,5 +1,6 @@
 import 'dart:async';
 
+const fillRst = 10001;
 const switchCallsignAndExchange = 10003;
 const clearInput = 10002;
 

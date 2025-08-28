@@ -18,14 +18,16 @@ class ContestRunningManager {
   final String runId;
   final ContestType _contestType;
   final ContestDataManager _contestDataManager;
-  final ContestInputHandler _inputHandler;
   final ContestTimer _contestTimer;
   final ScoreCalculator _scoreCalculator;
+
+  late final ContestInputHandler _inputHandler =
+      _contestDataManager.inputHandler;
 
   late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
 
-  late final ScoreManager _scoreManager = ScoreManager(
+  late final ScoreManager scoreManager = ScoreManager(
     contestId: runId,
     stationCallsign: _contestDataManager.appSettings.stationCallsign,
     scoreCalculator: _scoreCalculator,
@@ -43,8 +45,7 @@ class ContestRunningManager {
         contestType: _contestType,
         contestDataManager: _contestDataManager,
         stateMachine: _stateMachine,
-        inputHandler: _inputHandler,
-        scoreManager: _scoreManager,
+        scoreManager: scoreManager,
         contestAnswerGenerator: _answerGenerator,
       );
 
@@ -70,12 +71,10 @@ class ContestRunningManager {
     required ContestTimer contestTimer,
     required ContestType contestType,
     required ContestDataManager contestDataManager,
-    required ContestInputHandler inputHandler,
     required ScoreCalculator scoreCalculator,
   }) : _contestType = contestType,
        _contestTimer = contestTimer,
        _contestDataManager = contestDataManager,
-       _inputHandler = inputHandler,
        _scoreCalculator = scoreCalculator {
     _setupStateMachine();
     _setupKeyboardListener();

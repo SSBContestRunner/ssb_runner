@@ -18,6 +18,8 @@ class ContestTimer {
   void start(int durationInMinutes) {
     final duration = Duration(minutes: durationInMinutes);
 
+    _elapseTime = Duration.zero;
+
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       final elapseTime = Duration(seconds: timer.tick);
       _elapseTime = elapseTime;

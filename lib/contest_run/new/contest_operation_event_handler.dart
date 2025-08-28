@@ -14,9 +14,6 @@ import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
-const switchCallsignAndExchange = 10003;
-const clearInput = 10002;
-
 class ContestOperationEventHandler {
   final String _contestRunId;
   final ContestDataManager _contestDataManager;

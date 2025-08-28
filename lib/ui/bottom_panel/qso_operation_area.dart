@@ -5,18 +5,23 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
-import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
+import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
+import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 const maxCallsignLength = 15;
 
 class QsoOperationAreaCubit extends Cubit<int> {
-  final ContestManager _contestManager;
+  final ContestInputHandler _inputHandler;
+  final ContestOperationEventHandler _contestOperationEventHandler;
 
-  QsoOperationAreaCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super(0);
+  QsoOperationAreaCubit({
+    required ContestInputHandler contestInputHandler,
+    required ContestOperationEventHandler contestOperationEventHandler,
+  }) : _inputHandler = contestInputHandler,
+       _contestOperationEventHandler = contestOperationEventHandler,
+       super(0);
 
   StreamSubscription? _inputControlStreamSubscription;
   StreamSubscription? _inputAreaEventStreamSubscription;
@@ -26,23 +31,23 @@ class QsoOperationAreaCubit extends Cubit<int> {
       return;
     }
 
-    _inputControlStreamSubscription = _contestManager.inputControlStream.listen(
-      (data) {
-        callback(data);
-      },
-    );
+    _inputControlStreamSubscription = _inputHandler.inputControlStream.listen((
+      data,
+    ) {
+      callback(data);
+    });
   }
 
   void handleOperationEvent(OperationEvent event) {
-    _contestManager.handleOperationEvent(event);
+    _contestOperationEventHandler.handleOperationEvent(event);
   }
 
-  void onCallInput(String callSign) {
-    _contestManager.onCallInput(callSign);
+  void onCallInput(String callsign) {
+    _inputHandler.onCallEdit(callsign);
   }
 
   void onExchangeInput(String exchange) {
-    _contestManager.onExchangeInput(exchange);
+    _inputHandler.onExchangeEdit(exchange);
   }
 
   void dispose() {
@@ -60,8 +65,10 @@ class QsoOperationArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          QsoOperationAreaCubit(contestManager: context.read()),
+      create: (context) => QsoOperationAreaCubit(
+        contestInputHandler: context.read(),
+        contestOperationEventHandler: context.read(),
+      ),
       child: BlocBuilder<QsoOperationAreaCubit, int>(
         buildWhen: (previous, current) => false,
         builder: (context, _) {

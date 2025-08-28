@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_running_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx_score_calculator.dart';
+import 'package:ssb_runner/db/app_database.dart';
 import 'package:uuid/uuid.dart';
 
 class ContestManagerNew {
@@ -14,11 +16,18 @@ class ContestManagerNew {
   ContestManagerNew({required ContestDataManager contestDataManager})
     : _contestDataManager = contestDataManager;
 
-  late final ContestTimer _contestTimer = ContestTimer(
+  late final ContestTimer contestTimer = ContestTimer(
     onContestEnd: () {
       stopContest();
     },
   );
+
+  String _currentContestRunId = '';
+  final _contestRunIdStreamController = StreamController<String>.broadcast();
+
+  Stream<String> get contestRunIdStream => _contestRunIdStreamController.stream;
+
+  late final AppDatabase _appDatabase = _contestDataManager.appDatabase;
 
   ContestRunningManager? contestRunningManager;
 
@@ -31,27 +40,29 @@ class ContestManagerNew {
   bool get isContestRunning => _isContestRunning;
 
   void startContest() {
-    contestRunningManager = _createContestRunningManager();
+    final runId = Uuid().v4();
+    _currentContestRunId = runId;
+
+    contestRunningManager = _createContestRunningManager(runId);
     final durationInMinutes = _contestDataManager.appSettings.contestDuration;
-    _contestTimer.start(durationInMinutes);
+    contestTimer.start(durationInMinutes);
 
     _isContestRunning = true;
     _isContestRunningStreamController.sink.add(true);
   }
 
-  ContestRunningManager _createContestRunningManager() {
+  ContestRunningManager _createContestRunningManager(String runId) {
     final stationCallSign = _contestDataManager.appSettings.stationCallsign;
     final dxccManager = _contestDataManager.dxccManager;
 
     return ContestRunningManager(
-      runId: Uuid().v4(),
-      contestTimer: _contestTimer,
+      runId: runId,
+      contestTimer: contestTimer,
       contestType: CqWpxContestType(
         stationCallsign: _contestDataManager.appSettings.stationCallsign,
         dxccManager: dxccManager,
       ),
       contestDataManager: _contestDataManager,
-      inputHandler: ContestInputHandler(),
       scoreCalculator: WpxScoreCalculator(
         stationCallsign: stationCallSign,
         dxccManager: dxccManager,
@@ -60,10 +71,21 @@ class ContestManagerNew {
   }
 
   void stopContest() {
-    _contestTimer.stop();
+    contestTimer.stop();
     contestRunningManager?.stop();
 
     _isContestRunning = false;
     _isContestRunningStreamController.sink.add(false);
+  }
+
+  Future<int> countCurrentRunQso() async {
+    return await _appDatabase.qsoTable
+            .count(
+              where: (row) {
+                return row.runId.equals(_currentContestRunId);
+              },
+            )
+            .getSingleOrNull() ??
+        0;
   }
 }

@@ -29,14 +29,16 @@ class ContestStateChangeHandler {
   final ContestDataManager _contestDataManager;
   final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
-  final ContestInputHandler _inputHandler;
   final ScoreManager _scoreManager;
   final ContestAnswerGenerator _answerGenerator;
 
-  late final AudioLoader _audioLoader;
-  late final AudioPlayer _audioPlayer;
-  late final String _stationCallsign;
-  late final AppDatabase _appDatabase;
+  late final AudioLoader _audioLoader = _contestDataManager.audioLoader;
+  late final AudioPlayer _audioPlayer = _contestDataManager.audioPlayer;
+  late final String _stationCallsign =
+      _contestDataManager.appSettings.stationCallsign;
+  late final AppDatabase _appDatabase = _contestDataManager.appDatabase;
+  late final ContestInputHandler _inputHandler =
+      _contestDataManager.inputHandler;
 
   Timer? _retryTimer;
 
@@ -47,7 +49,6 @@ class ContestStateChangeHandler {
     required ContestDataManager contestDataManager,
     required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
     stateMachine,
-    required ContestInputHandler inputHandler,
     required ScoreManager scoreManager,
     required ContestAnswerGenerator contestAnswerGenerator,
   }) : _contestRunId = contestRunId,
@@ -55,17 +56,8 @@ class ContestStateChangeHandler {
        _contestType = contestType,
        _contestDataManager = contestDataManager,
        _stateMachine = stateMachine,
-       _inputHandler = inputHandler,
        _scoreManager = scoreManager,
-       _answerGenerator = contestAnswerGenerator {
-    _audioLoader = _contestDataManager.audioLoader;
-
-    _audioPlayer = _contestDataManager.audioPlayer;
-
-    _stationCallsign = _contestDataManager.appSettings.stationCallsign;
-
-    _appDatabase = _contestDataManager.appDatabase;
-  }
+       _answerGenerator = contestAnswerGenerator;
 
   // region state change handler
   Future<void> handleToState(

@@ -1,6 +1,7 @@
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
+import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -12,6 +13,7 @@ class ContestDataManager {
   final AppDatabase appDatabase;
   final CallsignLoader callsignLoader;
   final DxccManager dxccManager;
+  final ContestInputHandler inputHandler;
 
   ContestDataManager({
     required this.audioLoader,
@@ -20,5 +22,6 @@ class ContestDataManager {
     required this.appDatabase,
     required this.callsignLoader,
     required this.dxccManager,
+    required this.inputHandler,
   });
 }
