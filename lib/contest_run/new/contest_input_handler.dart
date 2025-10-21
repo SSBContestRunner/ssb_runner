@@ -32,7 +32,7 @@ class ContestInputHandler {
 
   void onRstFilled(bool isRstFilledVal) {
     isRstFilled = isRstFilledVal;
-    _isRstFilledStreamController.add(isRstFilledVal);
+    _inputControlStreamController.add(fillRst);
   }
 
   void clear() {

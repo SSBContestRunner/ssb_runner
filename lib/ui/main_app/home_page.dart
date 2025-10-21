@@ -17,6 +17,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
+        RepositoryProvider(create: (context) => ContestInputHandler()),
         RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
         RepositoryProvider(
           create: (context) => ContestDataManager(
@@ -26,7 +27,7 @@ class HomePage extends StatelessWidget {
             appDatabase: context.read(),
             callsignLoader: context.read(),
             dxccManager: context.read(),
-            inputHandler: ContestInputHandler(),
+            inputHandler: context.read(),
           ),
         ),
         RepositoryProvider(

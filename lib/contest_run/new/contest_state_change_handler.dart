@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:logger/logger.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
@@ -19,6 +20,8 @@ import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
+
+import '../../dxcc/dxcc_manager.dart';
 
 const _timeoutDuration = Duration(seconds: 10);
 
@@ -39,6 +42,8 @@ class ContestStateChangeHandler {
   late final AppDatabase _appDatabase = _contestDataManager.appDatabase;
   late final ContestInputHandler _inputHandler =
       _contestDataManager.inputHandler;
+
+  late final DxccManager _dxccManager = _contestDataManager.dxccManager;
 
   Timer? _retryTimer;
 
@@ -84,13 +89,21 @@ class ContestStateChangeHandler {
     SingleCallRunState toState,
     SingleCallRunEvent? event,
   ) async {
+    logger.log(Level.debug, '播放音乐！！');
     switch (toState) {
       case WaitingSubmitCall():
-        await _playAudioByPlayType(toState.audioPlayType);
+        final dxccId = _dxccManager.findCallsignDxccId(
+          toState.currentCallAnswer,
+        );
+        await _playAudioByPlayType(toState.audioPlayType, dxccId);
         break;
       case WaitingSubmitMyExchange():
+        final dxccId = _dxccManager.findCallsignDxccId(
+          toState.currentCallAnswer,
+        );
         await _playAudioByPlayType(
           toState.audioPlayType,
+          dxccId,
           isResetAudioStream: event is SubmitCallAndHisExchange,
         );
         break;
@@ -106,15 +119,22 @@ class ContestStateChangeHandler {
         );
         break;
       case ReportMyExchange():
+        final dxccId = _dxccManager.findCallsignDxccId(
+          toState.currentCallAnswer,
+        );
         await _playAudioByPlayType(
           toState.audioPlayType,
+          dxccId,
           isResetAudioStream: true,
         );
         break;
       case HeAskForExchange():
+        final dxccId = _dxccManager.findCallsignDxccId(
+          toState.currentCallAnswer,
+        );
         final list = [
           if (toState.isPlayMyCall)
-            await payloadToAudioData(_stationCallsign, isMe: false),
+            await payloadToAudioData(_stationCallsign, dxccId, isMe: false),
           await loadAssetsWavPcmData('English-US/Common/NR.wav'),
         ];
 
@@ -122,14 +142,21 @@ class ContestStateChangeHandler {
         _audioPlayer.addAudioData(pcmData);
         break;
       case HeRepeatCorrectCallAnswer():
-        final pcmData = await payloadToAudioData(toState.currentCallAnswer);
+        final dxccId = _dxccManager.findCallsignDxccId(
+          toState.currentCallAnswer,
+        );
+        final pcmData = await payloadToAudioData(
+          toState.currentCallAnswer,
+          dxccId,
+        );
         _audioPlayer.addAudioData(pcmData);
         break;
     }
   }
 
   Future<void> _playAudioByPlayType(
-    AudioPlayType playType, {
+    AudioPlayType playType,
+    int dxccId, {
     bool isResetAudioStream = false,
   }) async {
     switch (playType) {
@@ -139,6 +166,7 @@ class ContestStateChangeHandler {
       case PlayExchange():
         final pcmData = await exchangeToAudioData(
           playType.exchangeToPlay,
+          dxccId,
           isMe: playType.isMe,
         );
         _audioPlayer.addAudioData(
@@ -150,10 +178,12 @@ class ContestStateChangeHandler {
       case PlayCallExchange():
         final callSignPcmData = await payloadToAudioData(
           playType.call,
+          dxccId,
           isMe: playType.isMe,
         );
         final exchangePcmData = await exchangeToAudioData(
           playType.exchangeToPlay,
+          dxccId,
           isMe: playType.isMe,
           isCallsignCorrect: false,
         );
@@ -172,6 +202,7 @@ class ContestStateChangeHandler {
       case PlayCall():
         final pcmData = await payloadToAudioData(
           playType.callToPlay,
+          dxccId,
           isMe: playType.isMe,
         );
         _audioPlayer.addAudioData(

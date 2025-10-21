@@ -78,6 +78,20 @@ const List<String> _alphabetPhonicLetters = [
   'T',
 ];
 
+String obtainAccentByDxccId(int dxccId) {
+  if (_japan.contains(dxccId)) {
+    return 'JP';
+  } else if (_russianSpeaking.contains(dxccId)) {
+    return 'RU';
+  } else if (_britishEnglish.contains(dxccId)) {
+    return 'UK';
+  } else if (_southAsia.contains(dxccId) || _southeastAsia.contains(dxccId)) {
+    return 'IN';
+  } else {
+    return 'US';
+  }
+}
+
 const myAudioAccentDir = 'Global';
 
 class AudioLoader {
@@ -149,20 +163,6 @@ class AudioLoader {
         return 'Alphabet';
       default:
         return 'ICAO';
-    }
-  }
-
-  String obtainAccentByDxccId(int dxccId) {
-    if (_japan.contains(dxccId)) {
-      return 'JP';
-    } else if (_russianSpeaking.contains(dxccId)) {
-      return 'RU';
-    } else if (_britishEnglish.contains(dxccId)) {
-      return 'UK';
-    } else if (_southAsia.contains(dxccId) || _southeastAsia.contains(dxccId)) {
-      return 'IN';
-    } else {
-      return 'US';
     }
   }
 }

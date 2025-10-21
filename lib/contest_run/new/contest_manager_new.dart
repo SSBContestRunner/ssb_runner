@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_running_manager.dart';
@@ -39,11 +40,19 @@ class ContestManagerNew {
 
   bool get isContestRunning => _isContestRunning;
 
+  late final AudioPlayer _audioPlayer = _contestDataManager.audioPlayer;
+  late final ContestInputHandler _contestInputHandler =
+      _contestDataManager.inputHandler;
+
   void startContest() {
     final runId = Uuid().v4();
     _currentContestRunId = runId;
 
+    _audioPlayer.startPlay();
+    _contestInputHandler.clear();
+
     contestRunningManager = _createContestRunningManager(runId);
+
     final durationInMinutes = _contestDataManager.appSettings.contestDuration;
     contestTimer.start(durationInMinutes);
 
@@ -73,6 +82,8 @@ class ContestManagerNew {
   void stopContest() {
     contestTimer.stop();
     contestRunningManager?.stop();
+
+    _audioPlayer.stopPlay();
 
     _isContestRunning = false;
     _isContestRunningStreamController.sink.add(false);

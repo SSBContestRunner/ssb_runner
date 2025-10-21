@@ -62,8 +62,11 @@ class _MainAppState extends State<MainApp> {
             ),
           ],
           child: BlocProvider(
-            create: (context) =>
-                _MainAppCubit()..load(dxccManager: context.read()),
+            create: (context) => _MainAppCubit()
+              ..load(
+                dxccManager: context.read(),
+                callsignLoader: context.read(),
+              ),
             child: BlocBuilder<_MainAppCubit, _AppDeps?>(
               builder: (context, appDeps) {
                 if (appDeps == null) {
@@ -98,7 +101,10 @@ class _AppDeps {
 class _MainAppCubit extends Cubit<_AppDeps?> {
   _MainAppCubit() : super(null);
 
-  void load({required DxccManager dxccManager}) async {
+  void load({
+    required DxccManager dxccManager,
+    required CallsignLoader callsignLoader,
+  }) async {
     // Initialize the player.
     try {
       await SoLoud.instance.init(channels: Channels.mono);
@@ -123,6 +129,8 @@ class _MainAppCubit extends Cubit<_AppDeps?> {
     await workerManager.init(dynamicSpawning: true);
 
     await dxccManager.loadDxcc();
+
+    await callsignLoader.loadCallsigns();
 
     emit(_AppDeps(prefs: prefs));
   }

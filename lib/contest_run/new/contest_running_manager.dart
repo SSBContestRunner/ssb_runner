@@ -49,7 +49,7 @@ class ContestRunningManager {
         contestAnswerGenerator: _answerGenerator,
       );
 
-  late final ContestOperationEventHandler _contestOperationEventHandler =
+  late final ContestOperationEventHandler contestOperationEventHandler =
       ContestOperationEventHandler(
         contestRunId: runId,
         contestDataManager: _contestDataManager,
@@ -115,11 +115,11 @@ class ContestRunningManager {
 
   void _setupKeyboardListener() {
     _keyEventManager.operationEventStream.listen((event) {
-      _contestOperationEventHandler.handleOperationEvent(event);
+      contestOperationEventHandler.handleOperationEvent(event);
     });
 
     _keyEventManager.inputAreaEventStream.listen((event) {
-      _contestOperationEventHandler.handleInputAreaEvent(event);
+      contestOperationEventHandler.handleInputAreaEvent(event);
     });
 
     ServicesBinding.instance.keyboard.addHandler(_keyEventCallback);
