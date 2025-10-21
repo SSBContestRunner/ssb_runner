@@ -18,6 +18,7 @@ import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/main.dart';
+import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
 import '../../dxcc/dxcc_manager.dart';
@@ -43,6 +44,7 @@ class ContestStateChangeHandler {
       _contestDataManager.inputHandler;
 
   late final DxccManager _dxccManager = _contestDataManager.dxccManager;
+  late final AppSettings _appSettings = _contestDataManager.appSettings;
 
   Timer? _retryTimer;
 
@@ -137,7 +139,7 @@ class ContestStateChangeHandler {
               obtainAccentByDxccId(dxccId),
               CallsignPayload(
                 callsign: _stationCallsign,
-                phonicType: PhonicType.standard,
+                phonicType: _appSettings.phonicType,
               ),
             ),
           await loadAssetsWavPcmData('$accent/Common/NR.wav'),
@@ -155,7 +157,7 @@ class ContestStateChangeHandler {
           obtainAssetDir(false, dxccId),
           CallsignPayload(
             callsign: toState.currentCallAnswer,
-            phonicType: PhonicType.standard,
+            phonicType: _appSettings.phonicType,
           ),
         );
 
@@ -186,7 +188,7 @@ class ContestStateChangeHandler {
           assetDir,
           CallsignPayload(
             callsign: playType.exchangeToPlay,
-            phonicType: PhonicType.standard,
+            phonicType: _appSettings.phonicType,
           ),
         );
 
@@ -203,7 +205,7 @@ class ContestStateChangeHandler {
           obtainAssetDir(playType.isMe, dxccId),
           CallsignPayload(
             callsign: playType.call,
-            phonicType: PhonicType.standard,
+            phonicType: _appSettings.phonicType,
           ),
         );
 
@@ -221,7 +223,7 @@ class ContestStateChangeHandler {
           obtainAssetDir(playType.isMe, dxccId),
           CallsignPayload(
             callsign: playType.exchangeToPlay,
-            phonicType: PhonicType.standard,
+            phonicType: _appSettings.phonicType,
           ),
         );
 
@@ -242,7 +244,7 @@ class ContestStateChangeHandler {
           obtainAssetDir(playType.isMe, dxccId),
           CallsignPayload(
             callsign: playType.callToPlay,
-            phonicType: PhonicType.standard,
+            phonicType: _appSettings.phonicType,
           ),
         );
         _audioPlayer.addAudioData(

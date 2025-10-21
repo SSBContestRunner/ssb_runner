@@ -74,7 +74,7 @@ class ContestOperationEventHandler {
           myAudioAccentDir,
           CallsignPayload(
             callsign: _appSettings.stationCallsign,
-            phonicType: PhonicType.standard,
+            phonicType: _appSettings.phonicType,
           ),
         );
         break;
@@ -84,7 +84,7 @@ class ContestOperationEventHandler {
                 myAudioAccentDir,
                 CallsignPayload(
                   callsign: _hisCall,
-                  phonicType: PhonicType.standard,
+                  phonicType: _appSettings.phonicType,
                 ),
               )
             : null;
@@ -137,7 +137,10 @@ class ContestOperationEventHandler {
     final myCallSign = _appSettings.stationCallsign;
     final myCallSignAudio = await _audioLoader.loadAudio(
       myAudioAccentDir,
-      CallsignPayload(callsign: myCallSign, phonicType: PhonicType.standard),
+      CallsignPayload(
+        callsign: myCallSign,
+        phonicType: _appSettings.phonicType,
+      ),
     );
     return await concatUint8List([cqAudio, myCallSignAudio]);
   }
@@ -147,7 +150,7 @@ class ContestOperationEventHandler {
       myAudioAccentDir,
       CallsignPayload(
         callsign: await _obtainHisExchange(),
-        phonicType: PhonicType.standard,
+        phonicType: _appSettings.phonicType,
       ),
     );
   }
@@ -155,13 +158,13 @@ class ContestOperationEventHandler {
   Future<Uint8List> obtainHisCallAndMyExchange(String hisCall) async {
     final hisCallPcmData = await _audioLoader.loadAudio(
       myAudioAccentDir,
-      CallsignPayload(callsign: hisCall, phonicType: PhonicType.standard),
+      CallsignPayload(callsign: hisCall, phonicType: _appSettings.phonicType),
     );
     final myExchangePcmData = await _audioLoader.loadAudio(
       myAudioAccentDir,
       CallsignPayload(
         callsign: await _obtainHisExchange(),
-        phonicType: PhonicType.standard,
+        phonicType: _appSettings.phonicType,
       ),
     );
     return await concatUint8List([hisCallPcmData, myExchangePcmData]);
