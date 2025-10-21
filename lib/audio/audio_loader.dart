@@ -119,7 +119,7 @@ class AudioLoader {
     final byteBuilder = BytesBuilder();
 
     for (final char in callsign.characters) {
-      final filePath = _charToAudioPath(phonicType, char);
+      final filePath = _charToAudioPath(accentDir, phonicType, char);
       final audioPath = '$accentDir/$filePath';
       final pcmData = await loadAssetsWavPcmData(audioPath);
       byteBuilder.add(pcmData);
@@ -128,7 +128,7 @@ class AudioLoader {
     return byteBuilder.toBytes();
   }
 
-  String _charToAudioPath(PhonicType phonicType, String char) {
+  String _charToAudioPath(String assetDir, PhonicType phonicType, String char) {
     if (char == '/') {
       return 'Number/PORTABLE.wav';
     }
@@ -137,10 +137,18 @@ class AudioLoader {
       return 'Number/${char.toUpperCase()}.wav';
     }
 
-    return '${_obtainPhonicDirByType(phonicType, char)}/${char.toUpperCase()}.wav';
+    return '${_obtainPhonicDirByType(assetDir, phonicType, char)}/${char.toUpperCase()}.wav';
   }
 
-  String _obtainPhonicDirByType(PhonicType phonicType, String char) {
+  String _obtainPhonicDirByType(
+    String assetDir,
+    PhonicType phonicType,
+    String char,
+  ) {
+    if (assetDir == myAudioAccentDir) {
+      return 'ICAO';
+    }
+
     switch (phonicType) {
       case PhonicType.standard:
         return 'ICAO';
