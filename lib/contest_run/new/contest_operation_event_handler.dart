@@ -171,6 +171,7 @@ class ContestOperationEventHandler {
     switch (event) {
       case OperationEvent.cq:
       case OperationEvent.agn:
+        transition(Retry());
         break;
       case OperationEvent.submit:
         _handleSubmit();
