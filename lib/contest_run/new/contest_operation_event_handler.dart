@@ -272,13 +272,8 @@ class ContestOperationEventHandler {
     );
   }
 
-  void handleInputAreaEvent(InputAreaEvent event) {
-    switch (event) {
-      case InputAreaEvent.switchCallsignAndExchange:
-        _inputControlStreamController.sink.add(switchCallsignAndExchange);
-        _isRstFilled = true;
-        break;
-    }
+  void handleInputAreaEvent() {
+    _isRstFilled = true;
   }
 
   // endregion

@@ -119,7 +119,8 @@ class ContestRunningManager {
     });
 
     _keyEventManager.inputAreaEventStream.listen((event) {
-      contestOperationEventHandler.handleInputAreaEvent(event);
+      contestOperationEventHandler.handleInputAreaEvent();
+      _inputHandler.onSwitchCallsignAndExchange();
     });
 
     ServicesBinding.instance.keyboard.addHandler(_keyEventCallback);

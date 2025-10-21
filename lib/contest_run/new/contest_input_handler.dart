@@ -35,6 +35,10 @@ class ContestInputHandler {
     _inputControlStreamController.sink.add(fillRst);
   }
 
+  void onSwitchCallsignAndExchange() {
+    _inputControlStreamController.sink.add(switchCallsignAndExchange);
+  }
+
   void clear() {
     _hisCall = '';
     _exchange = '';
