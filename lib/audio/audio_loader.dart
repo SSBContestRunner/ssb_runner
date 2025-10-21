@@ -120,7 +120,8 @@ class AudioLoader {
 
     for (final char in callsign.characters) {
       final filePath = _charToAudioPath(phonicType, char);
-      final pcmData = await loadAssetsWavPcmData(filePath);
+      final audioPath = '$accentDir/$filePath';
+      final pcmData = await loadAssetsWavPcmData(audioPath);
       byteBuilder.add(pcmData);
     }
 

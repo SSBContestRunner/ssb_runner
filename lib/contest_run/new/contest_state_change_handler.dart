@@ -133,7 +133,13 @@ class ContestStateChangeHandler {
         final accent = obtainAccentByDxccId(dxccId);
         final list = [
           if (toState.isPlayMyCall)
-            await payloadToAudioData(_stationCallsign, dxccId, isMe: false),
+            await _audioLoader.loadAudio(
+              obtainAccentByDxccId(dxccId),
+              CallsignPayload(
+                callsign: _stationCallsign,
+                phonicType: PhonicType.standard,
+              ),
+            ),
           await loadAssetsWavPcmData('$accent/Common/NR.wav'),
         ];
 
@@ -144,10 +150,15 @@ class ContestStateChangeHandler {
         final dxccId = _dxccManager.findCallsignDxccId(
           toState.currentCallAnswer,
         );
-        final pcmData = await payloadToAudioData(
-          toState.currentCallAnswer,
-          dxccId,
+
+        final pcmData = await _audioLoader.loadAudio(
+          obtainAssetDir(false, dxccId),
+          CallsignPayload(
+            callsign: toState.currentCallAnswer,
+            phonicType: PhonicType.standard,
+          ),
         );
+
         _audioPlayer.addAudioData(pcmData);
         break;
     }
@@ -163,11 +174,24 @@ class ContestStateChangeHandler {
         // play nothing
         break;
       case PlayExchange():
-        final pcmData = await exchangeToAudioData(
-          playType.exchangeToPlay,
-          dxccId,
-          isMe: playType.isMe,
+        final assetDir = obtainAssetDir(playType.isMe, dxccId);
+        final rstAudioFileName = obtainRstAudioFileName(playType.isMe);
+
+        final rstPcmData = await _audioLoader.loadAudio(
+          assetDir,
+          CommonPayload(fileName: rstAudioFileName),
         );
+
+        final exchangePcmData = await _audioLoader.loadAudio(
+          assetDir,
+          CallsignPayload(
+            callsign: playType.exchangeToPlay,
+            phonicType: PhonicType.standard,
+          ),
+        );
+
+        final pcmData = await concatUint8List([rstPcmData, exchangePcmData]);
+
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: isResetAudioStream,
@@ -175,20 +199,35 @@ class ContestStateChangeHandler {
         );
         break;
       case PlayCallExchange():
-        final callSignPcmData = await payloadToAudioData(
-          playType.call,
-          dxccId,
-          isMe: playType.isMe,
+        final callSignPcmData = await _audioLoader.loadAudio(
+          obtainAssetDir(playType.isMe, dxccId),
+          CallsignPayload(
+            callsign: playType.call,
+            phonicType: PhonicType.standard,
+          ),
         );
-        final exchangePcmData = await exchangeToAudioData(
-          playType.exchangeToPlay,
-          dxccId,
-          isMe: playType.isMe,
-          isCallsignCorrect: false,
+
+        final rstPcmData = await _audioLoader.loadAudio(
+          obtainAssetDir(playType.isMe, dxccId),
+          CommonPayload(
+            fileName: obtainRstAudioFileName(
+              playType.isMe,
+              isCallsignCorrect: false,
+            ),
+          ),
+        );
+
+        final exchangePcmData = await _audioLoader.loadAudio(
+          obtainAssetDir(playType.isMe, dxccId),
+          CallsignPayload(
+            callsign: playType.exchangeToPlay,
+            phonicType: PhonicType.standard,
+          ),
         );
 
         final pcmData = await concatUint8List([
           callSignPcmData,
+          rstPcmData,
           exchangePcmData,
         ]);
 
@@ -199,10 +238,12 @@ class ContestStateChangeHandler {
         );
         break;
       case PlayCall():
-        final pcmData = await payloadToAudioData(
-          playType.callToPlay,
-          dxccId,
-          isMe: playType.isMe,
+        final pcmData = await _audioLoader.loadAudio(
+          obtainAssetDir(playType.isMe, dxccId),
+          CallsignPayload(
+            callsign: playType.callToPlay,
+            phonicType: PhonicType.standard,
+          ),
         );
         _audioPlayer.addAudioData(
           pcmData,
