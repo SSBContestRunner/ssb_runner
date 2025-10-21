@@ -17,7 +17,7 @@ Future<Uint8List> payloadToAudioData(
   for (final char in payload.characters) {
     final fileName = char.toAudioFilename();
     final parentPath = _obtainParentDirName(isMe, dxccId);
-    final path = await _checkFilePath(parentPath, fileName);
+    final path = '$parentPath/$fileName';
 
     final pcmData = await loadAssetsWavPcmData(path);
 
@@ -25,24 +25,6 @@ Future<Uint8List> payloadToAudioData(
   }
 
   return result.toBytes();
-}
-
-Future<String> _checkFilePath(String parentPath, String fileName) async {
-  final path = '$parentPath/$fileName';
-  if (await _checkRootBundleExist('assets/voice/$path')) {
-    return path;
-  }
-
-  return 'US/$fileName';
-}
-
-Future<bool> _checkRootBundleExist(String key) async {
-  try {
-    await rootBundle.load(key);
-    return true;
-  } catch (e, s) {
-    return false;
-  }
 }
 
 Future<Uint8List> exchangeToAudioData(
