@@ -130,10 +130,11 @@ class ContestStateChangeHandler {
         final dxccId = _dxccManager.findCallsignDxccId(
           toState.currentCallAnswer,
         );
+        final accent = obtainAccentByDxccId(dxccId);
         final list = [
           if (toState.isPlayMyCall)
             await payloadToAudioData(_stationCallsign, dxccId, isMe: false),
-          await loadAssetsWavPcmData('English-US/Common/NR.wav'),
+          await loadAssetsWavPcmData('$accent/Common/NR.wav'),
         ];
 
         final pcmData = await concatUint8List(list);

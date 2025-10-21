@@ -15,15 +15,29 @@ class DxccManager {
 
   late final List<PrefixTableData> _prefixes;
 
+  late final Map<String, int> _prefixToDxccMap;
+
   int findCallsignDxccId(String callsign) {
     final prefix = extractPrefix(callsign);
-    final matchPrefixData = _findMatchPrefixData(prefix);
 
-    if (matchPrefixData == null) {
+    String checkedPrefix = prefix;
+    int? matchPrefixDxccId;
+
+    while (checkedPrefix.isNotEmpty) {
+      matchPrefixDxccId = _prefixToDxccMap[checkedPrefix];
+
+      if (matchPrefixDxccId != null) {
+        break;
+      }
+
+      checkedPrefix = checkedPrefix.substring(0, checkedPrefix.length - 1);
+    }
+
+    if (matchPrefixDxccId == null) {
       return -1;
     }
 
-    return matchPrefixData.dxccId;
+    return matchPrefixDxccId;
   }
 
   String findCallSignContinent(String callsign) {
@@ -60,13 +74,20 @@ class DxccManager {
     final prefixFromDb = await database.select(database.prefixTable).get();
 
     if (prefixFromDb.isNotEmpty) {
-      _prefixes = prefixFromDb;
+      _assignPrefixes(prefixFromDb);
       return;
     }
 
     final prefixFromXml = await _loadDxccInternal();
     await _saveToDb(prefixFromXml);
-    _prefixes = prefixFromXml;
+    _assignPrefixes(prefixFromXml);
+  }
+
+  void _assignPrefixes(List<PrefixTableData> prefixes) {
+    _prefixes = prefixes;
+    _prefixToDxccMap = {
+      for (var element in _prefixes) element.call: element.dxccId,
+    };
   }
 
   Future<List<PrefixTableData>> _loadDxccInternal() async {
