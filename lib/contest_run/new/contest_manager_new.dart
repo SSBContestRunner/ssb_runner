@@ -47,6 +47,7 @@ class ContestManagerNew {
   void startContest() {
     final runId = Uuid().v4();
     _currentContestRunId = runId;
+    _contestRunIdStreamController.sink.add(runId);
 
     _audioPlayer.startPlay();
     _contestInputHandler.clear();

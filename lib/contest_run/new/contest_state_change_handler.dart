@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
-import 'package:logger/logger.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
@@ -89,7 +88,6 @@ class ContestStateChangeHandler {
     SingleCallRunState toState,
     SingleCallRunEvent? event,
   ) async {
-    logger.log(Level.debug, '播放音乐！！');
     switch (toState) {
       case WaitingSubmitCall():
         final dxccId = _dxccManager.findCallsignDxccId(
