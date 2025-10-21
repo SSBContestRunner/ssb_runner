@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -30,11 +29,20 @@ Future<Uint8List> payloadToAudioData(
 
 Future<String> _checkFilePath(String parentPath, String fileName) async {
   final path = '$parentPath/$fileName';
-  if (await File(path).exists()) {
+  if (await _checkRootBundleExist('assets/voice/$path')) {
     return path;
   }
 
   return 'US/$fileName';
+}
+
+Future<bool> _checkRootBundleExist(String key) async {
+  try {
+    await rootBundle.load(key);
+    return true;
+  } catch (e, s) {
+    return false;
+  }
 }
 
 Future<Uint8List> exchangeToAudioData(
