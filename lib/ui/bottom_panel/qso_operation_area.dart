@@ -18,13 +18,13 @@ const maxCallsignLength = 15;
 class QsoOperationAreaCubit extends Cubit<int> {
   final ContestInputHandler _inputHandler;
 
-  final ContestManager _contestManagerNew;
+  final ContestManager _contestManager;
 
   QsoOperationAreaCubit({
-    required ContestManager contestManagerNew,
+    required ContestManager contestManager,
     required ContestInputHandler contestInputHandler,
   }) : _inputHandler = contestInputHandler,
-       _contestManagerNew = contestManagerNew,
+       _contestManager = contestManager,
        super(0);
 
   StreamSubscription? _inputControlStreamSubscription;
@@ -44,11 +44,11 @@ class QsoOperationAreaCubit extends Cubit<int> {
   }
 
   void attachOperationContestRunning() {
-    _contestOperationEventHandlerSubscription = _contestManagerNew
+    _contestOperationEventHandlerSubscription = _contestManager
         .isContestRunningStream
         .listen((isRunning) {
           if (isRunning) {
-            _contestOperationEventHandler = _contestManagerNew
+            _contestOperationEventHandler = _contestManager
                 .contestRunningManager
                 ?.contestOperationEventHandler;
           } else {
@@ -89,12 +89,12 @@ class QsoOperationArea extends StatelessWidget {
         BlocProvider(
           create: (context) => QsoOperationAreaCubit(
             contestInputHandler: context.read(),
-            contestManagerNew: context.read(),
+            contestManager: context.read(),
           ),
         ),
         BlocProvider(
           create: (context) =>
-              _ContestTypeCubit(contestManagerNew: context.read()),
+              _ContestTypeCubit(contestManager: context.read()),
         ),
       ],
       child: BlocBuilder<QsoOperationAreaCubit, int>(
@@ -297,13 +297,13 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 }
 
 class _ContestTypeCubit extends Cubit<RegExp?> {
-  final ContestManager _contestManagerNew;
+  final ContestManager _contestManager;
   StreamSubscription<ContestType>? _contestTypeSubscription;
 
-  _ContestTypeCubit({required ContestManager contestManagerNew})
-    : _contestManagerNew = contestManagerNew,
+  _ContestTypeCubit({required ContestManager contestManager})
+    : _contestManager = contestManager,
       super(null) {
-    _contestTypeSubscription = _contestManagerNew.contestTypeStream.listen((
+    _contestTypeSubscription = _contestManager.contestTypeStream.listen((
       contestType,
     ) {
       emit(contestType.allowExchangeRegex);
