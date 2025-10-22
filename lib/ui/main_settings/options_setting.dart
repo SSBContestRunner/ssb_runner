@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/ui/main_settings/main_settings.dart';
 import 'package:toastification/toastification.dart';
 
 class _Options {
@@ -100,64 +101,78 @@ class _OptionsSettingState extends State<OptionsSetting> {
           _updateState(options);
         },
         builder: (context, state) {
-          return Flex(
-            direction: Axis.vertical,
-            spacing: 20,
-            children: [
-              Flex(
-                direction: Axis.horizontal,
-                spacing: 13,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _modeController,
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'Mode',
-                        suffixIcon: Icon(Icons.arrow_drop_down),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _durationController,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      onChanged: (value) {
-                        final cubit = context.read<_OptionsSettingCubit>();
-                        cubit.changeDuration(value);
-                      },
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'Duration',
-                        suffix: Text('min'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              DropdownMenu(
-                expandedInsets: EdgeInsets.zero,
-                controller: _phonicTypeController,
-                label: Text('Phonic Type'),
-                onSelected: (value) {
-                  final cubit = context.read<_OptionsSettingCubit>();
-                  cubit.changePhonicType(value);
-                },
-                dropdownMenuEntries: [
-                  DropdownMenuEntry(
-                    value: PhonicType.standard,
-                    label: 'Standard',
-                  ),
+          return BlocBuilder<MainSettingsCubit, bool>(
+            builder: (context, isContestRunning) {
+              final isEnabled = !isContestRunning;
 
-                  DropdownMenuEntry(
-                    value: PhonicType.location,
-                    label: 'Location',
+              return Flex(
+                direction: Axis.vertical,
+                spacing: 20,
+                children: [
+                  Flex(
+                    direction: Axis.horizontal,
+                    spacing: 13,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          enabled: isEnabled,
+                          controller: _modeController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelText: 'Mode',
+                            suffixIcon: Icon(Icons.arrow_drop_down),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          enabled: isEnabled,
+                          controller: _durationController,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          onChanged: (value) {
+                            final cubit = context.read<_OptionsSettingCubit>();
+                            cubit.changeDuration(value);
+                          },
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelText: 'Duration',
+                            suffix: Text('min'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  DropdownMenuEntry(value: PhonicType.mixed, label: 'Mixed'),
+                  DropdownMenu(
+                    enabled: isEnabled,
+                    expandedInsets: EdgeInsets.zero,
+                    controller: _phonicTypeController,
+                    label: Text('Phonic Type'),
+                    onSelected: (value) {
+                      final cubit = context.read<_OptionsSettingCubit>();
+                      cubit.changePhonicType(value);
+                    },
+                    dropdownMenuEntries: [
+                      DropdownMenuEntry(
+                        value: PhonicType.standard,
+                        label: 'Standard',
+                      ),
+
+                      DropdownMenuEntry(
+                        value: PhonicType.location,
+                        label: 'Location',
+                      ),
+                      DropdownMenuEntry(
+                        value: PhonicType.mixed,
+                        label: 'Mixed',
+                      ),
+                    ],
+                  ),
                 ],
-              ),
-            ],
+              );
+            },
           );
         },
       ),
