@@ -130,7 +130,7 @@ class AudioLoader {
 
   String _charToAudioPath(String assetDir, PhonicType phonicType, String char) {
     if (char == '/') {
-      return 'Number/PORTABLE.wav';
+      return 'Common/PORTABLE.wav';
     }
 
     if (char.isNumber()) {

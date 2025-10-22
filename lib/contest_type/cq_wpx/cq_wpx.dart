@@ -26,6 +26,9 @@ class CqWpxContestType implements ContestType {
 
   @override
   ScoreCalculator get scoreCalculator => _scoreCalculator;
+
+  @override
+  RegExp get allowExchangeRegex => RegExp('[0-9]');
 }
 
 class _CqWpxExchangeManager implements ExchangeManager {
