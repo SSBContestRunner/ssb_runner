@@ -7,7 +7,7 @@ import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
@@ -18,10 +18,10 @@ const maxCallsignLength = 15;
 class QsoOperationAreaCubit extends Cubit<int> {
   final ContestInputHandler _inputHandler;
 
-  final ContestManagerNew _contestManagerNew;
+  final ContestManager _contestManagerNew;
 
   QsoOperationAreaCubit({
-    required ContestManagerNew contestManagerNew,
+    required ContestManager contestManagerNew,
     required ContestInputHandler contestInputHandler,
   }) : _inputHandler = contestInputHandler,
        _contestManagerNew = contestManagerNew,
@@ -297,10 +297,10 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 }
 
 class _ContestTypeCubit extends Cubit<RegExp?> {
-  final ContestManagerNew _contestManagerNew;
+  final ContestManager _contestManagerNew;
   StreamSubscription<ContestType>? _contestTypeSubscription;
 
-  _ContestTypeCubit({required ContestManagerNew contestManagerNew})
+  _ContestTypeCubit({required ContestManager contestManagerNew})
     : _contestManagerNew = contestManagerNew,
       super(null) {
     _contestTypeSubscription = _contestManagerNew.contestTypeStream.listen((

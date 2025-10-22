@@ -12,10 +12,10 @@ import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx_score_calculator.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:uuid/uuid.dart';
 
-class ContestManagerNew {
+class ContestManager {
   final ContestDataManager _contestDataManager;
 
-  ContestManagerNew({required ContestDataManager contestDataManager})
+  ContestManager({required ContestDataManager contestDataManager})
     : _contestDataManager = contestDataManager;
 
   late final ContestTimer contestTimer = ContestTimer(

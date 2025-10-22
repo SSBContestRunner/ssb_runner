@@ -4,16 +4,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contests.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/bottom_panel/qso_operation_area.dart';
 import 'package:ssb_runner/ui/common/setting_item.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
 
 class MainSettingsCubit extends Cubit<bool> {
-  final ContestManagerNew _contestManager;
+  final ContestManager _contestManager;
 
-  MainSettingsCubit({required ContestManagerNew contestManager})
+  MainSettingsCubit({required ContestManager contestManager})
     : _contestManager = contestManager,
       super(contestManager.isContestRunning) {
     _contestManager.isContestRunningStream.listen((isContestRunning) {

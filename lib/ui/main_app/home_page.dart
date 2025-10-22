@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/main_page.dart';
 
@@ -32,11 +32,11 @@ class HomePage extends StatelessWidget {
         ),
         RepositoryProvider(
           create: (context) =>
-              ContestManagerNew(contestDataManager: context.read()),
+              ContestManager(contestDataManager: context.read()),
         ),
         RepositoryProvider(
           create: (context) {
-            final contestManager = context.read<ContestManagerNew>();
+            final contestManager = context.read<ContestManager>();
             return contestManager.contestTimer;
           },
         ),

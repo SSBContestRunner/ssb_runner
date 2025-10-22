@@ -3,19 +3,19 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/time_format.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 
 class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   final AppDatabase _appDatabase;
-  final ContestManagerNew _contestManager;
+  final ContestManager _contestManager;
 
   StreamSubscription<List<QsoTableData>>? _qsoTableDataStream;
 
   QsoRecordListCubit({
     required AppDatabase appDatabase,
-    required ContestManagerNew contestManager,
+    required ContestManager contestManager,
   }) : _appDatabase = appDatabase,
        _contestManager = contestManager,
        super([]) {
