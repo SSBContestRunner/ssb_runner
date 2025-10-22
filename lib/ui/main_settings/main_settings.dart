@@ -4,16 +4,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/contests.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/bottom_panel/qso_operation_area.dart';
 import 'package:ssb_runner/ui/common/setting_item.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
 
 class MainSettingsCubit extends Cubit<bool> {
-  final ContestManagerNew _contestManager;
+  final ContestManager _contestManager;
 
-  MainSettingsCubit({required ContestManagerNew contestManager})
+  MainSettingsCubit({required ContestManager contestManager})
     : _contestManager = contestManager,
       super(contestManager.isContestRunning) {
     _contestManager.isContestRunningStream.listen((isContestRunning) {
@@ -100,34 +100,42 @@ class _ContestSettingsState extends State<_ContestSettings> {
           _contestNameController.text = contest.name;
           _contestExchangeController.text = contest.exchange;
         },
-        child: Flex(
-          direction: Axis.horizontal,
-          spacing: 12.0,
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextField(
-                readOnly: true,
-                controller: _contestNameController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Name',
-                  suffixIcon: Icon(Icons.arrow_drop_down),
+        child: BlocBuilder<MainSettingsCubit, bool>(
+          builder: (context, isContestRunning) {
+            final isEnabled = !isContestRunning;
+
+            return Flex(
+              direction: Axis.horizontal,
+              spacing: 12.0,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    enabled: isEnabled,
+                    readOnly: true,
+                    controller: _contestNameController,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Name',
+                      suffixIcon: Icon(Icons.arrow_drop_down),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: TextField(
-                readOnly: true,
-                controller: _contestExchangeController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Exchange',
+                Expanded(
+                  flex: 1,
+                  child: TextField(
+                    enabled: isEnabled,
+                    readOnly: true,
+                    controller: _contestExchangeController,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Exchange',
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -179,20 +187,27 @@ class _StationSettingsState extends State<_StationSettings> {
             },
             buildWhen: (previous, current) => false,
             builder: (context, callSign) {
-              return TextField(
-                controller: _controller,
-                style: TextStyle(fontFamily: qsoFontFamily),
-                inputFormatters: [
-                  UpperCaseTextFormatter(),
-                  LengthLimitingTextInputFormatter(maxCallsignLength),
-                  FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
-                ],
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Callsign',
-                ),
-                onChanged: (value) {
-                  context.read<_StationSettingsCubit>().onCallSignChange(value);
+              return BlocBuilder<MainSettingsCubit, bool>(
+                builder: (context, isContestRunning) {
+                  return TextField(
+                    enabled: !isContestRunning,
+                    controller: _controller,
+                    style: TextStyle(fontFamily: qsoFontFamily),
+                    inputFormatters: [
+                      UpperCaseTextFormatter(),
+                      LengthLimitingTextInputFormatter(maxCallsignLength),
+                      FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
+                    ],
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Callsign',
+                    ),
+                    onChanged: (value) {
+                      context.read<_StationSettingsCubit>().onCallSignChange(
+                        value,
+                      );
+                    },
+                  );
                 },
               );
             },

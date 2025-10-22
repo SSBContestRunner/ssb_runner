@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:toastification/toastification.dart';
@@ -20,13 +20,13 @@ class QsoSpeedArea extends StatelessWidget {
 
 class _QsoRecordSpeedCubit extends Cubit<String> {
   final ContestTimer _contestTimer;
-  final ContestManagerNew _contestManager;
+  final ContestManager _contestManager;
 
   static const unit = 'QSOs/h';
 
   _QsoRecordSpeedCubit({
     required ContestTimer contestTimer,
-    required ContestManagerNew contestManager,
+    required ContestManager contestManager,
   }) : _contestTimer = contestTimer,
        _contestManager = contestManager,
        super('--- $unit') {
@@ -106,11 +106,11 @@ class _QsoRecordSpeed extends StatelessWidget {
 }
 
 class _RunBtnCubit extends Cubit<bool> {
-  final ContestManagerNew _contestManager;
+  final ContestManager _contestManager;
   final AppSettings _appSettings;
 
   _RunBtnCubit({
-    required ContestManagerNew contestManager,
+    required ContestManager contestManager,
     required AppSettings appSettings,
   }) : _contestManager = contestManager,
        _appSettings = appSettings,

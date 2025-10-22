@@ -7,22 +7,24 @@ import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
+
+import '../../contest_type/contest_type.dart';
 
 const maxCallsignLength = 15;
 
 class QsoOperationAreaCubit extends Cubit<int> {
   final ContestInputHandler _inputHandler;
 
-  final ContestManagerNew _contestManagerNew;
+  final ContestManager _contestManager;
 
   QsoOperationAreaCubit({
-    required ContestManagerNew contestManagerNew,
+    required ContestManager contestManager,
     required ContestInputHandler contestInputHandler,
   }) : _inputHandler = contestInputHandler,
-       _contestManagerNew = contestManagerNew,
+       _contestManager = contestManager,
        super(0);
 
   StreamSubscription? _inputControlStreamSubscription;
@@ -42,11 +44,11 @@ class QsoOperationAreaCubit extends Cubit<int> {
   }
 
   void attachOperationContestRunning() {
-    _contestOperationEventHandlerSubscription = _contestManagerNew
+    _contestOperationEventHandlerSubscription = _contestManager
         .isContestRunningStream
         .listen((isRunning) {
           if (isRunning) {
-            _contestOperationEventHandler = _contestManagerNew
+            _contestOperationEventHandler = _contestManager
                 .contestRunningManager
                 ?.contestOperationEventHandler;
           } else {
@@ -82,11 +84,19 @@ class QsoOperationArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => QsoOperationAreaCubit(
-        contestInputHandler: context.read(),
-        contestManagerNew: context.read(),
-      ),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => QsoOperationAreaCubit(
+            contestInputHandler: context.read(),
+            contestManager: context.read(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) =>
+              _ContestTypeCubit(contestManager: context.read()),
+        ),
+      ],
       child: BlocBuilder<QsoOperationAreaCubit, int>(
         buildWhen: (previous, current) => false,
         builder: (context, _) {
@@ -126,7 +136,7 @@ class _QsoInputArea extends StatefulWidget {
 }
 
 class _QsoInputAreaState extends State<_QsoInputArea> {
-  final _exchangeFocusonNode = FocusNode();
+  final _exchangeFocusNode = FocusNode();
   final _callSignFocusNode = FocusNode();
 
   final _callSignEditorController = TextEditingController();
@@ -144,6 +154,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   }
 
   QsoOperationAreaCubit? _cubit;
+  _ContestTypeCubit? _contestTypeCubit;
 
   void _attachInputControl(BuildContext context) {
     final cubit = context.read<QsoOperationAreaCubit>();
@@ -155,7 +166,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 
   void _fillRst() {
     _rstEditorController.text = '59';
-    _exchangeFocusonNode.requestFocus();
+    _exchangeFocusNode.requestFocus();
   }
 
   void _clearInput() {
@@ -167,7 +178,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   }
 
   void _switchCallsignAndExchange() {
-    if (!_callSignFocusNode.hasFocus && !_exchangeFocusonNode.hasFocus) {
+    if (!_callSignFocusNode.hasFocus && !_exchangeFocusNode.hasFocus) {
       return;
     }
 
@@ -179,6 +190,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   @override
   Widget build(BuildContext context) {
     _cubit = context.read<QsoOperationAreaCubit>();
+    _contestTypeCubit = context.read<_ContestTypeCubit>();
 
     final colorSchema = Theme.of(context).colorScheme;
     final bgColor = colorSchema.primaryContainer;
@@ -234,22 +246,29 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                 ),
                 Expanded(
                   flex: 1,
-                  child: TextField(
-                    controller: _exchangeEditorController,
-                    textInputAction: TextInputAction.none,
-                    focusNode: _exchangeFocusonNode,
-                    style: TextStyle(fontFamily: qsoFontFamily),
-                    inputFormatters: [
-                      UpperCaseTextFormatter(),
-                      FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
-                    ],
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Exchange',
-                    ),
-                    onChanged: (value) {
-                      context.read<QsoOperationAreaCubit>().onExchangeInput(
-                        value,
+                  child: BlocBuilder<_ContestTypeCubit, RegExp?>(
+                    builder: (context, allowRegex) {
+                      final allowRegexVal =
+                          allowRegex ?? RegExp('[A-Za-z0-9/]');
+
+                      return TextField(
+                        controller: _exchangeEditorController,
+                        textInputAction: TextInputAction.none,
+                        focusNode: _exchangeFocusNode,
+                        style: TextStyle(fontFamily: qsoFontFamily),
+                        inputFormatters: [
+                          UpperCaseTextFormatter(),
+                          FilteringTextInputFormatter.allow(allowRegexVal),
+                        ],
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          labelText: 'Exchange',
+                        ),
+                        onChanged: (value) {
+                          context.read<QsoOperationAreaCubit>().onExchangeInput(
+                            value,
+                          );
+                        },
                       );
                     },
                   ),
@@ -272,7 +291,27 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _exchangeEditorController.dispose();
 
     _cubit?.dispose();
+    _contestTypeCubit?.dispose();
     super.dispose();
+  }
+}
+
+class _ContestTypeCubit extends Cubit<RegExp?> {
+  final ContestManager _contestManager;
+  StreamSubscription<ContestType>? _contestTypeSubscription;
+
+  _ContestTypeCubit({required ContestManager contestManager})
+    : _contestManager = contestManager,
+      super(null) {
+    _contestTypeSubscription = _contestManager.contestTypeStream.listen((
+      contestType,
+    ) {
+      emit(contestType.allowExchangeRegex);
+    });
+  }
+
+  void dispose() {
+    _contestTypeSubscription?.cancel();
   }
 }
 

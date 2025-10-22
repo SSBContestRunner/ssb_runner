@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/data/score_data.dart';
-import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area_data.dart';
 
@@ -23,7 +23,7 @@ class ScoreAreaCubit extends Cubit<ScoreAreaData> {
   }
 
   void _subscribeContestChange(BuildContext context) {
-    final contestManager = context.read<ContestManagerNew>();
+    final contestManager = context.read<ContestManager>();
 
     contestManager.contestRunIdStream.listen((_) {
       _unsubscribeScoreUpdate();
