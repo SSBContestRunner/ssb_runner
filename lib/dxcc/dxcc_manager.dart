@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:archive/archive_io.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
-import 'package:ssb_runner/contest_run/log/extract_prefix.dart';
+import 'package:ssb_runner/common/extract_prefix.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:worker_manager/worker_manager.dart';
 import 'package:xml/xml.dart';
@@ -15,7 +15,32 @@ class DxccManager {
 
   late final List<PrefixTableData> _prefixes;
 
-  String findCallSignContinet(String callsign) {
+  late final Map<String, int> _prefixToDxccMap;
+
+  int findCallsignDxccId(String callsign) {
+    final prefix = extractPrefix(callsign);
+
+    String checkedPrefix = prefix;
+    int? matchPrefixDxccId;
+
+    while (checkedPrefix.isNotEmpty) {
+      matchPrefixDxccId = _prefixToDxccMap[checkedPrefix];
+
+      if (matchPrefixDxccId != null) {
+        break;
+      }
+
+      checkedPrefix = checkedPrefix.substring(0, checkedPrefix.length - 1);
+    }
+
+    if (matchPrefixDxccId == null) {
+      return -1;
+    }
+
+    return matchPrefixDxccId;
+  }
+
+  String findCallSignContinent(String callsign) {
     final prefix = extractPrefix(callsign);
     final matchPrefixData = _findMatchPrefixData(prefix);
 
@@ -49,13 +74,20 @@ class DxccManager {
     final prefixFromDb = await database.select(database.prefixTable).get();
 
     if (prefixFromDb.isNotEmpty) {
-      _prefixes = prefixFromDb;
+      _assignPrefixes(prefixFromDb);
       return;
     }
 
     final prefixFromXml = await _loadDxccInternal();
     await _saveToDb(prefixFromXml);
-    _prefixes = prefixFromXml;
+    _assignPrefixes(prefixFromXml);
+  }
+
+  void _assignPrefixes(List<PrefixTableData> prefixes) {
+    _prefixes = prefixes;
+    _prefixToDxccMap = {
+      for (var element in _prefixes) element.call: element.dxccId,
+    };
   }
 
   Future<List<PrefixTableData>> _loadDxccInternal() async {

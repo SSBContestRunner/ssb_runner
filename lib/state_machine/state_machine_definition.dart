@@ -12,7 +12,7 @@ class StateMachineBuilder<S, E, Side> {
       >{};
 
   void initialState(S state) {
-    this._initialState = state;
+    _initialState = state;
   }
 
   void state(

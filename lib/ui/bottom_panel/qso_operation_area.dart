@@ -5,52 +5,75 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
-import 'package:ssb_runner/contest_run/contest_manager.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
+import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 const maxCallsignLength = 15;
 
 class QsoOperationAreaCubit extends Cubit<int> {
-  final ContestManager _contestManager;
+  final ContestInputHandler _inputHandler;
 
-  QsoOperationAreaCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super(0);
+  final ContestManagerNew _contestManagerNew;
+
+  QsoOperationAreaCubit({
+    required ContestManagerNew contestManagerNew,
+    required ContestInputHandler contestInputHandler,
+  }) : _inputHandler = contestInputHandler,
+       _contestManagerNew = contestManagerNew,
+       super(0);
 
   StreamSubscription? _inputControlStreamSubscription;
-  StreamSubscription? _inputAreaEventStreamSubscription;
+  StreamSubscription? _contestOperationEventHandlerSubscription;
+  ContestOperationEventHandler? _contestOperationEventHandler;
 
   void attachInputControl(void Function(int) callback) {
     if (_inputControlStreamSubscription != null) {
       return;
     }
 
-    _inputControlStreamSubscription = _contestManager.inputControlStream.listen(
-      (data) {
-        callback(data);
-      },
-    );
+    _inputControlStreamSubscription = _inputHandler.inputControlStream.listen((
+      data,
+    ) {
+      callback(data);
+    });
+  }
+
+  void attachOperationContestRunning() {
+    _contestOperationEventHandlerSubscription = _contestManagerNew
+        .isContestRunningStream
+        .listen((isRunning) {
+          if (isRunning) {
+            _contestOperationEventHandler = _contestManagerNew
+                .contestRunningManager
+                ?.contestOperationEventHandler;
+          } else {
+            _contestOperationEventHandler = null;
+          }
+        });
   }
 
   void handleOperationEvent(OperationEvent event) {
-    _contestManager.handleOperationEvent(event);
+    _contestOperationEventHandler?.handleOperationEvent(event);
   }
 
-  void onCallInput(String callSign) {
-    _contestManager.onCallInput(callSign);
+  void onCallInput(String callsign) {
+    _inputHandler.onCallEdit(callsign);
   }
 
   void onExchangeInput(String exchange) {
-    _contestManager.onExchangeInput(exchange);
+    _inputHandler.onExchangeEdit(exchange);
   }
 
   void dispose() {
     _inputControlStreamSubscription?.cancel();
     _inputControlStreamSubscription = null;
 
-    _inputAreaEventStreamSubscription?.cancel();
-    _inputAreaEventStreamSubscription = null;
+    _contestOperationEventHandlerSubscription?.cancel();
+    _contestOperationEventHandlerSubscription = null;
+    _contestOperationEventHandler = null;
   }
 }
 
@@ -60,8 +83,10 @@ class QsoOperationArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          QsoOperationAreaCubit(contestManager: context.read()),
+      create: (context) => QsoOperationAreaCubit(
+        contestInputHandler: context.read(),
+        contestManagerNew: context.read(),
+      ),
       child: BlocBuilder<QsoOperationAreaCubit, int>(
         buildWhen: (previous, current) => false,
         builder: (context, _) {

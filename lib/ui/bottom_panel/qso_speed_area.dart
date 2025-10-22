@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_runner/contest_run/contest_manager.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager_new.dart';
+import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:toastification/toastification.dart';
 
@@ -18,14 +19,18 @@ class QsoSpeedArea extends StatelessWidget {
 }
 
 class _QsoRecordSpeedCubit extends Cubit<String> {
-  final ContestManager _contestManager;
+  final ContestTimer _contestTimer;
+  final ContestManagerNew _contestManager;
 
   static const unit = 'QSOs/h';
 
-  _QsoRecordSpeedCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super('--- $unit') {
-    _contestManager.elapseTimeStream.listen((elapseTime) {
+  _QsoRecordSpeedCubit({
+    required ContestTimer contestTimer,
+    required ContestManagerNew contestManager,
+  }) : _contestTimer = contestTimer,
+       _contestManager = contestManager,
+       super('--- $unit') {
+    _contestTimer.elapseTimeStream.listen((elapseTime) {
       _updateQsoSpeed(elapseTime);
     });
   }
@@ -75,8 +80,10 @@ class _QsoRecordSpeed extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 BlocProvider(
-                  create: (context) =>
-                      _QsoRecordSpeedCubit(contestManager: context.read()),
+                  create: (context) => _QsoRecordSpeedCubit(
+                    contestManager: context.read(),
+                    contestTimer: context.read(),
+                  ),
                   child: BlocBuilder<_QsoRecordSpeedCubit, String>(
                     builder: (context, speedText) {
                       return Text(
@@ -99,11 +106,11 @@ class _QsoRecordSpeed extends StatelessWidget {
 }
 
 class _RunBtnCubit extends Cubit<bool> {
-  final ContestManager _contestManager;
+  final ContestManagerNew _contestManager;
   final AppSettings _appSettings;
 
   _RunBtnCubit({
-    required ContestManager contestManager,
+    required ContestManagerNew contestManager,
     required AppSettings appSettings,
   }) : _contestManager = contestManager,
        _appSettings = appSettings,

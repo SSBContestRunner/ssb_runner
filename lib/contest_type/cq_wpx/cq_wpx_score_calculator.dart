@@ -1,5 +1,5 @@
 import 'package:ssb_runner/contest_run/data/score_data.dart';
-import 'package:ssb_runner/contest_run/log/extract_prefix.dart';
+import 'package:ssb_runner/common/extract_prefix.dart';
 import 'package:ssb_runner/contest_type/score_calculator.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
@@ -13,7 +13,7 @@ class WpxScoreCalculator implements ScoreCalculator {
     required String stationCallsign,
     required this.dxccManager,
   }) : _stationCallsign = stationCallsign,
-       stationContinent = dxccManager.findCallSignContinet(stationCallsign);
+       stationContinent = dxccManager.findCallSignContinent(stationCallsign);
 
   @override
   String get stationCallsign => _stationCallsign;
@@ -50,7 +50,7 @@ class WpxScoreCalculator implements ScoreCalculator {
   }
 
   int _obtainQsoBasePoint(QsoTableData qso) {
-    final qsoContinent = dxccManager.findCallSignContinet(qso.callsign);
+    final qsoContinent = dxccManager.findCallSignContinent(qso.callsign);
 
     if (qsoContinent.isEmpty) {
       return 1;
