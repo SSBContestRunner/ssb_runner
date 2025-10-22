@@ -34,23 +34,23 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  flutter_soloud: ^3.2.5
+  flutter_soloud: ^3.3.9
   flutter_bloc: ^9.1.1
   statemachine: ^3.4.0
   collection: ^1.19.1
   equatable: ^2.0.7
-  drift: ^2.28.1
-  drift_flutter: ^0.2.5
+  drift: ^2.29.0
+  drift_flutter: ^0.2.7
   path_provider: ^2.1.5
   archive: ^4.0.7
-  xml: ^6.5.0
+  xml: ^6.6.1
   window_manager: ^0.5.1
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
-  worker_manager: ^7.2.6
-  logger: ^2.6.1
+  worker_manager: ^7.2.7
+  logger: ^2.6.2
   toastification: ^3.0.3
-  catcher_2: ^2.1.3
+  catcher_2: ^2.1.5
   intl: ^0.20.2
 
 dev_dependencies:
@@ -63,8 +63,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  drift_dev: ^2.28.1
-  build_runner: ^2.6.0
+  drift_dev: ^2.29.0
+  build_runner: ^2.10.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -82,11 +82,32 @@ flutter:
     - assets/dxcc/
     - assets/voice/Global/ICAO/
     - assets/voice/Global/Number/
-    - assets/voice/Global/RUN/
-    - assets/voice/English-US/Common/
-    - assets/voice/English-US/ICAO/
-    - assets/voice/English-US/Location/
-    - assets/voice/English-US/Number/
+    - assets/voice/Global/Common/
+    - assets/voice/US/Common/
+    - assets/voice/US/Alphabet/
+    - assets/voice/US/ICAO/
+    - assets/voice/US/Location/
+    - assets/voice/US/Number/
+    - assets/voice/UK/Common/
+    - assets/voice/UK/Alphabet/
+    - assets/voice/UK/ICAO/
+    - assets/voice/UK/Location/
+    - assets/voice/UK/Number/
+    - assets/voice/JP/Common/
+    - assets/voice/JP/Alphabet/
+    - assets/voice/JP/ICAO/
+    - assets/voice/JP/Location/
+    - assets/voice/JP/Number/
+    - assets/voice/RU/Common/
+    - assets/voice/RU/Alphabet/
+    - assets/voice/RU/ICAO/
+    - assets/voice/RU/Location/
+    - assets/voice/RU/Number/
+    - assets/voice/IN/Common/
+    - assets/voice/IN/Alphabet/
+    - assets/voice/IN/ICAO/
+    - assets/voice/IN/Location/
+    - assets/voice/IN/Number/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

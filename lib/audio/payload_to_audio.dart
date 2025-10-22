@@ -1,51 +1,17 @@
-import 'dart:typed_data';
-
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/wav_to_pcm.dart';
-import 'package:ssb_runner/common/concat_bytes.dart';
 
-/// Helper method, to transfrom CALL or EXCHANGE to audio data
-Future<Uint8List> payloadToAudioData(
-  String payload, {
-  bool isMe = false,
-}) async {
-  final result = BytesBuilder();
-
-  for (final char in payload.characters) {
-    final fileName = char.toAudioFilename();
-    final parentPath = _obtainParentDirName(isMe);
-    final path = '$parentPath/$fileName';
-
-    final pcmData = await loadAssetsWavPcmData(path);
-
-    result.add(pcmData);
-  }
-
-  return result.toBytes();
+String obtainAssetDir(bool isMe, int dxccId) {
+  return isMe ? myAudioAccentDir : obtainAccentByDxccId(dxccId);
 }
 
-Future<Uint8List> exchangeToAudioData(
-  String exchange, {
-  bool isMe = false,
-  bool isCallsignCorrect = true,
-}) async {
-  final dirName = _obtainParentDirName(isMe);
-  final exchangeFilePath =
-      '$dirName/${_obtainExchangeFilePath(isMe, isCallsignCorrect)}';
-
-  final exchangeAudioData = await loadAssetsWavPcmData(exchangeFilePath);
-
-  final payloadAudioData = await payloadToAudioData(exchange, isMe: isMe);
-  return await concatUint8List([exchangeAudioData, payloadAudioData]);
-}
-
-String _obtainExchangeFilePath(bool isMe, bool isCallsignCorrect) {
+String obtainRstAudioFileName(bool isMe, {bool isCallsignCorrect = true}) {
   if (isMe) {
-    return 'RUN/exch.wav';
+    return 'EXCH.wav';
   }
 
-  return isCallsignCorrect ? 'Common/rogeryouare59.wav' : 'Common/5_9.wav';
+  return isCallsignCorrect ? 'ROGER_YOU_ARE_59.wav' : '5_9.wav';
 }
 
 Future<Uint8List> loadAssetsWavPcmData(String filePath) async {
@@ -57,36 +23,7 @@ Future<Uint8List> loadAssetsWavPcmData(String filePath) async {
   return pcmData;
 }
 
-String _obtainParentDirName(bool isMe) {
-  return isMe ? 'Global' : 'English-US';
-}
-
 RegExp _alpha = RegExp(r'^[a-zA-Z]+$');
-
-extension _CharToAudioFilenaem on String {
-  String toAudioFilename() {
-    final stringBuffer = StringBuffer();
-
-    if (isNumber() || this == '/') {
-      stringBuffer.write('Number/');
-    }
-
-    final uppercased = toUpperCase();
-
-    if (uppercased.isLetter()) {
-      stringBuffer.write('ICAO/');
-    }
-
-    if (this == '/') {
-      stringBuffer.write('Portable');
-    } else {
-      stringBuffer.write(uppercased);
-    }
-    stringBuffer.write('.wav');
-
-    return stringBuffer.toString();
-  }
-}
 
 extension StringExtension on String {
   bool isNumber() {

@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
-import 'package:ssb_runner/ui/main_app/home_page.dart';
 import 'package:ssb_runner/main.dart';
+import 'package:ssb_runner/ui/main_app/home_page.dart';
 import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
@@ -53,6 +54,7 @@ class _MainAppState extends State<MainApp> {
         home: MultiRepositoryProvider(
           providers: [
             RepositoryProvider(create: (context) => AppDatabase()),
+            RepositoryProvider(create: (context) => AudioLoader()),
             RepositoryProvider(create: (context) => AudioPlayer()),
             RepositoryProvider(create: (context) => CallsignLoader()),
             RepositoryProvider(
@@ -60,8 +62,11 @@ class _MainAppState extends State<MainApp> {
             ),
           ],
           child: BlocProvider(
-            create: (context) =>
-                _MainAppCubit()..load(dxccManager: context.read()),
+            create: (context) => _MainAppCubit()
+              ..load(
+                dxccManager: context.read(),
+                callsignLoader: context.read(),
+              ),
             child: BlocBuilder<_MainAppCubit, _AppDeps?>(
               builder: (context, appDeps) {
                 if (appDeps == null) {
@@ -96,7 +101,10 @@ class _AppDeps {
 class _MainAppCubit extends Cubit<_AppDeps?> {
   _MainAppCubit() : super(null);
 
-  void load({required DxccManager dxccManager}) async {
+  void load({
+    required DxccManager dxccManager,
+    required CallsignLoader callsignLoader,
+  }) async {
     // Initialize the player.
     try {
       await SoLoud.instance.init(channels: Channels.mono);
@@ -121,6 +129,8 @@ class _MainAppCubit extends Cubit<_AppDeps?> {
     await workerManager.init(dynamicSpawning: true);
 
     await dxccManager.loadDxcc();
+
+    await callsignLoader.loadCallsigns();
 
     emit(_AppDeps(prefs: prefs));
   }
