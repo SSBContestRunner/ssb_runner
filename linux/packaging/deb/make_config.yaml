@@ -1,0 +1,34 @@
+display_name: SSB Runner
+package_name: ssb-runner
+maintainer:
+  name: BI1QJQ
+  email: bi1qjq@ssbrunner.com
+co_authors:
+  - name: BI1QJQ
+    email: bi1qjq@ssbrunner.com
+  - name: BG7TVF
+    email: bg7tvf@ssbrunner.com
+  - name: BH8GLQ
+    email: bh8glq@ssbrunner.com
+priority: optional
+section: x11
+installed_size: 6604
+essential: false
+icon: linux/runner/resources/app_icon.png
+
+keywords:
+  - ham radio
+  - ssb runner
+  - ssb
+  - hf contest
+
+generic_name: SSB Contest Training Application
+
+categories:
+  - Audio
+  - HamRadio
+
+startup_notify: true
+# You can also specify [metainfo](https://freedesktop.org/software/appstream/docs/chap-Quickstart.html) file
+# which contains metadata of the app.
+# metainfo: linux/packaging/myappid.appdata.xml
