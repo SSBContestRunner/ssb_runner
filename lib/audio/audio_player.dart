@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
-import 'package:ssb_runner/main.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 
 class AudioPlayer {
   AudioSource? _audioSource;
@@ -67,8 +67,10 @@ class AudioPlayer {
       audioSource,
     );
 
-    logger.d(
-      'alreadyPlayedTime: ${alreadyPlayedTime.inMilliseconds}, _isMyAudioPlaying: $_isMyAudioMap',
+    log.debug(
+      'alreadyPlayedTime: ${alreadyPlayedTime.inMilliseconds}, '
+      '_isMyAudioPlaying: $_isMyAudioMap',
+      tag: 'audio.player',
     );
 
     final isOperationAudio =

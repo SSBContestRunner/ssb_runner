@@ -50,6 +50,7 @@ dependencies:
   uuid: ^4.5.1
   worker_manager: ^7.2.7
   logger: ^2.6.2
+  package_info_plus: ^10.2.1
   toastification: ^3.0.3
   catcher_2: ^2.1.5
   intl: ^0.20.2

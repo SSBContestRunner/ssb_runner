@@ -8,6 +8,7 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/bottom_panel/qso_operation_area.dart';
 import 'package:ssb_runner/ui/common/setting_item.dart';
+import 'package:ssb_runner/ui/main_settings/diagnostics_setting.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
 
 class MainSettingsCubit extends Cubit<bool> {
@@ -35,14 +36,24 @@ class MainSettings extends StatelessWidget {
           builder: (context, isContestRunning) {
             return ExcludeFocus(
               excluding: isContestRunning,
-              child: Flex(
-                direction: Axis.vertical,
-                spacing: 12.0,
-                children: [
-                  SettingItem(title: 'Contest', content: _ContestSettings()),
-                  SettingItem(title: 'Station', content: _StationSettings()),
-                  SettingItem(title: 'Options', content: OptionsSetting()),
-                ],
+              // The settings panel is a fixed-width sidebar. Its content can
+              // exceed the available height (especially after adding a new
+              // section), so make it scrollable instead of letting the
+              // column overflow.
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 12.0,
+                  children: [
+                    SettingItem(title: 'Contest', content: _ContestSettings()),
+                    SettingItem(title: 'Station', content: _StationSettings()),
+                    SettingItem(title: 'Options', content: OptionsSetting()),
+                    SettingItem(
+                      title: 'Diagnostics',
+                      content: DiagnosticsSetting(),
+                    ),
+                  ],
+                ),
               ),
             );
           },

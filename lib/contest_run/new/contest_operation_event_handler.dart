@@ -10,7 +10,7 @@ import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/db/app_database.dart';
-import 'package:ssb_runner/main.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
@@ -269,7 +269,7 @@ class ContestOperationEventHandler {
   }
 
   Future<void> _handleExchEvent() async {
-    logger.d('exch event');
+    log.debug('exch event', tag: 'contest');
     _stateMachine.transition(
       SubmitHisExchange(exchange: await _obtainHisExchange()),
     );

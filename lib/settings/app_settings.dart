@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/contests.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 
 class AppSettings {
   final SharedPreferencesWithCache _prefs;
@@ -40,6 +41,13 @@ class AppSettings {
   set phonicType(PhonicType value) =>
       _prefs.setInt(_settingPhonicType, value.index);
 
+  bool get verboseLogging => _prefs.getBool(_settingVerboseLogging) ?? false;
+
+  set verboseLogging(bool value) {
+    _prefs.setBool(_settingVerboseLogging, value);
+    log.setVerbose(value);
+  }
+
   int _limitContestDuration(int durationInMinutes) {
     return min(durationInMinutes, maxDurationInMinutesPerRun);
   }
@@ -63,3 +71,4 @@ const _settingContestMode = 'setting_contest_mode';
 const _settingStationCallsign = 'setting_station_callsign';
 const _settingContestDuration = 'setting_contest_duration';
 const _settingPhonicType = 'setting_phonic_type';
+const _settingVerboseLogging = 'setting_verbose_logging';
