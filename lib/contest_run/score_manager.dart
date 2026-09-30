@@ -15,8 +15,11 @@ class ScoreManager {
   ScoreData _rawScoreData = ScoreData.initial();
   ScoreData _verifiedScoreData = ScoreData.initial();
 
-  final rawScoreDataStream = StreamController<ScoreData>();
-  final verifiedScoreDataStream = StreamController<ScoreData>();
+  // Broadcast: the settings/score widgets may resubscribe when a run starts,
+  // and a cancelled single-subscription controller can never be listened to
+  // again.
+  final rawScoreDataStream = StreamController<ScoreData>.broadcast();
+  final verifiedScoreDataStream = StreamController<ScoreData>.broadcast();
 
   ScoreManager({
     required this.contestId,

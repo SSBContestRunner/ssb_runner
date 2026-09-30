@@ -6,23 +6,37 @@ class WaitingSubmitCall extends SingleCallRunState {
   WaitingSubmitCall({
     required this.currentCallAnswer,
     required this.currentExchangeAnswer,
+    this.pileupCallsigns = const [],
+    this.isSearchAndPounce = false,
     AudioPlayType? audioPlayType,
-  }) : audioPlayType = audioPlayType ?? PlayCall(callToPlay: currentCallAnswer);
+  }) : audioPlayType =
+           audioPlayType ??
+           (pileupCallsigns.length > 1
+               ? PlayPileup(calls: pileupCallsigns)
+               : isSearchAndPounce
+               ? PlaySearchAndPounce(call: currentCallAnswer)
+               : PlayCall(callToPlay: currentCallAnswer));
 
   final String currentCallAnswer;
   final String currentExchangeAnswer;
+  final List<String> pileupCallsigns;
+  final bool isSearchAndPounce;
   final AudioPlayType audioPlayType;
 
   // copy with
   WaitingSubmitCall copyWith({
     String? currentCallAnswer,
     String? currentExchangeAnswer,
+    List<String>? pileupCallsigns,
+    bool? isSearchAndPounce,
     AudioPlayType? audioPlayType,
   }) {
     return WaitingSubmitCall(
       currentCallAnswer: currentCallAnswer ?? this.currentCallAnswer,
       currentExchangeAnswer:
           currentExchangeAnswer ?? this.currentExchangeAnswer,
+      pileupCallsigns: pileupCallsigns ?? this.pileupCallsigns,
+      isSearchAndPounce: isSearchAndPounce ?? this.isSearchAndPounce,
       audioPlayType: audioPlayType ?? this.audioPlayType,
     );
   }

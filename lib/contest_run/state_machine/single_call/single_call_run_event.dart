@@ -3,17 +3,24 @@ sealed class SingleCallRunEvent {}
 class NoCopy extends SingleCallRunEvent {
   final String nextCallAnswer;
   final String nextExchangeAnswer;
+  final List<String> pileupCallsigns;
 
-  NoCopy({required this.nextCallAnswer, required this.nextExchangeAnswer});
+  NoCopy({
+    required this.nextCallAnswer,
+    required this.nextExchangeAnswer,
+    this.pileupCallsigns = const [],
+  });
 }
 
 class WorkedBefore extends SingleCallRunEvent {
   final String nextCallAnswer;
   final String nextExchangeAnswer;
+  final List<String> pileupCallsigns;
 
   WorkedBefore({
     required this.nextCallAnswer,
     required this.nextExchangeAnswer,
+    this.pileupCallsigns = const [],
   });
 }
 
@@ -54,9 +61,16 @@ class SubmitHisExchange extends SingleCallRunEvent {
 }
 
 class NextCall extends SingleCallRunEvent {
-  NextCall({required this.callAnswer, required this.exchangeAnswer});
+  NextCall({
+    required this.callAnswer,
+    required this.exchangeAnswer,
+    this.pileupCallsigns = const [],
+    this.isSearchAndPounce = false,
+  });
   final String callAnswer;
   final String exchangeAnswer;
+  final List<String> pileupCallsigns;
+  final bool isSearchAndPounce;
 }
 
 class Cancel extends SingleCallRunEvent {}

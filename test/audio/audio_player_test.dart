@@ -146,6 +146,7 @@ void main() {
 
 class FakeAudioEngine implements AudioEngine {
   final List<FakeAudioSegment> segments = <FakeAudioSegment>[];
+  final List<Uint8List> createdPcm = <Uint8List>[];
 
   @override
   bool isInitialized = true;
@@ -158,7 +159,30 @@ class FakeAudioEngine implements AudioEngine {
     final index = segments.length;
     final segment = FakeAudioSegment(hasVoice: hasVoice(index));
     segments.add(segment);
+    createdPcm.add(pcm);
     return segment;
+  }
+
+  Uint8List? noiseBedPcm;
+  double noiseBedVolume = 0;
+  int startNoiseBedCalls = 0;
+  int stopNoiseBedCalls = 0;
+
+  @override
+  Future<void> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async {
+    startNoiseBedCalls++;
+    noiseBedPcm = pcm;
+    noiseBedVolume = volume;
+  }
+
+  @override
+  void setNoiseBedVolume(double volume) {
+    noiseBedVolume = volume;
+  }
+
+  @override
+  Future<void> stopNoiseBed() async {
+    stopNoiseBedCalls++;
   }
 }
 

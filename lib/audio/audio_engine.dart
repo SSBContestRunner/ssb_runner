@@ -34,6 +34,20 @@ abstract interface class AudioEngine {
   /// Queues [pcm] into a new single-use segment, or returns null when the
   /// segment could not be created.
   AudioSegment? createSegment(Uint8List pcm);
+
+  /// Starts a constant, looping receiver noise bed.
+  ///
+  /// The bed lives outside the segment queue on purpose: if it were queued,
+  /// silent gaps would look like "incoming audio playing" and would distort
+  /// [AudioPlayer.isPlaying], the watchdog and the state machine timing
+  /// (design §5.1).
+  Future<void> startNoiseBed(Uint8List pcm, {double volume = 0.0});
+
+  /// Adjusts the bed gain while it is playing. A no-op when no bed is active.
+  void setNoiseBedVolume(double volume);
+
+  /// Stops and releases the noise bed.
+  Future<void> stopNoiseBed();
 }
 
 /// [AudioEngine] backed by flutter_soloud.
@@ -42,7 +56,10 @@ abstract interface class AudioEngine {
 /// complete with [SoLoud.setDataIsEnded] and played exactly once. Completion is
 /// reported by [AudioSource.allInstancesFinished].
 class SoLoudAudioEngine implements AudioEngine {
-  const SoLoudAudioEngine();
+  SoLoudAudioEngine();
+
+  AudioSource? _noiseSource;
+  SoundHandle? _noiseHandle;
 
   @override
   bool get isInitialized => SoLoud.instance.isInitialized;
@@ -64,6 +81,55 @@ class SoLoudAudioEngine implements AudioEngine {
     }
 
     return _SoLoudAudioSegment(source);
+  }
+
+  @override
+  Future<void> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async {
+    await stopNoiseBed();
+    if (!SoLoud.instance.isInitialized || pcm.isEmpty) {
+      return;
+    }
+
+    final source = SoLoud.instance.setBufferStream(
+      bufferingType: BufferingType.released,
+      channels: Channels.mono,
+      bufferingTimeNeeds: 0.1,
+    );
+
+    try {
+      SoLoud.instance.addAudioDataStream(source, pcm);
+      SoLoud.instance.setDataIsEnded(source);
+      _noiseHandle = SoLoud.instance.play(source, looping: true, volume: volume);
+      _noiseSource = source;
+    } catch (_) {
+      _noiseHandle = null;
+      _noiseSource = null;
+      await SoLoud.instance.disposeSource(source).catchError((_) {});
+    }
+  }
+
+  @override
+  void setNoiseBedVolume(double volume) {
+    final handle = _noiseHandle;
+    if (handle == null || !SoLoud.instance.isInitialized) {
+      return;
+    }
+    SoLoud.instance.setVolume(handle, volume);
+  }
+
+  @override
+  Future<void> stopNoiseBed() async {
+    final handle = _noiseHandle;
+    final source = _noiseSource;
+    _noiseHandle = null;
+    _noiseSource = null;
+
+    if (handle != null && SoLoud.instance.isInitialized) {
+      await SoLoud.instance.stop(handle).catchError((_) {});
+    }
+    if (source != null && SoLoud.instance.isInitialized) {
+      await SoLoud.instance.disposeSource(source).catchError((_) {});
+    }
   }
 }
 

@@ -43,9 +43,20 @@ class _QsoRecordSpeedCubit extends Cubit<String> {
       return;
     }
 
-    final qsoCount = await _contestManager.countCurrentRunQso();
-
-    final qsoSpeed = qsoCount / totalSeconds * 3600;
+    final qsoTimes = await _contestManager.recentCurrentRunQsoTimes();
+    final qsoCount = qsoTimes.length;
+    if (qsoCount == 0) {
+      emit('--- $unit');
+      return;
+    }
+    // The first contacts use elapsed practice time. Once five intervals exist,
+    // display a rolling five-QSO rate rather than a diluted session rate.
+    final measuredSeconds = qsoCount >= 6
+        ? qsoTimes.last - qsoTimes.first
+        : totalSeconds;
+    if (measuredSeconds <= 0) return;
+    final measuredQsos = qsoCount >= 6 ? 5 : qsoCount;
+    final qsoSpeed = measuredQsos / measuredSeconds * 3600;
 
     emit('${qsoSpeed.toStringAsFixed(1)} $unit');
   }
