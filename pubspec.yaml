@@ -158,16 +158,13 @@ flutter:
       fonts:
         - asset: fonts/Iosevka-Regular-sub.ttf
 
-# Force every remaining package to the newest published version, even where
-# upstream constraints still pin older ones:
+# Force every remaining package to the newest published version where the
+# constraint is loose enough to allow it:
 #   equatable -> toastification, cli_util -> drift_dev,
 #   material_color_utilities / test_api -> Flutter SDK.
-# catcher_2 is vendored under third_party/ and patched for cross_file 0.4.0
-# (upstream 2.1.12 still requires cross_file ^0.3.0).
+# Do NOT override a transitive major that a direct dependency pins with an
+# upper bound (e.g. catcher_2 -> cross_file ^0.3.0): that only creates a fork.
 dependency_overrides:
-  catcher_2:
-    path: third_party/catcher_2
-  cross_file: ^0.4.0
   equatable: ^3.0.0
   cli_util: ^0.6.0
   material_color_utilities: ^0.13.1

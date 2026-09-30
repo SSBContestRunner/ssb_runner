@@ -78,8 +78,8 @@ final fileHandler = FileHandler(
 
 ### 2.3 Catcher2 的能力边界
 
-- `third_party/catcher_2/lib/handlers/file_handler.dart` 每次 report 都执行 open -> append -> flush -> close，没有常开句柄、没有体积轮转、没有崩溃前上下文缓冲。
-- Catcher2 已接管 `FlutterError.onError`、`PlatformDispatcher.instance.onError`、`Isolate.current.addErrorListener` 与 `runZonedGuarded`（见 `third_party/catcher_2/lib/core/catcher_2.dart`），这部分能力应保留复用。
+- `package:catcher_2` 的 `lib/handlers/file_handler.dart` 每次 report 都执行 open -> append -> flush -> close，没有常开句柄、没有体积轮转、没有崩溃前上下文缓冲。
+- Catcher2 已接管 `FlutterError.onError`、`PlatformDispatcher.instance.onError`、`Isolate.current.addErrorListener` 与 `runZonedGuarded`（见 `package:catcher_2` 的 `lib/core/catcher_2.dart`），这部分能力应保留复用。
 - release 配置使用 `DialogReportMode`，出错即弹窗，在比赛场景下体验较差。
 - **Catcher2 只能捕获"进程已经起来之后"的 Dart 异常**，更早阶段的失败不在其覆盖范围内。
 
