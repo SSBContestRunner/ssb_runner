@@ -51,8 +51,33 @@ class $PrefixTableTable extends PrefixTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _cqzMeta = const VerificationMeta('cqz');
   @override
-  List<GeneratedColumn> get $columns => [id, call, dxccId, continent];
+  late final GeneratedColumn<int> cqz = GeneratedColumn<int>(
+    'cqz',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ituzMeta = const VerificationMeta('ituz');
+  @override
+  late final GeneratedColumn<int> ituz = GeneratedColumn<int>(
+    'ituz',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    call,
+    dxccId,
+    continent,
+    cqz,
+    ituz,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -92,6 +117,18 @@ class $PrefixTableTable extends PrefixTable
     } else if (isInserting) {
       context.missing(_continentMeta);
     }
+    if (data.containsKey('cqz')) {
+      context.handle(
+        _cqzMeta,
+        cqz.isAcceptableOrUnknown(data['cqz']!, _cqzMeta),
+      );
+    }
+    if (data.containsKey('ituz')) {
+      context.handle(
+        _ituzMeta,
+        ituz.isAcceptableOrUnknown(data['ituz']!, _ituzMeta),
+      );
+    }
     return context;
   }
 
@@ -117,6 +154,14 @@ class $PrefixTableTable extends PrefixTable
         DriftSqlType.string,
         data['${effectivePrefix}continent'],
       )!,
+      cqz: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cqz'],
+      ),
+      ituz: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ituz'],
+      ),
     );
   }
 
@@ -131,11 +176,19 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
   final String call;
   final int dxccId;
   final String continent;
+
+  /// CQ zone from the cty database; used to default the CQ WW / JIDX exchange.
+  final int? cqz;
+
+  /// ITU zone (reserved; the bundled cty asset has no ituz field yet).
+  final int? ituz;
   const PrefixTableData({
     required this.id,
     required this.call,
     required this.dxccId,
     required this.continent,
+    this.cqz,
+    this.ituz,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -144,6 +197,12 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
     map['call'] = Variable<String>(call);
     map['dxcc_id'] = Variable<int>(dxccId);
     map['continent'] = Variable<String>(continent);
+    if (!nullToAbsent || cqz != null) {
+      map['cqz'] = Variable<int>(cqz);
+    }
+    if (!nullToAbsent || ituz != null) {
+      map['ituz'] = Variable<int>(ituz);
+    }
     return map;
   }
 
@@ -153,6 +212,8 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
       call: Value(call),
       dxccId: Value(dxccId),
       continent: Value(continent),
+      cqz: cqz == null && nullToAbsent ? const Value.absent() : Value(cqz),
+      ituz: ituz == null && nullToAbsent ? const Value.absent() : Value(ituz),
     );
   }
 
@@ -166,6 +227,8 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
       call: serializer.fromJson<String>(json['call']),
       dxccId: serializer.fromJson<int>(json['dxccId']),
       continent: serializer.fromJson<String>(json['continent']),
+      cqz: serializer.fromJson<int?>(json['cqz']),
+      ituz: serializer.fromJson<int?>(json['ituz']),
     );
   }
   @override
@@ -176,6 +239,8 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
       'call': serializer.toJson<String>(call),
       'dxccId': serializer.toJson<int>(dxccId),
       'continent': serializer.toJson<String>(continent),
+      'cqz': serializer.toJson<int?>(cqz),
+      'ituz': serializer.toJson<int?>(ituz),
     };
   }
 
@@ -184,11 +249,15 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
     String? call,
     int? dxccId,
     String? continent,
+    Value<int?> cqz = const Value.absent(),
+    Value<int?> ituz = const Value.absent(),
   }) => PrefixTableData(
     id: id ?? this.id,
     call: call ?? this.call,
     dxccId: dxccId ?? this.dxccId,
     continent: continent ?? this.continent,
+    cqz: cqz.present ? cqz.value : this.cqz,
+    ituz: ituz.present ? ituz.value : this.ituz,
   );
   PrefixTableData copyWithCompanion(PrefixTableCompanion data) {
     return PrefixTableData(
@@ -196,6 +265,8 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
       call: data.call.present ? data.call.value : this.call,
       dxccId: data.dxccId.present ? data.dxccId.value : this.dxccId,
       continent: data.continent.present ? data.continent.value : this.continent,
+      cqz: data.cqz.present ? data.cqz.value : this.cqz,
+      ituz: data.ituz.present ? data.ituz.value : this.ituz,
     );
   }
 
@@ -205,13 +276,15 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
           ..write('id: $id, ')
           ..write('call: $call, ')
           ..write('dxccId: $dxccId, ')
-          ..write('continent: $continent')
+          ..write('continent: $continent, ')
+          ..write('cqz: $cqz, ')
+          ..write('ituz: $ituz')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, call, dxccId, continent);
+  int get hashCode => Object.hash(id, call, dxccId, continent, cqz, ituz);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -219,7 +292,9 @@ class PrefixTableData extends DataClass implements Insertable<PrefixTableData> {
           other.id == this.id &&
           other.call == this.call &&
           other.dxccId == this.dxccId &&
-          other.continent == this.continent);
+          other.continent == this.continent &&
+          other.cqz == this.cqz &&
+          other.ituz == this.ituz);
 }
 
 class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
@@ -227,17 +302,23 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
   final Value<String> call;
   final Value<int> dxccId;
   final Value<String> continent;
+  final Value<int?> cqz;
+  final Value<int?> ituz;
   const PrefixTableCompanion({
     this.id = const Value.absent(),
     this.call = const Value.absent(),
     this.dxccId = const Value.absent(),
     this.continent = const Value.absent(),
+    this.cqz = const Value.absent(),
+    this.ituz = const Value.absent(),
   });
   PrefixTableCompanion.insert({
     this.id = const Value.absent(),
     required String call,
     required int dxccId,
     required String continent,
+    this.cqz = const Value.absent(),
+    this.ituz = const Value.absent(),
   }) : call = Value(call),
        dxccId = Value(dxccId),
        continent = Value(continent);
@@ -246,12 +327,16 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
     Expression<String>? call,
     Expression<int>? dxccId,
     Expression<String>? continent,
+    Expression<int>? cqz,
+    Expression<int>? ituz,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (call != null) 'call': call,
       if (dxccId != null) 'dxcc_id': dxccId,
       if (continent != null) 'continent': continent,
+      if (cqz != null) 'cqz': cqz,
+      if (ituz != null) 'ituz': ituz,
     });
   }
 
@@ -260,12 +345,16 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
     Value<String>? call,
     Value<int>? dxccId,
     Value<String>? continent,
+    Value<int?>? cqz,
+    Value<int?>? ituz,
   }) {
     return PrefixTableCompanion(
       id: id ?? this.id,
       call: call ?? this.call,
       dxccId: dxccId ?? this.dxccId,
       continent: continent ?? this.continent,
+      cqz: cqz ?? this.cqz,
+      ituz: ituz ?? this.ituz,
     );
   }
 
@@ -284,6 +373,12 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
     if (continent.present) {
       map['continent'] = Variable<String>(continent.value);
     }
+    if (cqz.present) {
+      map['cqz'] = Variable<int>(cqz.value);
+    }
+    if (ituz.present) {
+      map['ituz'] = Variable<int>(ituz.value);
+    }
     return map;
   }
 
@@ -293,7 +388,9 @@ class PrefixTableCompanion extends UpdateCompanion<PrefixTableData> {
           ..write('id: $id, ')
           ..write('call: $call, ')
           ..write('dxccId: $dxccId, ')
-          ..write('continent: $continent')
+          ..write('continent: $continent, ')
+          ..write('cqz: $cqz, ')
+          ..write('ituz: $ituz')
           ..write(')'))
         .toString();
   }
@@ -1250,6 +1347,8 @@ typedef $$PrefixTableTableCreateCompanionBuilder =
       required String call,
       required int dxccId,
       required String continent,
+      Value<int?> cqz,
+      Value<int?> ituz,
     });
 typedef $$PrefixTableTableUpdateCompanionBuilder =
     PrefixTableCompanion Function({
@@ -1257,6 +1356,8 @@ typedef $$PrefixTableTableUpdateCompanionBuilder =
       Value<String> call,
       Value<int> dxccId,
       Value<String> continent,
+      Value<int?> cqz,
+      Value<int?> ituz,
     });
 
 class $$PrefixTableTableFilterComposer
@@ -1285,6 +1386,16 @@ class $$PrefixTableTableFilterComposer
 
   ColumnFilters<String> get continent => $composableBuilder(
     column: $table.continent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cqz => $composableBuilder(
+    column: $table.cqz,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ituz => $composableBuilder(
+    column: $table.ituz,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1317,6 +1428,16 @@ class $$PrefixTableTableOrderingComposer
     column: $table.continent,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get cqz => $composableBuilder(
+    column: $table.cqz,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ituz => $composableBuilder(
+    column: $table.ituz,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PrefixTableTableAnnotationComposer
@@ -1339,6 +1460,12 @@ class $$PrefixTableTableAnnotationComposer
 
   GeneratedColumn<String> get continent =>
       $composableBuilder(column: $table.continent, builder: (column) => column);
+
+  GeneratedColumn<int> get cqz =>
+      $composableBuilder(column: $table.cqz, builder: (column) => column);
+
+  GeneratedColumn<int> get ituz =>
+      $composableBuilder(column: $table.ituz, builder: (column) => column);
 }
 
 class $$PrefixTableTableTableManager
@@ -1376,11 +1503,15 @@ class $$PrefixTableTableTableManager
                 Value<String> call = const Value.absent(),
                 Value<int> dxccId = const Value.absent(),
                 Value<String> continent = const Value.absent(),
+                Value<int?> cqz = const Value.absent(),
+                Value<int?> ituz = const Value.absent(),
               }) => PrefixTableCompanion(
                 id: id,
                 call: call,
                 dxccId: dxccId,
                 continent: continent,
+                cqz: cqz,
+                ituz: ituz,
               ),
           createCompanionCallback:
               ({
@@ -1388,11 +1519,15 @@ class $$PrefixTableTableTableManager
                 required String call,
                 required int dxccId,
                 required String continent,
+                Value<int?> cqz = const Value.absent(),
+                Value<int?> ituz = const Value.absent(),
               }) => PrefixTableCompanion.insert(
                 id: id,
                 call: call,
                 dxccId: dxccId,
                 continent: continent,
+                cqz: cqz,
+                ituz: ituz,
               ),
           withReferenceMapper: (p0) => p0
               .map(

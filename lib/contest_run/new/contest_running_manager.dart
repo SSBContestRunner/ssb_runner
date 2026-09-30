@@ -69,6 +69,7 @@ class ContestRunningManager {
       ContestOperationEventHandler(
         contestRunId: runId,
         contestDataManager: _contestDataManager,
+        contestType: _contestType,
         stateMachine: _stateMachine,
         inputHandler: _inputHandler,
       );

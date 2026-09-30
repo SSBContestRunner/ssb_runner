@@ -55,7 +55,7 @@ initSingleCallRunStateMachine({
 
         final eventVal = event as SubmitCallAndHisExchange;
         final submitCall = eventVal.call;
-        final myExchange = eventVal.hisExchange;
+        final myExchange = eventVal.myExchange;
 
         return definition.transitionTo(
           ReportMyExchange(

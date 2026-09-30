@@ -3,6 +3,7 @@ import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx.dart';
 import 'package:ssb_runner/contest_type/exchange_manager.dart';
 import 'package:ssb_runner/contest_type/score_calculator.dart';
+import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/training/session_random.dart';
@@ -15,9 +16,18 @@ abstract class ContestDefinition {
   String get name;
   String get exchangeLabel;
   String get scoringNotice;
+
+  /// Declares which station-configured fields the operator's exchange needs,
+  /// resolved for the given station callsign (ARRL/JIDX switch on DXCC).
+  MyExchangePlan myExchangePlan({
+    required String stationCallsign,
+    required DxccManager dxccManager,
+  });
+
   ContestType create({
     required String stationCallsign,
     required DxccManager dxccManager,
+    required StationExchangeConfig stationExchange,
   });
 }
 
@@ -36,6 +46,16 @@ class ContestRegistry {
   );
 }
 
+StationExchangeField _cqZoneField() => StationExchangeField(
+  id: 'cqZone',
+  label: 'CQ Zone',
+  min: 1,
+  max: 40,
+  audioDigits: 2,
+  derive: (stationCallsign, dxccManager) =>
+      dxccManager.findCallsignCqZone(stationCallsign)?.toString(),
+);
+
 class CqWpxDefinition extends ContestDefinition {
   const CqWpxDefinition();
   @override
@@ -46,13 +66,22 @@ class CqWpxDefinition extends ContestDefinition {
   String get exchangeLabel => '59 #';
   @override
   String get scoringNotice => 'Single-band training score; prefix multipliers.';
+
+  @override
+  MyExchangePlan myExchangePlan({
+    required String stationCallsign,
+    required DxccManager dxccManager,
+  }) => const MyExchangePlan(fields: [], sendsSerial: true, serialDigits: 3);
+
   @override
   ContestType create({
     required String stationCallsign,
     required DxccManager dxccManager,
+    required StationExchangeConfig stationExchange,
   }) => CqWpxContestType(
     stationCallsign: stationCallsign,
     dxccManager: dxccManager,
+    stationExchange: stationExchange,
   );
 }
 
@@ -67,8 +96,17 @@ class CqWwSsbDefinition extends _NumericContestDefinition {
   @override
   int get maxExchange => 40;
   @override
+  int get exchangeAudioDigits => 2;
+  @override
   String get scoringNotice =>
       'Single-band training score; DXCC and zone multipliers.';
+
+  @override
+  MyExchangePlan myExchangePlan({
+    required String stationCallsign,
+    required DxccManager dxccManager,
+  }) => MyExchangePlan(fields: [_cqZoneField()], sendsSerial: false);
+
   @override
   int pointsFor(QsoTableData qso, DxccManager dxcc, String station) {
     if (dxcc.findCallsignDxccId(qso.callsign) ==
@@ -93,8 +131,29 @@ class ArrlDxDefinition extends _NumericContestDefinition {
   @override
   int get maxExchange => 1500;
   @override
+  int get exchangeAudioDigits => 0;
+  @override
   String get scoringNotice =>
       'Training profile; validate station category before official scoring.';
+
+  @override
+  MyExchangePlan myExchangePlan({
+    required String stationCallsign,
+    required DxccManager dxccManager,
+  }) => MyExchangePlan(
+    fields: [
+      StationExchangeField(
+        id: 'power',
+        label: 'Power',
+        min: 1,
+        max: 1500,
+        audioDigits: 0,
+        helperText: 'Transmitter output in watts',
+      ),
+    ],
+    sendsSerial: false,
+  );
+
   @override
   int pointsFor(QsoTableData qso, DxccManager dxcc, String station) => 3;
 }
@@ -110,8 +169,30 @@ class IaruHfDefinition extends _NumericContestDefinition {
   @override
   int get maxExchange => 90;
   @override
+  int get exchangeAudioDigits => 2;
+  @override
   String get scoringNotice =>
       'Single-band training score; country and zone multipliers.';
+
+  @override
+  MyExchangePlan myExchangePlan({
+    required String stationCallsign,
+    required DxccManager dxccManager,
+  }) => MyExchangePlan(
+    fields: [
+      StationExchangeField(
+        id: 'ituZone',
+        label: 'ITU Zone',
+        min: 1,
+        max: 90,
+        audioDigits: 2,
+        derive: (stationCallsign, dxccManager) =>
+            dxccManager.findCallsignItuZone(stationCallsign)?.toString(),
+      ),
+    ],
+    sendsSerial: false,
+  );
+
   @override
   int pointsFor(QsoTableData qso, DxccManager dxcc, String station) =>
       dxcc.findCallSignContinent(qso.callsign) ==
@@ -127,12 +208,39 @@ class JidxSsbDefinition extends _NumericContestDefinition {
   @override
   String get name => 'JIDX SSB';
   @override
-  String get exchangeLabel => '59 Prefecture';
+  String get exchangeLabel => '59 Prefecture / CQ Zone';
   @override
-  int get maxExchange => 47;
+  int get maxExchange => 50;
+  @override
+  int get exchangeAudioDigits => 2;
   @override
   String get scoringNotice =>
       'Training profile; Japanese-prefecture exchange practice.';
+
+  @override
+  MyExchangePlan myExchangePlan({
+    required String stationCallsign,
+    required DxccManager dxccManager,
+  }) {
+    // JA stations send a prefecture number (01-50); everyone else sends the
+    // station's CQ zone. JIDX has no serial exchange (design 13.2).
+    if (isJapanDxcc(dxccManager.findCallsignDxccId(stationCallsign))) {
+      return MyExchangePlan(
+        fields: [
+          StationExchangeField(
+            id: 'prefecture',
+            label: 'Prefecture',
+            min: 1,
+            max: 50,
+            audioDigits: 2,
+          ),
+        ],
+        sendsSerial: false,
+      );
+    }
+    return MyExchangePlan(fields: [_cqZoneField()], sendsSerial: false);
+  }
+
   @override
   int pointsFor(QsoTableData qso, DxccManager dxcc, String station) => 1;
 }
@@ -140,14 +248,22 @@ class JidxSsbDefinition extends _NumericContestDefinition {
 abstract class _NumericContestDefinition extends ContestDefinition {
   const _NumericContestDefinition();
   int get maxExchange;
+  int get exchangeAudioDigits;
   int pointsFor(QsoTableData qso, DxccManager dxcc, String station);
 
   @override
   ContestType create({
     required String stationCallsign,
     required DxccManager dxccManager,
+    required StationExchangeConfig stationExchange,
   }) => _NumericContestType(
     maxExchange: maxExchange,
+    exchangeAudioDigits: exchangeAudioDigits,
+    plan: myExchangePlan(
+      stationCallsign: stationCallsign,
+      dxccManager: dxccManager,
+    ),
+    stationExchange: stationExchange,
     stationCallsign: stationCallsign,
     dxccManager: dxccManager,
     pointsFor: pointsFor,
@@ -157,6 +273,9 @@ abstract class _NumericContestDefinition extends ContestDefinition {
 class _NumericContestType implements ContestType {
   _NumericContestType({
     required int maxExchange,
+    required int exchangeAudioDigits,
+    required MyExchangePlan plan,
+    required StationExchangeConfig stationExchange,
     required String stationCallsign,
     required DxccManager dxccManager,
     required _PointsFor pointsFor,
@@ -165,16 +284,30 @@ class _NumericContestType implements ContestType {
          stationCallsign,
          dxccManager,
          pointsFor,
+       ),
+       _builder = StationExchangeBuilder(
+         plan: plan,
+         config: stationExchange,
+         stationCallsign: stationCallsign,
+         dxccManager: dxccManager,
+         exchangeAudioDigits: exchangeAudioDigits,
        );
 
   final _NumericExchangeManager _exchangeManager;
   final _NumericScoreCalculator _scoreCalculator;
+  final StationExchangeBuilder _builder;
+
   @override
   RegExp get allowExchangeRegex => RegExp('[0-9]');
   @override
   _NumericExchangeManager get exchangeManager => _exchangeManager;
   @override
   _NumericScoreCalculator get scoreCalculator => _scoreCalculator;
+  @override
+  String buildMyExchange(int qsoNumber) => _builder.buildMyExchange(qsoNumber);
+  @override
+  String formatExchangeForAudio(String exchange) =>
+      _builder.formatExchangeForAudio(exchange);
 }
 
 class _NumericExchangeManager implements ExchangeManager {

@@ -9,6 +9,7 @@ import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
+import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -17,6 +18,7 @@ import 'package:ssb_runner/state_machine/state_machine.dart';
 class ContestOperationEventHandler {
   final String _contestRunId;
   final ContestDataManager _contestDataManager;
+  final ContestType _contestType;
   final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
   final ContestInputHandler _inputHandler;
@@ -39,11 +41,13 @@ class ContestOperationEventHandler {
   ContestOperationEventHandler({
     required String contestRunId,
     required ContestDataManager contestDataManager,
+    required ContestType contestType,
     required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
     stateMachine,
     required ContestInputHandler inputHandler,
   }) : _contestRunId = contestRunId,
        _contestDataManager = contestDataManager,
+       _contestType = contestType,
        _stateMachine = stateMachine,
        _inputHandler = inputHandler;
 
@@ -149,7 +153,7 @@ class ContestOperationEventHandler {
     return _audioLoader.loadAudio(
       myAudioAccentDir,
       CallsignPayload(
-        callsign: await _obtainHisExchange(),
+        callsign: await _myExchange(),
         phonicType: _appSettings.phonicType,
       ),
     );
@@ -163,7 +167,7 @@ class ContestOperationEventHandler {
     final myExchangePcmData = await _audioLoader.loadAudio(
       myAudioAccentDir,
       CallsignPayload(
-        callsign: await _obtainHisExchange(),
+        callsign: await _myExchange(),
         phonicType: _appSettings.phonicType,
       ),
     );
@@ -211,7 +215,7 @@ class ContestOperationEventHandler {
       transition(
         SubmitCallAndHisExchange(
           call: _hisCall,
-          hisExchange: await _obtainHisExchange(),
+          myExchange: await _myExchange(),
           isOperateInput: isOperateInput,
         ),
       );
@@ -219,8 +223,10 @@ class ContestOperationEventHandler {
     }
   }
 
-  Future<String> _obtainHisExchange() async {
-    final count = await _appDatabase.qsoTable
+  /// The exchange the operator transmits for the current QSO. Contest-aware:
+  /// CQ WPX serial, CQ WW/JIDX CQ zone, IARU ITU zone, ARRL power.
+  Future<String> _myExchange() async {
+    final done = await _appDatabase.qsoTable
         .count(
           where: (row) {
             return row.runId.equals(_contestRunId);
@@ -228,7 +234,7 @@ class ContestOperationEventHandler {
         )
         .getSingle();
 
-    return '${count + 1}';
+    return _contestType.buildMyExchange(done + 1);
   }
 
   void _handleCancel() {
@@ -270,9 +276,7 @@ class ContestOperationEventHandler {
 
   Future<void> _handleExchEvent() async {
     log.debug('exch event', tag: 'contest');
-    _stateMachine.transition(
-      SubmitHisExchange(exchange: await _obtainHisExchange()),
-    );
+    _stateMachine.transition(SubmitHisExchange(exchange: await _myExchange()));
   }
 
   void handleInputAreaEvent() {

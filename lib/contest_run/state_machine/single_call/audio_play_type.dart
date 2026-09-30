@@ -1,6 +1,3 @@
-import 'package:flutter/widgets.dart';
-import 'package:ssb_runner/audio/payload_to_audio.dart';
-
 sealed class AudioPlayType {}
 
 class NoPlay extends AudioPlayType {}
@@ -22,12 +19,14 @@ class PlaySearchAndPounce extends AudioPlayType {
   final String call;
 }
 
+/// Keeps the raw exchange; the contest formats it for playback
+/// (leading-zero width is contest specific, see StationExchangeBuilder).
 class PlayExchange extends AudioPlayType {
   final String exchangeToPlay;
   final bool isMe;
 
   PlayExchange({required String exchange, required this.isMe})
-    : exchangeToPlay = exchange.exchangePadZerosIfNeeded();
+    : exchangeToPlay = exchange;
 }
 
 class PlayCallExchange extends AudioPlayType {
@@ -39,17 +38,5 @@ class PlayCallExchange extends AudioPlayType {
     required this.call,
     required String exchange,
     required this.isMe,
-  }) : exchangeToPlay = exchange.exchangePadZerosIfNeeded();
-}
-
-const _exchangeMinLength = 3;
-
-extension ExchangePadZeroExtension on String {
-  String exchangePadZerosIfNeeded() {
-    if (isEmpty || !characters.every((chat) => chat.isNumber())) {
-      return this;
-    }
-
-    return padLeft(_exchangeMinLength, '0');
-  }
+  }) : exchangeToPlay = exchange;
 }

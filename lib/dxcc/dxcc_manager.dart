@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:archive/archive_io.dart';
 import 'package:collection/collection.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart';
 import 'package:ssb_runner/common/extract_prefix.dart';
 import 'package:ssb_runner/db/app_database.dart';
@@ -39,6 +40,14 @@ class DxccManager {
 
     return matchPrefixDxccId;
   }
+
+  /// CQ zone for a callsign, or null when the cty data has no match.
+  int? findCallsignCqZone(String callsign) =>
+      _findMatchPrefixData(extractPrefix(callsign))?.cqz;
+
+  /// ITU zone for a callsign, or null (the bundled cty asset has no ituz).
+  int? findCallsignItuZone(String callsign) =>
+      _findMatchPrefixData(extractPrefix(callsign))?.ituz;
 
   String findCallSignContinent(String callsign) {
     final prefix = extractPrefix(callsign);
@@ -117,6 +126,8 @@ class DxccManager {
           call: prefix.call,
           dxccId: prefix.dxccId,
           continent: prefix.continent,
+          cqz: Value(prefix.cqz),
+          ituz: Value(prefix.ituz),
         ),
       );
     }
@@ -171,6 +182,8 @@ List<PrefixTableData> parseDxccXml(String xmlString) {
       call: element.getElement('call')?.innerText ?? '',
       dxccId: int.tryParse(element.getElement('adif')?.innerText ?? '') ?? 0,
       continent: element.getElement('cont')?.innerText ?? '',
+      cqz: int.tryParse(element.getElement('cqz')?.innerText ?? ''),
+      ituz: int.tryParse(element.getElement('ituz')?.innerText ?? ''),
     );
   }).toList();
 }

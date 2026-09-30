@@ -14,8 +14,6 @@ import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 import '../../contest_type/contest_type.dart';
 
-const maxCallsignLength = 15;
-
 class QsoOperationAreaCubit extends Cubit<int> {
   final ContestInputHandler _inputHandler;
 

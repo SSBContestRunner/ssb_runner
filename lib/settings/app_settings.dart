@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
+import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/training/session_review.dart';
 import 'package:ssb_runner/training/training_profile.dart';
@@ -28,6 +30,32 @@ class AppSettings {
 
   set stationCallsign(String value) =>
       _prefs.setString(_settingStationCallsign, value);
+
+  /// Per-contest station exchange values. Only values the operator entered are
+  /// stored; derived defaults are resolved at use time (design 3.3).
+  StationExchangeConfig stationExchangeConfig(String contestId) {
+    final raw = _prefs.getString('$_settingStationExchangePrefix$contestId');
+    if (raw == null || raw.isEmpty) return StationExchangeConfig.empty;
+    try {
+      return StationExchangeConfig.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return StationExchangeConfig.empty;
+    }
+  }
+
+  void setStationExchangeValue(
+    String contestId,
+    String fieldId,
+    String? value,
+  ) {
+    final updated = stationExchangeConfig(contestId).withValue(fieldId, value);
+    _prefs.setString(
+      '$_settingStationExchangePrefix$contestId',
+      jsonEncode(updated.toJson()),
+    );
+  }
 
   int get contestDuration {
     final durationInMinutes = _prefs.getInt(_settingContestDuration) ?? 0;
@@ -108,7 +136,8 @@ class AppSettings {
   }
 
   /// Run id whose recorded event log should be replayed by the next session.
-  String? get pendingReplayRunId => _prefs.getString(_settingPendingReplayRunId);
+  String? get pendingReplayRunId =>
+      _prefs.getString(_settingPendingReplayRunId);
 
   set pendingReplayRunId(String? value) {
     if (value == null) {
@@ -126,8 +155,7 @@ class AppSettings {
 
   bool get lockAudioSeed => _prefs.getBool(_settingLockAudioSeed) ?? false;
 
-  set lockAudioSeed(bool value) =>
-      _prefs.setBool(_settingLockAudioSeed, value);
+  set lockAudioSeed(bool value) => _prefs.setBool(_settingLockAudioSeed, value);
 
   void _setOptionalInt(String key, int? value) {
     if (value == null) {
@@ -165,6 +193,7 @@ class AppSettings {
 const _settingContestId = 'setting_contest_id';
 const _settingContestMode = 'setting_contest_mode';
 const _settingStationCallsign = 'setting_station_callsign';
+const _settingStationExchangePrefix = 'setting_station_exchange_';
 const _settingContestDuration = 'setting_contest_duration';
 const _settingPhonicType = 'setting_phonic_type';
 const _settingVerboseLogging = 'setting_verbose_logging';

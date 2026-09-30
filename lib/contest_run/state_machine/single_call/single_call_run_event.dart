@@ -27,11 +27,11 @@ class WorkedBefore extends SingleCallRunEvent {
 class SubmitCallAndHisExchange extends SingleCallRunEvent {
   SubmitCallAndHisExchange({
     required this.call,
-    required this.hisExchange,
+    required this.myExchange,
     required this.isOperateInput,
   });
   final String call;
-  final String hisExchange;
+  final String myExchange;
   final bool isOperateInput;
 }
 
