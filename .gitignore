@@ -12,6 +12,9 @@
 .swiftpm/
 migrate_working_dir/
 
+# Local debug logs (never commit)
+/debug/
+
 # IntelliJ related
 *.iml
 *.ipr
