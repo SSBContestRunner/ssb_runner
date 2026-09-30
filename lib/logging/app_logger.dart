@@ -73,7 +73,7 @@ class AppLogger {
     final logger = Logger(
       filter: filter,
       output: ConsoleOutput(),
-      printer: PrettyPrinter(methodCount: 5),
+      printer: AppLogPrinter(),
     );
 
     return AppLogger._(logger, null, <LogFilter>[filter], null, null);
@@ -108,7 +108,7 @@ class AppLogger {
       console = Logger(
         filter: consoleFilter,
         output: ConsoleOutput(),
-        printer: PrettyPrinter(methodCount: 5),
+        printer: AppLogPrinter(),
       );
     }
 
@@ -272,23 +272,11 @@ class AppLogger {
       final previous = _suppressPrintCapture;
       _suppressPrintCapture = true;
       try {
-        console.log(
-          level,
-          '[$tag] ${record.text}${_formatFields(record.fields)}',
-          error: error,
-          stackTrace: stackTrace,
-        );
+        console.log(level, record, error: error, stackTrace: stackTrace);
       } finally {
         _suppressPrintCapture = previous;
       }
     }
-  }
-
-  static String _formatFields(Map<String, Object?> fields) {
-    if (fields.isEmpty) {
-      return '';
-    }
-    return ' $fields';
   }
 
   /// Writes the buffered context into the file so a crash has a lead-up trail.

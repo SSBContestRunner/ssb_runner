@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -60,5 +61,27 @@ void main() {
     final content = await File('${directory.path}/latest.log').readAsString();
     expect(content, contains('~'));
     expect(content, isNot(contains(home)));
+  });
+
+  test('console logger renders structured records with the logfmt printer', () {
+    final lines = <String>[];
+
+    runZoned(
+      () => AppLogger.consoleOnly().warn(
+        'disk almost full',
+        tag: 'storage',
+        fields: <String, Object?>{'pct': 91},
+      ),
+      zoneSpecification: ZoneSpecification(
+        print: (self, parent, zone, line) => lines.add(line),
+      ),
+    );
+
+    final rendered = lines.join('\n');
+    expect(rendered, contains('WARN'));
+    expect(rendered, contains('storage'));
+    expect(rendered, contains('msg="disk almost full"'));
+    expect(rendered, contains('pct=91'));
+    expect(rendered, isNot(contains("Instance of 'LogMessage'")));
   });
 }
