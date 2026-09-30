@@ -9,61 +9,65 @@ class KeyTips extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
 
-    return Container(
-      color: colorScheme.scrim.withAlpha(125),
-      child: Center(
-        child: SizedBox(
-          width: 480,
-          height: 320,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              color: Colors.white,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24.0),
-              child: Flex(
-                direction: Axis.vertical,
-                spacing: 8,
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Flex(
-                        direction: Axis.horizontal,
-                        spacing: 16,
+    return Semantics(
+      label: 'Keyboard reference dialog',
+      container: true,
+      child: Container(
+        color: colorScheme.scrim.withAlpha(125),
+        child: Center(
+          child: SizedBox(
+            width: 480,
+            height: 320,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                color: colorScheme.surface,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Flex(
+                  direction: Axis.vertical,
+                  spacing: 8,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Flex(
+                          direction: Axis.horizontal,
+                          spacing: 16,
+                          children: [
+                            // Keys
+                            Flex(
+                              direction: Axis.vertical,
+                              spacing: 16,
+                              children: _keys(),
+                            ),
+                            // Descriptions
+                            Flex(
+                              direction: Axis.vertical,
+                              spacing: 30,
+                              children: _descriptions(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          // Keys
-                          Flex(
-                            direction: Axis.vertical,
-                            spacing: 16,
-                            children: _keys(),
-                          ),
-                          // Descriptions
-                          Flex(
-                            direction: Axis.vertical,
-                            spacing: 30,
-                            children: _descriptions(),
+                          TextButton(
+                            onPressed: () {
+                              context.read<MainPageCubit>().hideKeyTips();
+                            },
+                            child: Text('Close'),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            context.read<MainPageCubit>().hideKeyTips();
-                          },
-                          child: Text('Close'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -80,7 +84,7 @@ class KeyTips extends StatelessWidget {
         spacing: 10,
         children: [
           _KeyboardKey(keyText: 'Shift'),
-          Text('+', style: TextStyle(fontSize: 14, color: Colors.black)),
+          Text('+', style: TextStyle(fontSize: 14)),
           _KeyboardKey(keyText: 'Tab'),
         ],
       ),
@@ -91,7 +95,7 @@ class KeyTips extends StatelessWidget {
   }
 
   List<Widget> _descriptions() {
-    final textStyle = TextStyle(fontSize: 14, color: Colors.black);
+    final textStyle = TextStyle(fontSize: 14);
     return [
       Text('move cursor to next input', style: textStyle),
       Text('move cursor to previous input', style: textStyle),

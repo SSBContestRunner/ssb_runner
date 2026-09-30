@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
+import 'package:ssb_runner/training/session_random.dart';
 
 // 日本区域实体代码
 const List<int> _japan = [339, 177, 192];
@@ -95,6 +96,12 @@ String obtainAccentByDxccId(int dxccId) {
 const myAudioAccentDir = 'Global';
 
 class AudioLoader {
+  SessionRandom? _sessionRandom;
+
+  /// Installs the session's question random source so mixed-phonic selection is
+  /// reproducible. Cleared when the session ends.
+  void setSessionRandom(SessionRandom? random) => _sessionRandom = random;
+
   Future<Uint8List> loadAudio(
     String accentDir,
     AudioPayload audioPayload,
@@ -161,7 +168,10 @@ class AudioLoader {
 
   String _obtainRandomPhonicType(String char) {
     final max = (_alphabetPhonicLetters.contains(char)) ? 3 : 2;
-    final type = Random(DateTime.now().millisecondsSinceEpoch).nextInt(max);
+    final random = _sessionRandom;
+    final type = random != null
+        ? random.nextPhonicType(max)
+        : Random().nextInt(max);
 
     switch (type) {
       case 0:

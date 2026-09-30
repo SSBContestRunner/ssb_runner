@@ -30,6 +30,7 @@ initSingleCallRunStateMachine({
           WaitingSubmitCall(
             currentCallAnswer: currentCallAnswer,
             currentExchangeAnswer: currentExchangeAnswer,
+            pileupCallsigns: eventVal.pileupCallsigns,
           ),
         );
       });
@@ -40,7 +41,7 @@ initSingleCallRunStateMachine({
         final currentExchangeAnswer = stateVal.currentExchangeAnswer;
 
         return definition.transitionTo(
-          WaitingSubmitCall(
+          stateVal.copyWith(
             currentCallAnswer: currentCallAnswer,
             currentExchangeAnswer: currentExchangeAnswer,
           ),
@@ -81,6 +82,7 @@ initSingleCallRunStateMachine({
           WaitingSubmitCall(
             currentCallAnswer: nextCallAnswer,
             currentExchangeAnswer: nextExchangeAnswer,
+            pileupCallsigns: eventVal.pileupCallsigns,
           ),
         );
       });
@@ -255,6 +257,7 @@ initSingleCallRunStateMachine({
           WaitingSubmitCall(
             currentCallAnswer: nextCallAnswer,
             currentExchangeAnswer: nextExchangeAnswer,
+            pileupCallsigns: eventVal.pileupCallsigns,
           ),
         );
       });
@@ -268,6 +271,8 @@ initSingleCallRunStateMachine({
           WaitingSubmitCall(
             currentCallAnswer: eventVal.callAnswer,
             currentExchangeAnswer: eventVal.exchangeAnswer,
+            pileupCallsigns: eventVal.pileupCallsigns,
+            isSearchAndPounce: eventVal.isSearchAndPounce,
           ),
         );
       });

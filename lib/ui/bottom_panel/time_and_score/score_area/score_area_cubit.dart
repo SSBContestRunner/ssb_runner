@@ -10,6 +10,7 @@ import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area_
 class ScoreAreaCubit extends Cubit<ScoreAreaData> {
   StreamSubscription<ScoreData>? _rawScoreDataSubscription;
   StreamSubscription<ScoreData>? _verifiedScoreDataSubscription;
+  ScoreManager? _subscribedScoreManager;
 
   ScoreAreaCubit({required BuildContext context}) : super(_initialScoreData()) {
     _subscribeContestChange(context);
@@ -41,6 +42,12 @@ class ScoreAreaCubit extends Cubit<ScoreAreaData> {
   }
 
   void _subscribeScoreUpdate(ScoreManager scoreManager) {
+    if (identical(_subscribedScoreManager, scoreManager)) {
+      return;
+    }
+    _unsubscribeScoreUpdate();
+    _subscribedScoreManager = scoreManager;
+
     _rawScoreDataSubscription = scoreManager.rawScoreDataStream.stream.listen((
       scoreData,
     ) {
@@ -56,5 +63,8 @@ class ScoreAreaCubit extends Cubit<ScoreAreaData> {
   void _unsubscribeScoreUpdate() {
     _rawScoreDataSubscription?.cancel();
     _verifiedScoreDataSubscription?.cancel();
+    _rawScoreDataSubscription = null;
+    _verifiedScoreDataSubscription = null;
+    _subscribedScoreManager = null;
   }
 }

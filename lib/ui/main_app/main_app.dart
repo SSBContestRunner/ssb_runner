@@ -192,7 +192,8 @@ class _MainAppCubit extends Cubit<_AppState> {
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
-      await windowManager.setResizable(false);
+      await windowManager.setResizable(true);
+      await windowManager.setMinimumSize(const Size(1024, 650));
     });
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
+import 'package:ssb_runner/audio/mix_pileup.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/common/calculate_list_diff.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
@@ -33,7 +34,7 @@ class ContestStateChangeHandler {
   final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
   final ScoreManager _scoreManager;
-  final ContestAnswerGenerator _answerGenerator;
+  final AnswerSource _answerGenerator;
 
   late final AudioLoader _audioLoader = _contestDataManager.audioLoader;
   late final AudioPlayer _audioPlayer = _contestDataManager.audioPlayer;
@@ -56,7 +57,7 @@ class ContestStateChangeHandler {
     required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
     stateMachine,
     required ScoreManager scoreManager,
-    required ContestAnswerGenerator contestAnswerGenerator,
+    required AnswerSource contestAnswerGenerator,
   }) : _contestRunId = contestRunId,
        _contestTimer = contestTimer,
        _contestType = contestType,
@@ -253,6 +254,50 @@ class ContestStateChangeHandler {
           isMyAudio: playType.isMe,
         );
         break;
+      case PlayPileup():
+        final clips = await Future.wait(
+          playType.calls.map(
+            (callsign) => _audioLoader.loadAudio(
+              obtainAssetDir(false, dxccId),
+              CallsignPayload(
+                callsign: callsign,
+                phonicType: _appSettings.phonicType,
+              ),
+            ),
+          ),
+        );
+        final difficulty = _appSettings.difficulty;
+        final mixed = clips.length <= 1
+            ? clips.first
+            : mixPileup(
+                clips.first,
+                clips.skip(1).toList(),
+                interfererGain: 0.5,
+                offsetSamples: difficulty.pileupOffsetSamples,
+              );
+        _audioPlayer.addAudioData(
+          mixed,
+          isResetCurrentStream: isResetAudioStream,
+        );
+        break;
+      case PlaySearchAndPounce():
+        final assetDir = obtainAssetDir(false, dxccId);
+        final cq = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CommonPayload(fileName: 'CQ.wav'),
+        );
+        final call = await _audioLoader.loadAudio(
+          assetDir,
+          CallsignPayload(
+            callsign: playType.call,
+            phonicType: _appSettings.phonicType,
+          ),
+        );
+        _audioPlayer.addAudioData(
+          await concatUint8List([cq, call]),
+          isResetCurrentStream: isResetAudioStream,
+        );
+        break;
     }
   }
 
@@ -345,6 +390,8 @@ class ContestStateChangeHandler {
       NextCall(
         callAnswer: contestAnswer.callSign,
         exchangeAnswer: contestAnswer.exchange,
+        pileupCallsigns: contestAnswer.pileupCallsigns,
+        isSearchAndPounce: contestAnswer.isSearchAndPounce,
       ),
     );
   }

@@ -819,16 +819,429 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
   }
 }
 
+class $EventLogTableTable extends EventLogTable
+    with TableInfo<$EventLogTableTable, EventLogTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EventLogTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _elapsedMsMeta = const VerificationMeta(
+    'elapsedMs',
+  );
+  @override
+  late final GeneratedColumn<int> elapsedMs = GeneratedColumn<int>(
+    'elapsed_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eventTypeMeta = const VerificationMeta(
+    'eventType',
+  );
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+    'event_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtUtcMeta = const VerificationMeta(
+    'createdAtUtc',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtUtc = GeneratedColumn<int>(
+    'created_at_utc',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    runId,
+    elapsedMs,
+    eventType,
+    payload,
+    createdAtUtc,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'event_log_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EventLogTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('elapsed_ms')) {
+      context.handle(
+        _elapsedMsMeta,
+        elapsedMs.isAcceptableOrUnknown(data['elapsed_ms']!, _elapsedMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_elapsedMsMeta);
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(
+        _eventTypeMeta,
+        eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('created_at_utc')) {
+      context.handle(
+        _createdAtUtcMeta,
+        createdAtUtc.isAcceptableOrUnknown(
+          data['created_at_utc']!,
+          _createdAtUtcMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtUtcMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EventLogTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EventLogTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      elapsedMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}elapsed_ms'],
+      )!,
+      eventType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_type'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      createdAtUtc: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_utc'],
+      )!,
+    );
+  }
+
+  @override
+  $EventLogTableTable createAlias(String alias) {
+    return $EventLogTableTable(attachedDatabase, alias);
+  }
+}
+
+class EventLogTableData extends DataClass
+    implements Insertable<EventLogTableData> {
+  final int id;
+  final String runId;
+  final int elapsedMs;
+
+  /// answer / submit / nocopy / worked-before
+  final String eventType;
+
+  /// JSON: callsign / exchange / pileupCallsigns / mode
+  final String payload;
+  final int createdAtUtc;
+  const EventLogTableData({
+    required this.id,
+    required this.runId,
+    required this.elapsedMs,
+    required this.eventType,
+    required this.payload,
+    required this.createdAtUtc,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['run_id'] = Variable<String>(runId);
+    map['elapsed_ms'] = Variable<int>(elapsedMs);
+    map['event_type'] = Variable<String>(eventType);
+    map['payload'] = Variable<String>(payload);
+    map['created_at_utc'] = Variable<int>(createdAtUtc);
+    return map;
+  }
+
+  EventLogTableCompanion toCompanion(bool nullToAbsent) {
+    return EventLogTableCompanion(
+      id: Value(id),
+      runId: Value(runId),
+      elapsedMs: Value(elapsedMs),
+      eventType: Value(eventType),
+      payload: Value(payload),
+      createdAtUtc: Value(createdAtUtc),
+    );
+  }
+
+  factory EventLogTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EventLogTableData(
+      id: serializer.fromJson<int>(json['id']),
+      runId: serializer.fromJson<String>(json['runId']),
+      elapsedMs: serializer.fromJson<int>(json['elapsedMs']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      payload: serializer.fromJson<String>(json['payload']),
+      createdAtUtc: serializer.fromJson<int>(json['createdAtUtc']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'runId': serializer.toJson<String>(runId),
+      'elapsedMs': serializer.toJson<int>(elapsedMs),
+      'eventType': serializer.toJson<String>(eventType),
+      'payload': serializer.toJson<String>(payload),
+      'createdAtUtc': serializer.toJson<int>(createdAtUtc),
+    };
+  }
+
+  EventLogTableData copyWith({
+    int? id,
+    String? runId,
+    int? elapsedMs,
+    String? eventType,
+    String? payload,
+    int? createdAtUtc,
+  }) => EventLogTableData(
+    id: id ?? this.id,
+    runId: runId ?? this.runId,
+    elapsedMs: elapsedMs ?? this.elapsedMs,
+    eventType: eventType ?? this.eventType,
+    payload: payload ?? this.payload,
+    createdAtUtc: createdAtUtc ?? this.createdAtUtc,
+  );
+  EventLogTableData copyWithCompanion(EventLogTableCompanion data) {
+    return EventLogTableData(
+      id: data.id.present ? data.id.value : this.id,
+      runId: data.runId.present ? data.runId.value : this.runId,
+      elapsedMs: data.elapsedMs.present ? data.elapsedMs.value : this.elapsedMs,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      createdAtUtc: data.createdAtUtc.present
+          ? data.createdAtUtc.value
+          : this.createdAtUtc,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EventLogTableData(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('eventType: $eventType, ')
+          ..write('payload: $payload, ')
+          ..write('createdAtUtc: $createdAtUtc')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, runId, elapsedMs, eventType, payload, createdAtUtc);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EventLogTableData &&
+          other.id == this.id &&
+          other.runId == this.runId &&
+          other.elapsedMs == this.elapsedMs &&
+          other.eventType == this.eventType &&
+          other.payload == this.payload &&
+          other.createdAtUtc == this.createdAtUtc);
+}
+
+class EventLogTableCompanion extends UpdateCompanion<EventLogTableData> {
+  final Value<int> id;
+  final Value<String> runId;
+  final Value<int> elapsedMs;
+  final Value<String> eventType;
+  final Value<String> payload;
+  final Value<int> createdAtUtc;
+  const EventLogTableCompanion({
+    this.id = const Value.absent(),
+    this.runId = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.createdAtUtc = const Value.absent(),
+  });
+  EventLogTableCompanion.insert({
+    this.id = const Value.absent(),
+    required String runId,
+    required int elapsedMs,
+    required String eventType,
+    required String payload,
+    required int createdAtUtc,
+  }) : runId = Value(runId),
+       elapsedMs = Value(elapsedMs),
+       eventType = Value(eventType),
+       payload = Value(payload),
+       createdAtUtc = Value(createdAtUtc);
+  static Insertable<EventLogTableData> custom({
+    Expression<int>? id,
+    Expression<String>? runId,
+    Expression<int>? elapsedMs,
+    Expression<String>? eventType,
+    Expression<String>? payload,
+    Expression<int>? createdAtUtc,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (runId != null) 'run_id': runId,
+      if (elapsedMs != null) 'elapsed_ms': elapsedMs,
+      if (eventType != null) 'event_type': eventType,
+      if (payload != null) 'payload': payload,
+      if (createdAtUtc != null) 'created_at_utc': createdAtUtc,
+    });
+  }
+
+  EventLogTableCompanion copyWith({
+    Value<int>? id,
+    Value<String>? runId,
+    Value<int>? elapsedMs,
+    Value<String>? eventType,
+    Value<String>? payload,
+    Value<int>? createdAtUtc,
+  }) {
+    return EventLogTableCompanion(
+      id: id ?? this.id,
+      runId: runId ?? this.runId,
+      elapsedMs: elapsedMs ?? this.elapsedMs,
+      eventType: eventType ?? this.eventType,
+      payload: payload ?? this.payload,
+      createdAtUtc: createdAtUtc ?? this.createdAtUtc,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (elapsedMs.present) {
+      map['elapsed_ms'] = Variable<int>(elapsedMs.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (createdAtUtc.present) {
+      map['created_at_utc'] = Variable<int>(createdAtUtc.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EventLogTableCompanion(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('eventType: $eventType, ')
+          ..write('payload: $payload, ')
+          ..write('createdAtUtc: $createdAtUtc')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $PrefixTableTable prefixTable = $PrefixTableTable(this);
   late final $QsoTableTable qsoTable = $QsoTableTable(this);
+  late final $EventLogTableTable eventLogTable = $EventLogTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [prefixTable, qsoTable];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    prefixTable,
+    qsoTable,
+    eventLogTable,
+  ];
 }
 
 typedef $$PrefixTableTableCreateCompanionBuilder =
@@ -1283,6 +1696,234 @@ typedef $$QsoTableTableProcessedTableManager =
       QsoTableData,
       PrefetchHooks Function()
     >;
+typedef $$EventLogTableTableCreateCompanionBuilder =
+    EventLogTableCompanion Function({
+      Value<int> id,
+      required String runId,
+      required int elapsedMs,
+      required String eventType,
+      required String payload,
+      required int createdAtUtc,
+    });
+typedef $$EventLogTableTableUpdateCompanionBuilder =
+    EventLogTableCompanion Function({
+      Value<int> id,
+      Value<String> runId,
+      Value<int> elapsedMs,
+      Value<String> eventType,
+      Value<String> payload,
+      Value<int> createdAtUtc,
+    });
+
+class $$EventLogTableTableFilterComposer
+    extends Composer<_$AppDatabase, $EventLogTableTable> {
+  $$EventLogTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get runId => $composableBuilder(
+    column: $table.runId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get elapsedMs => $composableBuilder(
+    column: $table.elapsedMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtUtc => $composableBuilder(
+    column: $table.createdAtUtc,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EventLogTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $EventLogTableTable> {
+  $$EventLogTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get runId => $composableBuilder(
+    column: $table.runId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get elapsedMs => $composableBuilder(
+    column: $table.elapsedMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtUtc => $composableBuilder(
+    column: $table.createdAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EventLogTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EventLogTableTable> {
+  $$EventLogTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get runId =>
+      $composableBuilder(column: $table.runId, builder: (column) => column);
+
+  GeneratedColumn<int> get elapsedMs =>
+      $composableBuilder(column: $table.elapsedMs, builder: (column) => column);
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtUtc => $composableBuilder(
+    column: $table.createdAtUtc,
+    builder: (column) => column,
+  );
+}
+
+class $$EventLogTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EventLogTableTable,
+          EventLogTableData,
+          $$EventLogTableTableFilterComposer,
+          $$EventLogTableTableOrderingComposer,
+          $$EventLogTableTableAnnotationComposer,
+          $$EventLogTableTableCreateCompanionBuilder,
+          $$EventLogTableTableUpdateCompanionBuilder,
+          (
+            EventLogTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $EventLogTableTable,
+              EventLogTableData
+            >,
+          ),
+          EventLogTableData,
+          PrefetchHooks Function()
+        > {
+  $$EventLogTableTableTableManager(_$AppDatabase db, $EventLogTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EventLogTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EventLogTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EventLogTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> runId = const Value.absent(),
+                Value<int> elapsedMs = const Value.absent(),
+                Value<String> eventType = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<int> createdAtUtc = const Value.absent(),
+              }) => EventLogTableCompanion(
+                id: id,
+                runId: runId,
+                elapsedMs: elapsedMs,
+                eventType: eventType,
+                payload: payload,
+                createdAtUtc: createdAtUtc,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String runId,
+                required int elapsedMs,
+                required String eventType,
+                required String payload,
+                required int createdAtUtc,
+              }) => EventLogTableCompanion.insert(
+                id: id,
+                runId: runId,
+                elapsedMs: elapsedMs,
+                eventType: eventType,
+                payload: payload,
+                createdAtUtc: createdAtUtc,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$EventLogTableTable, EventLogTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $EventLogTableTable,
+                    EventLogTableData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EventLogTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EventLogTableTable,
+      EventLogTableData,
+      $$EventLogTableTableFilterComposer,
+      $$EventLogTableTableOrderingComposer,
+      $$EventLogTableTableAnnotationComposer,
+      $$EventLogTableTableCreateCompanionBuilder,
+      $$EventLogTableTableUpdateCompanionBuilder,
+      (
+        EventLogTableData,
+        BaseReferences<_$AppDatabase, $EventLogTableTable, EventLogTableData>,
+      ),
+      EventLogTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1291,4 +1932,6 @@ class $AppDatabaseManager {
       $$PrefixTableTableTableManager(_db, _db.prefixTable);
   $$QsoTableTableTableManager get qsoTable =>
       $$QsoTableTableTableManager(_db, _db.qsoTable);
+  $$EventLogTableTableTableManager get eventLogTable =>
+      $$EventLogTableTableTableManager(_db, _db.eventLogTable);
 }

@@ -13,6 +13,9 @@ import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/score_calculator.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
+import 'package:ssb_runner/training/replay_answer_source.dart';
+import 'package:ssb_runner/training/session_random.dart';
+import 'package:ssb_runner/training/training_profile.dart';
 
 class ContestRunningManager {
   final String runId;
@@ -20,6 +23,12 @@ class ContestRunningManager {
   final ContestDataManager _contestDataManager;
   final ContestTimer _contestTimer;
   final ScoreCalculator _scoreCalculator;
+  final TrainingMode _mode;
+  final TrainingDifficulty _difficulty;
+  final AnswerSource? _answerSourceOverride;
+  final void Function(ContestAnswer answer)? _onAnswerGenerated;
+  late final SessionRandom _sessionRandom = SessionRandom(_seed);
+  final int _seed;
 
   late final ContestInputHandler _inputHandler =
       _contestDataManager.inputHandler;
@@ -33,9 +42,16 @@ class ContestRunningManager {
     scoreCalculator: _scoreCalculator,
   );
 
-  late final ContestAnswerGenerator _answerGenerator = ContestAnswerGenerator(
-    contestType: _contestType,
-    callsignLoader: _contestDataManager.callsignLoader,
+  late final AnswerSource _answerGenerator = RecordingAnswerSource(
+    _answerSourceOverride ??
+        ContestAnswerGenerator(
+          contestType: _contestType,
+          callsignLoader: _contestDataManager.callsignLoader,
+          mode: _mode,
+          difficulty: _difficulty,
+          random: _sessionRandom,
+        ),
+    _onAnswerGenerated,
   );
 
   late final ContestStateChangeHandler _contestStateChangeHandler =
@@ -57,7 +73,9 @@ class ContestRunningManager {
         inputHandler: _inputHandler,
       );
 
-  final _keyEventManager = KeyEventHandler();
+  late final _keyEventManager = KeyEventHandler(
+    functionKeys: functionKeysFromSettings(_contestDataManager.appSettings),
+  );
 
   late final KeyEventCallback _keyEventCallback = _onKeyEvent;
 
@@ -72,10 +90,21 @@ class ContestRunningManager {
     required ContestType contestType,
     required ContestDataManager contestDataManager,
     required ScoreCalculator scoreCalculator,
+    required TrainingMode mode,
+    required TrainingDifficulty difficulty,
+    required int seed,
+    AnswerSource? answerSource,
+    void Function(ContestAnswer answer)? onAnswerGenerated,
   }) : _contestType = contestType,
        _contestTimer = contestTimer,
        _contestDataManager = contestDataManager,
-       _scoreCalculator = scoreCalculator {
+       _scoreCalculator = scoreCalculator,
+       _mode = mode,
+       _difficulty = difficulty,
+       _seed = seed,
+       _answerSourceOverride = answerSource,
+       _onAnswerGenerated = onAnswerGenerated {
+    _contestDataManager.audioLoader.setSessionRandom(_sessionRandom);
     _setupStateMachine();
     _setupKeyboardListener();
   }
@@ -86,6 +115,8 @@ class ContestRunningManager {
     final waitingSubmitCall = WaitingSubmitCall(
       currentCallAnswer: contestAnswer.callSign,
       currentExchangeAnswer: contestAnswer.exchange,
+      pileupCallsigns: contestAnswer.pileupCallsigns,
+      isSearchAndPounce: contestAnswer.isSearchAndPounce,
     );
 
     _stateMachine = initSingleCallRunStateMachine(
@@ -127,6 +158,7 @@ class ContestRunningManager {
   }
 
   void stop() {
+    _contestDataManager.audioLoader.setSessionRandom(null);
     _stateMachine.dispose();
     ServicesBinding.instance.keyboard.removeHandler(_keyEventCallback);
   }

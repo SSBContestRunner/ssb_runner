@@ -12,6 +12,16 @@ class PlayCall extends AudioPlayType {
   PlayCall({required this.callToPlay, this.isMe = false});
 }
 
+class PlayPileup extends AudioPlayType {
+  PlayPileup({required this.calls});
+  final List<String> calls;
+}
+
+class PlaySearchAndPounce extends AudioPlayType {
+  PlaySearchAndPounce({required this.call});
+  final String call;
+}
+
 class PlayExchange extends AudioPlayType {
   final String exchangeToPlay;
   final bool isMe;

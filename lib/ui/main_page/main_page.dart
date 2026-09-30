@@ -6,6 +6,7 @@ import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/bottom_panel/bottom_panel.dart';
 import 'package:ssb_runner/ui/main_page/key_tips.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
+import 'package:ssb_runner/ui/main_page/training_review_overlay.dart';
 import 'package:ssb_runner/ui/main_settings/main_settings.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_record_table.dart';
 
@@ -19,7 +20,11 @@ class MainPage extends StatelessWidget {
       child: BlocBuilder<MainPageCubit, bool>(
         builder: (context, isShowKeyTips) {
           return Stack(
-            children: [_mainPage(context), if (isShowKeyTips) KeyTips()],
+            children: [
+              _mainPage(context),
+              if (isShowKeyTips) KeyTips(),
+              const TrainingReviewOverlay(),
+            ],
           );
         },
       ),

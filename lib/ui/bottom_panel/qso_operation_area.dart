@@ -9,6 +9,7 @@ import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
+import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 import '../../contest_type/contest_type.dart';
@@ -288,7 +289,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _exchangeEditorController.dispose();
 
     _callSignFocusNode.dispose();
-    _exchangeEditorController.dispose();
+    _exchangeFocusNode.dispose();
 
     _cubit?.dispose();
     _contestTypeCubit?.dispose();
@@ -341,16 +342,19 @@ class _FunctionKeysPad extends StatelessWidget {
         SizedBox(
           width: 56,
           height: 56,
-          child: IconButton.filledTonal(
-            style: IconButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          child: Tooltip(
+            message: 'Keyboard reference',
+            child: IconButton.filledTonal(
+              style: IconButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
+              onPressed: () {
+                onInfoIconPressed();
+              },
+              icon: Icon(Icons.info_outlined),
             ),
-            onPressed: () {
-              onInfoIconPressed();
-            },
-            icon: Icon(Icons.info_outlined),
           ),
         ),
       ],
@@ -361,32 +365,37 @@ class _FunctionKeysPad extends StatelessWidget {
 class _FunctionKeys extends StatelessWidget {
   final void Function(OperationEvent event) onOperationEvent;
 
-  _FunctionKeys({required this.onOperationEvent});
-
-  final _functionKeyBtns = functionKeysMap.entries.map((entry) {
-    final buttonTextName = '${entry.key.keyLabel} ${entry.value.btnText}';
-    return (buttonTextName, entry.value);
-  });
+  const _FunctionKeys({required this.onOperationEvent});
 
   @override
   Widget build(BuildContext context) {
+    final functionKeyBtns =
+        functionKeysFromSettings(context.read<AppSettings>()).entries.map((
+          entry,
+        ) {
+          final buttonTextName = '${entry.key.keyLabel} ${entry.value.btnText}';
+          return (buttonTextName, entry.value);
+        });
     return GridView.count(
       crossAxisCount: 4,
       mainAxisSpacing: 16.0,
       crossAxisSpacing: 16.0,
       childAspectRatio: 2.5,
-      children: _functionKeyBtns.map((element) {
+      children: functionKeyBtns.map((element) {
         final (text, event) = element;
-        return ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
+        return Tooltip(
+          message: 'Send $text',
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
             ),
+            onPressed: () {
+              onOperationEvent(event);
+            },
+            child: Text(text),
           ),
-          onPressed: () {
-            onOperationEvent(event);
-          },
-          child: Text(text),
         );
       }).toList(),
     );

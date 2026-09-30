@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:ssb_runner/audio/audio_engine.dart';
+import 'package:ssb_runner/audio/noise_bed.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/training/training_profile.dart';
 
 /// Plays short PCM segments sequentially.
 ///
@@ -15,10 +17,10 @@ import 'package:ssb_runner/logging/app_logger.dart';
 /// machine.
 class AudioPlayer {
   AudioPlayer({
-    AudioEngine engine = const SoLoudAudioEngine(),
+    AudioEngine? engine,
     Duration Function(int byteLength)? estimateDuration,
     Duration watchdogMargin = const Duration(seconds: 3),
-  }) : _engine = engine,
+  }) : _engine = engine ?? SoLoudAudioEngine(),
        _estimateDuration = estimateDuration ?? _defaultEstimateDuration,
        _watchdogMargin = watchdogMargin;
 
@@ -35,16 +37,62 @@ class AudioPlayer {
 
   bool _stopped = true;
 
+  AudioTrainingProfile? _trainingProfile;
+  AudioTrainingEffects? _effects;
+  Uint8List? _noiseBedPcm;
+
   bool get isStarted => !_stopped;
+
+  /// Installs (or clears) the per-session training profile.
+  ///
+  /// Only incoming stations are processed; the operator's own audio is queued
+  /// untouched. The receiver noise bed lives outside the segment queue and is
+  /// started or stopped here so it never disturbs [isPlaying].
+  void setTrainingProfile(AudioTrainingProfile? profile) {
+    _trainingProfile = profile;
+    _effects = profile == null ? null : AudioTrainingEffects(profile);
+    _noiseBedPcm = profile == null
+        ? null
+        : generateNoiseBedPcm(seed: profile.audioSeed);
+
+    if (!isStarted) {
+      return;
+    }
+    if (profile == null) {
+      _engine.stopNoiseBed().catchError((_) {});
+    } else {
+      _startNoiseBed();
+    }
+  }
+
+  /// Realtime bed gain adjustment from the settings page.
+  void setNoiseBedVolume(double volume) {
+    _engine.setNoiseBedVolume(volume);
+  }
+
+  void _startNoiseBed() {
+    final pcm = _noiseBedPcm;
+    final profile = _trainingProfile;
+    if (pcm == null || profile == null) {
+      return;
+    }
+    _engine
+        .startNoiseBed(pcm, volume: profile.noiseBedLevel)
+        .catchError((_) {});
+  }
 
   Future<void> startPlay() async {
     _reset();
     _stopped = false;
+    if (_trainingProfile != null) {
+      _startNoiseBed();
+    }
   }
 
   void stopPlay() {
     _reset();
     _stopped = true;
+    _engine.stopNoiseBed().catchError((_) {});
   }
 
   /// Drops everything queued or playing.
@@ -69,7 +117,12 @@ class AudioPlayer {
       _reset();
     }
 
-    _pending.add(_PendingSegment(pcmData, isMyAudio));
+    final effects = _effects;
+    final processed = !isMyAudio && effects != null
+        ? effects.apply(pcmData)
+        : pcmData;
+
+    _pending.add(_PendingSegment(processed, isMyAudio));
     _pump();
   }
 

@@ -1,10 +1,9 @@
-import 'dart:math';
-
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx_score_calculator.dart';
 import 'package:ssb_runner/contest_type/exchange_manager.dart';
 import 'package:ssb_runner/contest_type/score_calculator.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/training/session_random.dart';
 
 class CqWpxContestType implements ContestType {
   late final WpxScoreCalculator _scoreCalculator;
@@ -32,11 +31,9 @@ class CqWpxContestType implements ContestType {
 }
 
 class _CqWpxExchangeManager implements ExchangeManager {
-  final _random = Random();
-
   @override
-  String generateExchange() {
-    final exchange = _random.nextInt(3000) + 1;
+  String generateExchange(SessionRandom random) {
+    final exchange = random.nextExchange(3000);
     return exchange.toString();
   }
 
