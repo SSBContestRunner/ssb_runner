@@ -7,7 +7,10 @@ import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 
 void main() {
   test('load dxcc from xml', () {
-    final xmlString = File('assets/dxcc/cty.xml').readAsStringSync();
+    // The DXCC table is shipped compressed (assets/dxcc/cty.xml.gz) and decoded
+    // at runtime in DxccManager.loadDxcc(), so decode it here the same way.
+    final bytes = File('assets/dxcc/cty.xml.gz').readAsBytesSync();
+    final xmlString = utf8.decode(GZipDecoder().decodeBytes(bytes));
     final prefixes = parseDxccXml(xmlString);
     expect(prefixes.isNotEmpty, true);
   });
