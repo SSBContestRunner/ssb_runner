@@ -41,6 +41,20 @@ class AudioPlayer {
   AudioTrainingEffects? _effects;
   Uint8List? _noiseBedPcm;
 
+  /// A bed start that is still wanted but has not succeeded yet, for example
+  /// because the engine was not initialized. It is retried on the next audio
+  /// pump so a whole session cannot silently lose its floor.
+  bool _bedWanted = false;
+  bool _bedStarting = false;
+
+  /// AGC model: a received signal pulls the floor down, and the floor recovers
+  /// after the transmission ends. Transmitting mutes the receiver, so the
+  /// operator's own audio ducks the floor all the way down.
+  static const Duration _bedDuckAttack = Duration(milliseconds: 30);
+  static const Duration _bedDuckRelease = Duration(milliseconds: 350);
+  static const double _receivedSignalDuck = 0.45;
+  static const double _ownSignalDuck = 0.0;
+
   bool get isStarted => !_stopped;
 
   /// Installs (or clears) the per-session training profile.
@@ -53,15 +67,21 @@ class AudioPlayer {
     _effects = profile == null ? null : AudioTrainingEffects(profile);
     _noiseBedPcm = profile == null
         ? null
-        : generateNoiseBedPcm(seed: profile.audioSeed);
+        : generateNoiseBedPcm(
+            seed: profile.audioSeed,
+            qrnPerSecond: profile.qrnRate,
+          );
 
     if (!isStarted) {
+      _bedWanted = false;
       return;
     }
     if (profile == null) {
+      _bedWanted = false;
       _engine.stopNoiseBed().catchError((_) {});
     } else {
-      _startNoiseBed();
+      _bedWanted = true;
+      _ensureNoiseBed();
     }
   }
 
@@ -70,28 +90,69 @@ class AudioPlayer {
     _engine.setNoiseBedVolume(volume);
   }
 
-  void _startNoiseBed() {
+  /// Starts the bed when one is wanted and the engine is ready.
+  void _ensureNoiseBed() {
+    if (!_bedWanted || _bedStarting || !_engine.isInitialized) {
+      return;
+    }
+    unawaited(_startNoiseBed());
+  }
+
+  Future<void> _startNoiseBed() async {
     final pcm = _noiseBedPcm;
     final profile = _trainingProfile;
     if (pcm == null || profile == null) {
+      _bedWanted = false;
       return;
     }
-    _engine
-        .startNoiseBed(pcm, volume: profile.noiseBedLevel)
-        .catchError((_) {});
+
+    _bedStarting = true;
+    final started = await _engine.startNoiseBed(
+      pcm,
+      volume: profile.noiseBedLevel,
+    );
+    _bedStarting = false;
+
+    if (!_bedWanted) {
+      return;
+    }
+    // On failure keep `_bedWanted` set and retry on the next pump.
+    _bedWanted = !started;
+  }
+
+  /// Ducks the floor as if an AGC were reacting to the signal being played.
+  void _duckBedFor(bool isMyAudio) {
+    final profile = _trainingProfile;
+    if (profile == null) {
+      return;
+    }
+    final target =
+        profile.noiseBedLevel * (isMyAudio ? _ownSignalDuck : _receivedSignalDuck);
+    _engine.fadeNoiseBedVolume(target, _bedDuckAttack);
+  }
+
+  /// Releases the floor back to the idle level after a transmission.
+  void _releaseBed() {
+    final profile = _trainingProfile;
+    if (profile == null) {
+      return;
+    }
+    _engine.fadeNoiseBedVolume(profile.noiseBedLevel, _bedDuckRelease);
   }
 
   Future<void> startPlay() async {
     _reset();
     _stopped = false;
     if (_trainingProfile != null) {
-      _startNoiseBed();
+      _bedWanted = true;
+      _ensureNoiseBed();
     }
   }
 
   void stopPlay() {
     _reset();
     _stopped = true;
+    _bedWanted = false;
     _engine.stopNoiseBed().catchError((_) {});
   }
 
@@ -112,6 +173,7 @@ class AudioPlayer {
     if (_stopped || pcmData.isEmpty) {
       return;
     }
+    _ensureNoiseBed();
 
     if (isResetCurrentStream) {
       _reset();
@@ -133,9 +195,14 @@ class AudioPlayer {
     final active = _active;
     _active = null;
     active?.dispose(stopVoice: true);
+
+    if (!_stopped) {
+      _releaseBed();
+    }
   }
 
   void _pump() {
+    _ensureNoiseBed();
     if (_stopped || _active != null || _pending.isEmpty) {
       return;
     }
@@ -179,6 +246,7 @@ class AudioPlayer {
       isMyAudio: segment.isMyAudio,
     );
     _active = active;
+    _duckBedFor(segment.isMyAudio);
 
     // Listen before start() so even a very short clip cannot be missed.
     active.finishedSubscription = audioSegment.finished.listen(
@@ -226,6 +294,12 @@ class AudioPlayer {
     active?.dispose();
 
     _pump();
+
+    // Restore the idle floor once the queue has drained; a segment started by
+    // `_pump()` already ducked it again.
+    if (_active == null) {
+      _releaseBed();
+    }
   }
 }
 

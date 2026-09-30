@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:ssb_runner/audio/pcm_to_wav.dart';
 
 /// A single, already-queued audio segment.
 ///
@@ -37,14 +38,25 @@ abstract interface class AudioEngine {
 
   /// Starts a constant, looping receiver noise bed.
   ///
+  /// [pcm] is raw 24 kHz mono 16-bit little-endian PCM; the engine wraps it in
+  /// a WAV container so it can be loaded as a normal, reliably loopable source.
+  /// Returns true when a looping voice was started, and false when the engine
+  /// was not ready, in which case the caller may retry.
+  ///
   /// The bed lives outside the segment queue on purpose: if it were queued,
   /// silent gaps would look like "incoming audio playing" and would distort
   /// [AudioPlayer.isPlaying], the watchdog and the state machine timing
   /// (design §5.1).
-  Future<void> startNoiseBed(Uint8List pcm, {double volume = 0.0});
+  Future<bool> startNoiseBed(Uint8List pcm, {double volume = 0.0});
 
-  /// Adjusts the bed gain while it is playing. A no-op when no bed is active.
+  /// Adjusts the bed gain immediately. A no-op when no bed is active.
   void setNoiseBedVolume(double volume);
+
+  /// Smoothly fades the bed to [volume] over [time].
+  ///
+  /// Used for the AGC-style ducking while a signal is being received and for
+  /// the release back to the idle floor afterwards.
+  void fadeNoiseBedVolume(double volume, Duration time);
 
   /// Stops and releases the noise bed.
   Future<void> stopNoiseBed();
@@ -60,6 +72,10 @@ class SoLoudAudioEngine implements AudioEngine {
 
   AudioSource? _noiseSource;
   SoundHandle? _noiseHandle;
+
+  /// Bumped whenever the bed is (re)started or stopped, so a slow [loadMem]
+  /// that loses the race is disposed instead of playing behind a newer bed.
+  int _noiseGeneration = 0;
 
   @override
   bool get isInitialized => SoLoud.instance.isInitialized;
@@ -84,27 +100,42 @@ class SoLoudAudioEngine implements AudioEngine {
   }
 
   @override
-  Future<void> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async {
+  Future<bool> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async {
     await stopNoiseBed();
     if (!SoLoud.instance.isInitialized || pcm.isEmpty) {
-      return;
+      return false;
     }
 
-    final source = SoLoud.instance.setBufferStream(
-      bufferingType: BufferingType.released,
-      channels: Channels.mono,
-      bufferingTimeNeeds: 0.1,
-    );
-
+    // A decoded in-memory WAV loops sample-accurately for as long as the
+    // session runs. A `BufferingType.released` stream must not be used here:
+    // it frees data as it plays, so the bed would go silent after one pass.
+    final generation = ++_noiseGeneration;
     try {
-      SoLoud.instance.addAudioDataStream(source, pcm);
-      SoLoud.instance.setDataIsEnded(source);
-      _noiseHandle = SoLoud.instance.play(source, looping: true, volume: volume);
+      final source = await SoLoud.instance.loadMem(
+        'noise_bed.wav',
+        pcm16ToWav(pcm),
+      );
+
+      if (generation != _noiseGeneration || !SoLoud.instance.isInitialized) {
+        await SoLoud.instance.disposeSource(source).catchError((_) {});
+        return false;
+      }
+
+      final handle = SoLoud.instance.play(
+        source,
+        looping: true,
+        volume: volume,
+      );
+      if (source.handles.isEmpty) {
+        await SoLoud.instance.disposeSource(source).catchError((_) {});
+        return false;
+      }
+
       _noiseSource = source;
+      _noiseHandle = handle;
+      return true;
     } catch (_) {
-      _noiseHandle = null;
-      _noiseSource = null;
-      await SoLoud.instance.disposeSource(source).catchError((_) {});
+      return false;
     }
   }
 
@@ -118,7 +149,22 @@ class SoLoudAudioEngine implements AudioEngine {
   }
 
   @override
+  void fadeNoiseBedVolume(double volume, Duration time) {
+    final handle = _noiseHandle;
+    if (handle == null || !SoLoud.instance.isInitialized) {
+      return;
+    }
+    try {
+      SoLoud.instance.fadeVolume(handle, volume, time);
+    } catch (_) {
+      // A fade on a just-stopped voice is harmless; the next duck/release
+      // recomputes the target anyway.
+    }
+  }
+
+  @override
   Future<void> stopNoiseBed() async {
+    _noiseGeneration++;
     final handle = _noiseHandle;
     final source = _noiseSource;
     _noiseHandle = null;

@@ -637,7 +637,7 @@ PR 全部 33 个文件中，23 个非 UI 文件为音频、状态机、规则、
 
 **素材来源（三选一，推荐 A）：**
 
-- **A. 程序化生成（推荐，零素材依赖）**：用固定种子 PRNG 生成 2 s 带限噪声（简单一阶低通滤白噪声，模拟接收机音频通带 300–3000 Hz 的"沙沙"感），得到 96000 采样的 PCM，循环播放。优点：不动 submodule、时长可控、种子可复现。
+- **A. 程序化生成（推荐，零素材依赖）**：固定种子 PRNG 生成 8 s 噪声，经 2 阶高通 300 Hz + 4 阶 Butterworth 低通 2700 Hz 得到 SSB 音频通带的"沙沙"hiss，再叠加缓慢的呼吸包络与稀疏的带限 QRN 静电爆音，等功率首尾交叉淡化后无缝循环，并归一化到固定 RMS（0.12 FS，约 −18.4 dBFS）。优点：不动 submodule、频谱/时长/种子可控可复现。
 - B. 新增 `assets/voice/Global/Common/NOISE.wav` 静态文件。缺点：要改 submodule 与资源清单。
 - C. 白噪声实时流。缺点：需要持续喂 buffer，复杂度高，收益低。
 
@@ -648,26 +648,35 @@ abstract interface class AudioEngine {
   bool get isInitialized;
   AudioSegment? createSegment(Uint8List pcm);
 
-  // 新增：常驻循环底床
-  Future<void> startNoiseBed(Uint8List pcm, {double volume = 0.0});
+  // 常驻循环底床；引擎未就绪时返回 false，调用方可重试。
+  Future<bool> startNoiseBed(Uint8List pcm, {double volume = 0.0});
   void setNoiseBedVolume(double volume);
+  // AGC 式淡入/淡出：信号到来时压低，结束后恢复。
+  void fadeNoiseBedVolume(double volume, Duration time);
   Future<void> stopNoiseBed();
 }
 ~~~
 
-`SoLoudAudioEngine` 里用一个 `BufferingType.released` 的 loop source 实现（`setDataIsEnded` + looping），与 segment 用同一个 `SoLoud` 实例但**独立的 `AudioSource` 与 `SoundHandle`**，因此不受 `_reset()` 影响。
+`SoLoudAudioEngine` 把底床 PCM 包成 WAV 后用 `loadMem` 载成**静态内存音源**，再 `play(looping: true)`。它与 segment 用同一个 `SoLoud` 实例但持有独立的 `AudioSource`/`SoundHandle`，因此不受 `_reset()` 影响。**不能用 `BufferingType.released` 的 buffer stream 循环**：该类型边播边释放已播数据，底噪会在播完一轮后静音（旧实现断续的根因）。
 
-**接线点：** `AudioPlayer.startPlay()` → `startNoiseBed(noisePcm, volume: profile.noiseLevel)`；`stopPlay()` → `stopNoiseBed()`；`setTrainingProfile()` 时若会话进行中则同步 `setNoiseBedVolume`。
+**接线点：** `AudioPlayer.startPlay()` → `startNoiseBed(pcm, volume: noiseBedLevel)`；`stopPlay()` → `stopNoiseBed()`；每个 segment 开始时按 AGC 模型调用 `fadeNoiseBedVolume`（收到信号压到 45%，操作员自己发射时静音），结束后 350 ms 释放回静默电平；引擎未就绪时保留请求并在下一次音频 pump 重试。
+
+**底噪真实化要点：**
+
+- **频谱**：300–2700 Hz 明亮通带，取代旧版一阶低通（−3 dB ≈ 573 Hz）的低频隆隆声。
+- **连续性**：静态内存音源循环 + 100 ms 等功率接缝淡化，静默期底噪恒常存在且无接缝脉冲。
+- **动态**：约 ±2 dB、周期与循环长度一致的缓慢起伏；QRN 速率随难度增加。
+- **AGC**：收到信号时底噪被压低（不是消失），结束后释放；自己发射时收信静音。
 
 **难度参数重新定义**（把"信号内噪声"与"接收机底噪"分离）：
 
-| 档位 | 底噪 level（底床增益） | 信号内 SNR 噪声 | QSB 深度 | QSB 速率 | Pile-up 台数 |
-|---|---|---|---|---|---|
-| Beginner | 0.02 | 0.00 | 0.00 | — | 1 |
-| Standard | 0.07 | 0.04 | 0.10 | 0.5 Hz | 2 |
-| Advanced | 0.15 | 0.10 | 0.22 | 1.0 Hz | 3 |
+| 档位 | 底噪 level（底床增益） | 底床 RMS | QRN 速率 | 信号内 SNR 噪声 | QSB 深度 | QSB 速率 | Pile-up 台数 |
+|---|---|---|---|---|---|---|---|
+| Beginner | 0.06 | −42.8 dBFS | 0.0 /s | 0.00 | 0.00 | — | 1 |
+| Standard | 0.22 | −31.5 dBFS | 0.30 /s | 0.04 | 0.10 | 0.5 Hz | 2 |
+| Advanced | 0.55 | −23.6 dBFS | 0.70 /s | 0.10 | 0.22 | 1.0 Hz | 3 |
 
-底床增益需明显低于信号（信号峰值约 0.8 FS），避免掩蔽呼号。
+底床与信号（语音 RMS 约 −19.7 dBFS）的宽带 RMS 比约为 Beginner 23 dB、Standard 12 dB、Advanced 4 dB；底床还需经过 AGC ducking，避免掩蔽呼号。
 
 ### 5.3 信号效果层（把 PR 的纯函数层修好）
 
@@ -677,6 +686,7 @@ abstract interface class AudioEngine {
 2. **QSB 相位跨 clip 连续。** 用一个会话级的相位累加器（`_phase` 随会话推进），而不是每个 clip 从 `sin(0)` 重新开始，否则每次发射都"从最响开始衰减"，听感虚假。相位由 seed 初始化。
 3. **resample 用线性插值**替代最近邻丢样，避免 Advanced（1.18×）下的混叠噪声。代价可忽略（24 kHz 音频）。
 4. **噪声与 QSB 分离开关**：底噪由底床负责后，`apply()` 内只保留"信号内 SNR 噪声"（幅度已下调），避免双重噪声叠加。
+5. **信号内噪声与底噪同色**：`apply()` 的 SNR 噪声不再用全带宽白噪声，而是与底床共用 `lib/audio/ssb_passband.dart` 的 300–2700 Hz 整形（`SsbNoiseShaper`）。归一化保持通带内 RMS 与原来全带宽白噪声的通带分量一致，因此 `snrNoise` 的有效 SNR 不变，只是去掉了 2.7 kHz 以上的非 SSB 成分；滤波器状态跨 clip 保留，避免每个 clip 重新起振。
 
 签名建议：
 

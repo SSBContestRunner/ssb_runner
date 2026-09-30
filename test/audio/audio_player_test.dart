@@ -169,14 +169,20 @@ class FakeAudioEngine implements AudioEngine {
   int stopNoiseBedCalls = 0;
 
   @override
-  Future<void> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async {
+  Future<bool> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async {
     startNoiseBedCalls++;
     noiseBedPcm = pcm;
     noiseBedVolume = volume;
+    return true;
   }
 
   @override
   void setNoiseBedVolume(double volume) {
+    noiseBedVolume = volume;
+  }
+
+  @override
+  void fadeNoiseBedVolume(double volume, Duration time) {
     noiseBedVolume = volume;
   }
 
