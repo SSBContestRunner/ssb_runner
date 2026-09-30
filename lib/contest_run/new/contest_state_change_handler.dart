@@ -17,7 +17,7 @@ import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/db/app_database.dart';
-import 'package:ssb_runner/main.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
@@ -275,11 +275,11 @@ class ContestStateChangeHandler {
   }
 
   Future<void> _handleReportMyExchange(ReportMyExchange toState) async {
-    logger.d('_handleReportMyExchange!');
+    log.debug('_handleReportMyExchange!', tag: 'contest');
     await _waitAudioNotPlaying();
 
     final currentState = _stateMachine.currentState;
-    logger.d('currentState: $currentState');
+    log.debug('currentState: $currentState', tag: 'contest');
     if (_stateMachine.currentState is! ReportMyExchange) {
       return;
     }

@@ -1,4 +1,4 @@
 output: dist/
 
 variables:
-  FLUTTER_ROOT: .fvm/versions/3.35.6
+  FLUTTER_ROOT: .fvm/versions/3.47.5

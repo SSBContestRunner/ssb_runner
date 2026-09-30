@@ -3,7 +3,7 @@ import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
-import 'package:ssb_runner/main.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
@@ -274,8 +274,9 @@ initSingleCallRunStateMachine({
     });
 
     builder.onTransition((transition) {
-      logger.i(
+      log.info(
         'onTransition: from=${transition.from} to=${(transition is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) ? transition.to : null} event=${transition.event}',
+        tag: 'contest.state',
       );
       transitionListener(transition);
     });

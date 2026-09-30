@@ -33,22 +33,24 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-  flutter_soloud: ^3.3.9
+  cupertino_icons: ^2.0.0
+  flutter_soloud: ^5.1.5
   flutter_bloc: ^9.1.1
   statemachine: ^3.4.0
   collection: ^1.19.1
   equatable: ^2.0.7
   drift: ^2.29.0
-  drift_flutter: ^0.2.7
+  drift_flutter: ^0.3.1
+  sqlite3: ^3.6.0
   path_provider: ^2.1.5
   archive: ^4.0.7
-  xml: ^6.6.1
+  xml: ^7.1.0
   window_manager: ^0.5.1
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
   worker_manager: ^7.2.7
   logger: ^2.6.2
+  package_info_plus: ^10.2.1
   toastification: ^3.0.3
   catcher_2: ^2.1.5
   intl: ^0.20.2
@@ -65,6 +67,16 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.29.0
   build_runner: ^2.10.0
+
+# Native library provisioning for package:sqlite3.
+# sqlite3_flutter_libs is end-of-life: package:sqlite3 3.x now bundles SQLite
+# through Dart build hooks. "sqlite3" is the default source and ships prebuilt
+# binaries (FTS5 / RTREE / math functions). Alternatives: sqlite3mc or
+# sqlcipher for encryption, system/source for custom builds.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -145,3 +157,15 @@ flutter:
     - family: Iosevka
       fonts:
         - asset: fonts/Iosevka-Regular-sub.ttf
+
+# Force every remaining package to the newest published version where the
+# constraint is loose enough to allow it:
+#   equatable -> toastification, cli_util -> drift_dev,
+#   material_color_utilities / test_api -> Flutter SDK.
+# Do NOT override a transitive major that a direct dependency pins with an
+# upper bound (e.g. catcher_2 -> cross_file ^0.3.0): that only creates a fork.
+dependency_overrides:
+  equatable: ^3.0.0
+  cli_util: ^0.6.0
+  material_color_utilities: ^0.13.1
+  test_api: ^0.7.14

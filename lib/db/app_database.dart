@@ -15,7 +15,7 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => _schemaVersion;
 
-  static QueryExecutor _openConnection() {
+  static DatabaseConnection _openConnection() {
     return driftDatabase(
       name: 'ssb_runner_database',
       native: DriftNativeOptions(

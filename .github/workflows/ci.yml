@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ['v*']
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+# Least privilege by default; the release job raises contents: write.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # test/dxcc_loader_test.dart reads assets/dxcc/*, and assets is a git submodule.
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        # Only warnings/errors fail the gate; info-level lints are reported but non-blocking.
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+  package:
+    name: Package (${{ matrix.platform }})
+    needs: analyze
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            targets: deb,zip
+          - os: windows-latest
+            platform: windows
+            targets: zip
+          - os: macos-latest
+            platform: macos
+            targets: dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      - name: Install macOS packaging tools
+        if: matrix.platform == 'macos'
+        # fastforge's dmg maker shells out to appdmg; pre-install it so fastforge
+        # does not need to fall back to `pnpm install -g appdmg` (which may not be on PATH).
+        run: npm install -g appdmg
+
+      # distribute_options.yaml pins FLUTTER_ROOT to the FVM path (.fvm/versions/<version>),
+      # which only exists locally. Recreate that path on the runner so the config stays
+      # untouched and local builds keep working.
+      - name: Link FVM path expected by distribute_options.yaml (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)
+          test -n "$VERSION"
+          FLUTTER_BIN=$(command -v flutter)
+          FLUTTER_ROOT_DIR=$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd)
+          mkdir -p .fvm/versions
+          rm -rf ".fvm/versions/$VERSION"
+          ln -sfn "$FLUTTER_ROOT_DIR" ".fvm/versions/$VERSION"
+          echo "linked .fvm/versions/$VERSION -> $FLUTTER_ROOT_DIR"
+
+      - name: Link FVM path expected by distribute_options.yaml (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = (Get-Content .fvmrc -Raw | ConvertFrom-Json).flutter
+          if (-not $version) { throw '.fvmrc is missing "flutter"' }
+          $flutterBin = (Get-Command flutter).Source
+          $flutterRoot = Split-Path (Split-Path $flutterBin -Parent) -Parent
+          New-Item -ItemType Directory -Force -Path .fvm/versions | Out-Null
+          $link = ".fvm/versions/$version"
+          if (Test-Path $link) { Remove-Item $link -Recurse -Force }
+          # A directory junction does not need elevated privileges on Windows.
+          New-Item -ItemType Junction -Path $link -Target $flutterRoot | Out-Null
+          Write-Host "linked $link -> $flutterRoot"
+
+      - name: Install fastforge
+        # 0.6.11+ is required: earlier releases pass FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER
+        # through --dart-define, which Flutter 3.47 rejects (fastforge #354).
+        run: dart pub global activate fastforge 0.6.12
+
+      - name: Build & package
+        run: dart pub global run fastforge:main package --platform=${{ matrix.platform }} --targets=${{ matrix.targets }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssb-runner-${{ matrix.platform }}
+          path: dist/**
+          if-no-files-found: error
+
+  release:
+    name: Draft GitHub Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # fastforge writes into dist/<version>/, and action-gh-release needs plain file
+      # globs (it calls statSync on each match), so flatten everything first.
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find dist -type f -exec cp {} release/ \;
+          ls -la release
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          draft: true
+          generate_release_notes: true
