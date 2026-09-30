@@ -1,23 +1,31 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:ssb_runner/audio/audio_engine.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 
 /// Plays short PCM segments sequentially.
 ///
-/// Every segment is played by its own single-use [AudioSource] (a
-/// `BufferingType.released` buffer stream) that is marked complete with
-/// [SoLoud.setDataIsEnded]. Completion is driven by the engine's
-/// [AudioSource.allInstancesFinished] event instead of by polling buffer sizes
-/// or stream time. That matters because flutter_soloud 5.x parks the output
-/// device after 500 ms without an active voice, which used to freeze the old
-/// time-based "still playing" check and stall the state machine.
-///
 /// Segments added with `isResetCurrentStream: false` are queued and played
 /// after the current one; `isResetCurrentStream: true` interrupts and replaces
-/// the queue.
+/// the queue. Completion is driven by [AudioSegment.finished] instead of by
+/// polling buffer sizes or stream time. That matters because flutter_soloud
+/// 5.x parks the output device after 500 ms without an active voice, which used
+/// to freeze the old time-based "still playing" check and stall the state
+/// machine.
 class AudioPlayer {
+  AudioPlayer({
+    AudioEngine engine = const SoLoudAudioEngine(),
+    Duration Function(int byteLength)? estimateDuration,
+    Duration watchdogMargin = const Duration(seconds: 3),
+  }) : _engine = engine,
+       _estimateDuration = estimateDuration ?? _defaultEstimateDuration,
+       _watchdogMargin = watchdogMargin;
+
+  final AudioEngine _engine;
+  final Duration Function(int byteLength) _estimateDuration;
+  final Duration _watchdogMargin;
+
   final List<_PendingSegment> _pending = <_PendingSegment>[];
   _ActiveSegment? _active;
 
@@ -83,7 +91,7 @@ class AudioPlayer {
   }
 
   void _startSegment(_PendingSegment segment) {
-    if (!SoLoud.instance.isInitialized) {
+    if (!_engine.isInitialized) {
       log.warn(
         'audio engine not initialized, dropping segment',
         tag: 'audio.player',
@@ -91,15 +99,9 @@ class AudioPlayer {
       return;
     }
 
-    final source = SoLoud.instance.setBufferStream(
-      bufferingType: BufferingType.released,
-      channels: Channels.mono,
-      bufferingTimeNeeds: 0.1,
-    );
-
+    AudioSegment? audioSegment;
     try {
-      SoLoud.instance.addAudioDataStream(source, segment.pcm);
-      SoLoud.instance.setDataIsEnded(source);
+      audioSegment = _engine.createSegment(segment.pcm);
     } catch (error, stackTrace) {
       log.error(
         'failed to queue audio segment',
@@ -107,28 +109,38 @@ class AudioPlayer {
         error: error,
         stackTrace: stackTrace,
       );
-      SoLoud.instance.disposeSource(source).catchError((_) {});
+      return;
+    }
+
+    if (audioSegment == null) {
+      log.warn(
+        'audio engine could not create a segment, dropping it',
+        tag: 'audio.player',
+      );
       return;
     }
 
     final generation = ++_generation;
-    final active = _ActiveSegment(source: source, isMyAudio: segment.isMyAudio);
+    final active = _ActiveSegment(
+      audioSegment: audioSegment,
+      isMyAudio: segment.isMyAudio,
+    );
     _active = active;
 
-    // Listen before play() so even a very short clip cannot be missed.
-    active.finishedSubscription = source.allInstancesFinished.listen(
+    // Listen before start() so even a very short clip cannot be missed.
+    active.finishedSubscription = audioSegment.finished.listen(
       (_) => _onSegmentFinished(generation),
     );
 
     // Safety net: never leave the queue stuck if the engine fails to report
     // the voice ending.
     active.watchdog = Timer(
-      _estimateDuration(segment.pcm.lengthInBytes) + const Duration(seconds: 3),
+      _estimateDuration(segment.pcm.lengthInBytes) + _watchdogMargin,
       () => _onSegmentFinished(generation),
     );
 
     try {
-      active.handle = SoLoud.instance.play(source);
+      audioSegment.start();
     } catch (error, stackTrace) {
       log.error(
         'failed to play audio segment',
@@ -140,8 +152,8 @@ class AudioPlayer {
       return;
     }
 
-    if (source.handles.isEmpty) {
-      // `play()` could not allocate a voice (e.g. the active voice cap was
+    if (!audioSegment.hasVoice) {
+      // `start()` could not allocate a voice (e.g. the active voice cap was
       // reached), so no completion event will arrive.
       log.warn(
         'audio voice could not be allocated, skipping segment',
@@ -162,12 +174,12 @@ class AudioPlayer {
 
     _pump();
   }
+}
 
-  /// The app's audio is 16-bit mono PCM at 24 kHz.
-  Duration _estimateDuration(int byteLength) {
-    final sampleCount = byteLength ~/ 2;
-    return Duration(microseconds: sampleCount * 1000000 ~/ 24000);
-  }
+/// The app's audio is 16-bit mono PCM at 24 kHz.
+Duration _defaultEstimateDuration(int byteLength) {
+  final sampleCount = byteLength ~/ 2;
+  return Duration(microseconds: sampleCount * 1000000 ~/ 24000);
 }
 
 class _PendingSegment {
@@ -178,12 +190,11 @@ class _PendingSegment {
 }
 
 class _ActiveSegment {
-  _ActiveSegment({required this.source, required this.isMyAudio});
+  _ActiveSegment({required this.audioSegment, required this.isMyAudio});
 
-  final AudioSource source;
+  final AudioSegment audioSegment;
   final bool isMyAudio;
 
-  SoundHandle? handle;
   Timer? watchdog;
   StreamSubscription<void>? finishedSubscription;
 
@@ -194,11 +205,10 @@ class _ActiveSegment {
     finishedSubscription?.cancel();
     finishedSubscription = null;
 
-    final handleVal = handle;
-    if (stopVoice && handleVal != null) {
-      SoLoud.instance.stop(handleVal).catchError((_) {});
+    if (stopVoice) {
+      audioSegment.stop().catchError((_) {});
     }
 
-    SoLoud.instance.disposeSource(source).catchError((_) {});
+    audioSegment.dispose().catchError((_) {});
   }
 }
