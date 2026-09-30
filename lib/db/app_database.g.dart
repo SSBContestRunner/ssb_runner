@@ -982,7 +982,16 @@ class $$PrefixTableTableTableManager
                 continent: continent,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$PrefixTableTable, PrefixTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PrefixTableTable,
+                    PrefixTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -1241,7 +1250,16 @@ class $$QsoTableTableTableManager
                 exchangeCorrect: exchangeCorrect,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$QsoTableTable, QsoTableData>(table),
+                  BaseReferences<_$AppDatabase, $QsoTableTable, QsoTableData>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

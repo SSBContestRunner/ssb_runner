@@ -17,7 +17,7 @@ class AudioPlayer {
   Future<void> startPlay() async {
     final audioSource = _createAudioSource();
     _audioSource = audioSource;
-    _handle = await SoLoud.instance.play(audioSource);
+    _handle = SoLoud.instance.play(audioSource);
   }
 
   AudioSource _createAudioSource() {

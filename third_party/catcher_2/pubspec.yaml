@@ -1,0 +1,46 @@
+name: catcher_2
+description: Plugin for error catching which provides multiple handlers for dealing with errors when they are not caught by the developer.
+version: 2.1.12
+homepage: https://github.com/ThexXTURBOXx/catcher_2
+repository: https://github.com/ThexXTURBOXx/catcher_2
+issue_tracker: https://github.com/ThexXTURBOXx/catcher_2/issues
+
+funding:
+  - https://github.com/sponsors/ThexXTURBOXx
+
+topics:
+  - analysis
+  - errors
+  - flutter
+  - logging
+  - tool
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  cross_file: ^0.4.0
+  device_info_plus: '>=9.0.0 <14.0.0'
+  dio: ^5.0.1
+  flutter:
+    sdk: flutter
+  flutter_mailer: ^3.0.0
+  fluttertoast: '>=8.2.6 <11.0.0'
+  logging: ^1.0.2
+  mailer: '>=6.0.0 <8.0.0'
+  path_provider: '>=2.0.0 <3.0.0'
+  package_info_plus: '>=4.0.0 <11.0.0'
+  sentry: '>=7.2.0 <11.0.0'
+  universal_io: ^2.0.4
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
