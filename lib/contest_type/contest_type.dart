@@ -5,4 +5,10 @@ abstract interface class ContestType {
   abstract final RegExp allowExchangeRegex;
   abstract final ScoreCalculator scoreCalculator;
   abstract final ExchangeManager exchangeManager;
+
+  /// The operator's own exchange for the 1-based [qsoNumber], ready to speak.
+  String buildMyExchange(int qsoNumber);
+
+  /// Received exchange -> spoken form for the current contest.
+  String formatExchangeForAudio(String exchange);
 }

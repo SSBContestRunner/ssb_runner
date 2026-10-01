@@ -130,6 +130,7 @@ class ContestManager {
     final contestType = definition.create(
       stationCallsign: settings.stationCallsign,
       dxccManager: dxccManager,
+      stationExchange: settings.stationExchangeConfig(definition.id),
     );
     _activeRun = TrainingRunMetadata(
       runId: runId,

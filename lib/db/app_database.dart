@@ -7,7 +7,7 @@ import 'package:ssb_runner/db/table/qso_table.dart';
 
 part 'app_database.g.dart';
 
-const _schemaVersion = 2;
+const _schemaVersion = 3;
 
 @DriftDatabase(tables: [PrefixTable, QsoTable, EventLogTable])
 class AppDatabase extends _$AppDatabase {
@@ -25,6 +25,13 @@ class AppDatabase extends _$AppDatabase {
       // v2 added the training event log; keep existing QSO/prefix rows.
       if (from < 2) {
         await migrator.createTable(eventLogTable);
+      }
+      // v3 adds the cty zone columns. Drop the cached prefixes so the next
+      // loadDxcc() re-parses the asset and fills them.
+      if (from < 3) {
+        await migrator.addColumn(prefixTable, prefixTable.cqz);
+        await migrator.addColumn(prefixTable, prefixTable.ituz);
+        await delete(prefixTable).go();
       }
     },
   );

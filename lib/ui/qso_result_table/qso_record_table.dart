@@ -24,23 +24,11 @@ class QsoRecordTable extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Row(children: [Text('UTC', style: textStyle)]),
-                  ),
-                  Expanded(
-                    child: Row(children: [Text('Call', style: textStyle)]),
-                  ),
-                  Expanded(
-                    child: Row(children: [Text('Rst', style: textStyle)]),
-                  ),
-                  Expanded(
-                    child: Row(children: [Text('Exchange', style: textStyle)]),
-                  ),
-                  Expanded(
-                    child: Row(
-                      children: [Text('Corrections', style: textStyle)],
-                    ),
-                  ),
+                  Expanded(child: _headerCell('UTC', textStyle)),
+                  Expanded(child: _headerCell('Call', textStyle)),
+                  Expanded(child: _headerCell('Rst', textStyle)),
+                  Expanded(child: _headerCell('Exchange', textStyle)),
+                  Expanded(child: _headerCell('Corrections', textStyle)),
                 ],
               ),
             ),
@@ -50,6 +38,17 @@ class QsoRecordTable extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Header labels use the same fixed five-column layout as the rows; keep them
+  /// from overflowing when a locale/fallback font measures them wider.
+  Widget _headerCell(String label, TextStyle? textStyle) {
+    return Text(
+      label,
+      style: textStyle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

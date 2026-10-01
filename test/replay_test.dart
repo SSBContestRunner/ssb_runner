@@ -87,7 +87,9 @@ void main() {
       (answer) => served.add(answer.callSign),
     );
 
-    final generated = [for (var index = 0; index < 5; index++) source.generateAnswer()];
+    final generated = [
+      for (var index = 0; index < 5; index++) source.generateAnswer(),
+    ];
 
     expect(served, generated.map((answer) => answer.callSign).toList());
   });
@@ -117,8 +119,9 @@ void main() {
   });
 }
 
-CallsignLoader _loader() => CallsignLoader()
-  ..callSigns.addAll(const ['A1AAA', 'B2BBB', 'C3CCC', 'D4DDD', 'E5EEE']);
+CallsignLoader _loader() =>
+    CallsignLoader()
+      ..callSigns.addAll(const ['A1AAA', 'B2BBB', 'C3CCC', 'D4DDD', 'E5EEE']);
 
 _FixedContestType _contestType() => _FixedContestType();
 
@@ -165,4 +168,10 @@ class _FixedContestType implements ContestType {
 
   @override
   ScoreCalculator get scoreCalculator => throw UnimplementedError();
+
+  @override
+  String buildMyExchange(int qsoNumber) => qsoNumber.toString();
+
+  @override
+  String formatExchangeForAudio(String exchange) => exchange;
 }

@@ -188,7 +188,9 @@ class ContestStateChangeHandler {
         final exchangePcmData = await _audioLoader.loadAudio(
           assetDir,
           CallsignPayload(
-            callsign: playType.exchangeToPlay,
+            callsign: _contestType.formatExchangeForAudio(
+              playType.exchangeToPlay,
+            ),
             phonicType: _appSettings.phonicType,
           ),
         );
@@ -223,7 +225,9 @@ class ContestStateChangeHandler {
         final exchangePcmData = await _audioLoader.loadAudio(
           obtainAssetDir(playType.isMe, dxccId),
           CallsignPayload(
-            callsign: playType.exchangeToPlay,
+            callsign: _contestType.formatExchangeForAudio(
+              playType.exchangeToPlay,
+            ),
             phonicType: _appSettings.phonicType,
           ),
         );

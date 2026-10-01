@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
+import 'package:ssb_runner/contest_type/contest_definition.dart';
+import 'package:ssb_runner/contest_type/station_exchange.dart';
+import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:toastification/toastification.dart';
 
@@ -119,12 +122,15 @@ class _QsoRecordSpeed extends StatelessWidget {
 class _RunBtnCubit extends Cubit<bool> {
   final ContestManager _contestManager;
   final AppSettings _appSettings;
+  final DxccManager _dxccManager;
 
   _RunBtnCubit({
     required ContestManager contestManager,
     required AppSettings appSettings,
+    required DxccManager dxccManager,
   }) : _contestManager = contestManager,
        _appSettings = appSettings,
+       _dxccManager = dxccManager,
        super(contestManager.isContestRunning) {
     contestManager.isContestRunningStream.listen((isContestRunning) {
       emit(isContestRunning);
@@ -161,6 +167,22 @@ class _RunBtnCubit extends Cubit<bool> {
       return 'Duration must be set and greater than 0';
     }
 
+    // Station exchange must be complete before a run starts (design 3.3/6.8).
+    final definition = ContestRegistry.byId(_appSettings.contestId);
+    final plan = definition.myExchangePlan(
+      stationCallsign: _appSettings.stationCallsign,
+      dxccManager: _dxccManager,
+    );
+    final exchangeError = validateStationExchange(
+      plan: plan,
+      config: _appSettings.stationExchangeConfig(definition.id),
+      stationCallsign: _appSettings.stationCallsign,
+      dxccManager: _dxccManager,
+    );
+    if (exchangeError != null) {
+      return exchangeError;
+    }
+
     return '';
   }
 }
@@ -174,6 +196,7 @@ class _RunBtn extends StatelessWidget {
       create: (context) => _RunBtnCubit(
         contestManager: context.read(),
         appSettings: context.read(),
+        dxccManager: context.read(),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.max,

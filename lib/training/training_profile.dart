@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:ssb_runner/audio/ssb_passband.dart';
 import 'package:ssb_runner/training/session_random.dart';
 
 /// A practice profile is intentionally independent from a contest definition.
@@ -33,7 +34,8 @@ enum TrainingDifficulty {
     'beginner',
     'Beginner',
     playbackRate: 1.0,
-    noiseBedLevel: 0.02,
+    noiseBedLevel: 0.06,
+    qrnRate: 0.0,
     snrNoise: 0.00,
     qsbDepth: 0.00,
     qsbRate: 0.0,
@@ -44,7 +46,8 @@ enum TrainingDifficulty {
     'standard',
     'Standard',
     playbackRate: 1.08,
-    noiseBedLevel: 0.07,
+    noiseBedLevel: 0.22,
+    qrnRate: 0.30,
     snrNoise: 0.04,
     qsbDepth: 0.10,
     qsbRate: 0.5,
@@ -55,7 +58,8 @@ enum TrainingDifficulty {
     'advanced',
     'Advanced',
     playbackRate: 1.18,
-    noiseBedLevel: 0.15,
+    noiseBedLevel: 0.55,
+    qrnRate: 0.70,
     snrNoise: 0.10,
     qsbDepth: 0.22,
     qsbRate: 1.0,
@@ -68,6 +72,7 @@ enum TrainingDifficulty {
     this.label, {
     required this.playbackRate,
     required this.noiseBedLevel,
+    required this.qrnRate,
     required this.snrNoise,
     required this.qsbDepth,
     required this.qsbRate,
@@ -81,6 +86,10 @@ enum TrainingDifficulty {
 
   /// Constant receiver noise bed gain (applied to the generated bed PCM).
   final double noiseBedLevel;
+
+  /// Average QRN (static crash) rate baked into the noise bed, in bursts per
+  /// second. Real HF band noise is not a dead, steady hiss.
+  final double qrnRate;
 
   /// Noise added on top of each signal clip.
   final double snrNoise;
@@ -117,6 +126,7 @@ class AudioTrainingProfile {
 
   double get playbackRate => difficulty.playbackRate;
   double get noiseBedLevel => difficulty.noiseBedLevel;
+  double get qrnRate => difficulty.qrnRate;
   double get snrNoise => difficulty.snrNoise;
   double get qsbDepth => difficulty.qsbDepth;
   double get qsbRate => difficulty.qsbRate;
@@ -139,12 +149,20 @@ class AudioTrainingProfile {
 /// Input/output is mono 16-bit little-endian PCM at the project's 24 kHz rate.
 /// One instance is created per session so the QSB phase is continuous across
 /// clips instead of restarting from the loudest point every transmission.
+/// The in-signal SNR noise is shaped by the same 300–2700 Hz SSB passband as
+/// the receiver noise bed, so both layers share one colour.
 class AudioTrainingEffects {
   AudioTrainingEffects(this.profile)
-    : _random = SessionRandom(profile.audioSeed);
+    : _random = SessionRandom(profile.audioSeed),
+      _noiseShaper = profile.snrNoise == 0 ? null : SsbNoiseShaper();
 
   final AudioTrainingProfile profile;
   final SessionRandom _random;
+
+  /// Session-level SSB passband for the in-signal noise. Null when no noise
+  /// is requested; keeping the instance alive makes the noise continuous
+  /// across clips instead of restarting with a filter transient each time.
+  final SsbNoiseShaper? _noiseShaper;
 
   /// Session-level QSB phase in radians, carried across clips.
   double _phase = 0;
@@ -170,7 +188,9 @@ class AudioTrainingEffects {
               (0.5 + 0.5 * sin(startPhase + second * angularRate));
       final noise = profile.snrNoise == 0
           ? 0.0
-          : (_random.nextAudioUnit() * 2 - 1) * 32767 * profile.snrNoise;
+          : _noiseShaper!.process(_random.nextAudioUnit() * 2 - 1) *
+                32767 *
+                profile.snrNoise;
       final adjusted = (sample * fade + noise) * profile.volume;
       data.setInt16(
         offset,

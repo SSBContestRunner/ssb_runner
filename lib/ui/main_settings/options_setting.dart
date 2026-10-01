@@ -193,7 +193,10 @@ class OptionsSetting extends StatelessWidget {
                 onPressed: enabled
                     ? () => showDialog<void>(
                         context: context,
-                        builder: (_) => const _KeyBindingsDialog(),
+                        builder: (_) => RepositoryProvider<AppSettings>.value(
+                          value: settings,
+                          child: const _KeyBindingsDialog(),
+                        ),
                       )
                     : null,
                 icon: const Icon(Icons.keyboard_outlined),
@@ -206,7 +209,10 @@ class OptionsSetting extends StatelessWidget {
                 onPressed: enabled
                     ? () => showDialog<void>(
                         context: context,
-                        builder: (_) => const _PracticeSeedDialog(),
+                        builder: (_) => RepositoryProvider<AppSettings>.value(
+                          value: settings,
+                          child: const _PracticeSeedDialog(),
+                        ),
                       )
                     : null,
                 icon: const Icon(Icons.casino_outlined),
@@ -222,7 +228,10 @@ class OptionsSetting extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () => showDialog<void>(
                   context: context,
-                  builder: (_) => const _SessionHistoryDialog(),
+                  builder: (_) => RepositoryProvider<AppSettings>.value(
+                    value: settings,
+                    child: const _SessionHistoryDialog(),
+                  ),
                 ),
                 icon: const Icon(Icons.history),
                 label: const Text('Review past sessions'),
