@@ -6,7 +6,19 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main, dev]
+  # Manual runs on the main branch: either a single platform or every platform.
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - linux
+          - windows
+          - macos
 
 # Least privilege by default; the release job raises contents: write.
 permissions:
@@ -44,23 +56,43 @@ jobs:
       - name: Test
         run: flutter test
 
+  # Resolves which platforms the package job should build. Tag pushes always build
+  # everything; a manual dispatch can also request a single platform. This job runs
+  # unconditionally so needs.setup.outputs.matrix is always valid JSON, even when
+  # the package job itself is skipped (e.g. on pull requests).
+  setup:
+    name: Resolve build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix from platform input
+        id: matrix
+        env:
+          PLATFORM: ${{ inputs.platform }}
+        run: |
+          set -euo pipefail
+          PLATFORM="${PLATFORM:-all}"
+          case "$PLATFORM" in
+            all)     matrix='[{"os":"ubuntu-latest","platform":"linux","targets":"deb,zip"},{"os":"windows-latest","platform":"windows","targets":"zip"},{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
+            linux)   matrix='[{"os":"ubuntu-latest","platform":"linux","targets":"deb,zip"}]' ;;
+            windows) matrix='[{"os":"windows-latest","platform":"windows","targets":"zip"}]' ;;
+            macos)   matrix='[{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
+            *)
+              echo "::error::Unknown platform '$PLATFORM' (expected: all, linux, windows, macos)"
+              exit 1
+              ;;
+          esac
+          # Windows ships a portable zip, never an Inno Setup installer exe.
+          echo "matrix={\"include\":$matrix}" >> "$GITHUB_OUTPUT"
+
   package:
     name: Package (${{ matrix.platform }})
-    needs: analyze
+    needs: [analyze, setup]
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux
-            targets: deb,zip
-          - os: windows-latest
-            platform: windows
-            targets: zip
-          - os: macos-latest
-            platform: macos
-            targets: dmg
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
