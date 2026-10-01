@@ -81,9 +81,12 @@ fi
 deb=$(find artifacts -name '*.deb' -print -quit)
 [[ -n "$deb" ]] || { echo "::error::no .deb found under artifacts/"; exit 1; }
 
+# Keep the path relative to artifacts/: fastforge writes dist/<version>/<file>.deb and
+# upload-artifact preserves that layout, so the .deb is not at the mount root.
+deb_rel=${deb#artifacts/}
 script_dir=$(cd "$(dirname "$0")" && pwd)
-echo "smoke-testing $(basename "$deb") on debian:12"
+echo "smoke-testing $deb_rel on debian:12"
 docker run --rm \
   -v "$PWD/artifacts:/artifacts:ro" \
   -v "$script_dir/$(basename "$0"):/smoke.sh:ro" \
-  debian:12 bash /smoke.sh --in-container "/artifacts/$(basename "$deb")"
+  debian:12 bash /smoke.sh --in-container "/artifacts/$deb_rel"
