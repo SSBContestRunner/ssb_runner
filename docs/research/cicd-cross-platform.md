@@ -185,13 +185,13 @@ sudo apt-get install -y ninja-build libgtk-3-dev liblzma-dev libstdc++-12-dev
 
 ```bash
 dart pub global activate fastforge 0.6.12
-fastforge package --platform=<linux|windows|macos> --targets=<deb,zip|zip|dmg>
+fastforge package --platform=<linux|windows|macos> --targets=<appimage,zip|zip|dmg>
 ```
 
 两个实测结论：
 
 1. **fastforge 必须 ≥ 0.6.11**：0.6.6 等旧版会把版本号以 `--dart-define FLUTTER_BUILD_NAME=...` 传给 `flutter build`，Flutter 3.47 直接报错 `FLUTTER_BUILD_NAME is used by the framework and cannot be set using --dart-define`（fastforge #354 已修复，0.6.11 起改用受支持的 `--build-name/--build-number`，实际改动在 `flutter_app_builder 0.6.2`）。
-2. **fastforge 已无 `tar.gz` target**：Linux 可用归档 target 为 `deb / rpm / appimage / zip`，当前实现取 `deb,zip`；若下载页依赖 `.tar.gz`，需额外自行打包。
+2. **fastforge 已无 `tar.gz` target**：Linux 可用归档 target 为 `deb / rpm / appimage / zip`，当前实现取 `appimage,zip`；若下载页依赖 `.tar.gz`，需额外自行打包。
 3. **macOS 的 `dmg` target 依赖 `appdmg`**：若 Runner 上没有 `appdmg`，fastforge 会回退到 `pnpm install -g appdmg`（pnpm 的全局 bin 未必在 PATH）。实测 `npm install -g appdmg` 更稳，workflow 已采用，并已本地验证 dmg 成功生成。
 
 ### 4.5 制品与发布
@@ -221,7 +221,7 @@ fastforge package --platform=<linux|windows|macos> --targets=<deb,zip|zip|dmg>
 
 ### 4.8 参考 workflow（调研草稿；最终实现见 `.github/workflows/ci.yml`）
 
-> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux targets 为 `deb,zip`、新增 FVM 软链接步骤、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`。
+> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`。
 
 ```yaml
 name: CI
