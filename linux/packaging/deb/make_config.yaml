@@ -32,6 +32,10 @@ dependencies:
   - libblkid1
   - libstdc++6
   - libasound2
+  # The Flutter engine reaches GL through libepoxy, which dlopen()s these at runtime, so
+  # they never show up in ldd and have to be depended on explicitly.
+  - libegl1
+  - libgles2
 
 keywords:
   - ham radio
