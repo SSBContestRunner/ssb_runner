@@ -79,8 +79,8 @@ jobs:
           # also the oldest usable runner -- the prebuilt libsqlite3.so that
           # package:sqlite3 downloads requires GLIBC_2.34.
           case "$PLATFORM" in
-            all)     matrix='[{"os":"ubuntu-22.04","platform":"linux","targets":"appimage,zip"},{"os":"windows-latest","platform":"windows","targets":"zip"},{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
-            linux)   matrix='[{"os":"ubuntu-22.04","platform":"linux","targets":"appimage,zip"}]' ;;
+            all)     matrix='[{"os":"ubuntu-22.04","platform":"linux","targets":"deb,appimage,zip"},{"os":"windows-latest","platform":"windows","targets":"zip"},{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
+            linux)   matrix='[{"os":"ubuntu-22.04","platform":"linux","targets":"deb,appimage,zip"}]' ;;
             windows) matrix='[{"os":"windows-latest","platform":"windows","targets":"zip"}]' ;;
             macos)   matrix='[{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
             *)
@@ -176,9 +176,31 @@ jobs:
           path: dist/**
           if-no-files-found: error
 
+  # Installs the built .deb on a clean Debian 12 (our oldest supported target) and fails if
+  # it cannot install or its libraries cannot load -- the failure mode from issue #23, which
+  # previously only surfaced on a user's machine. Runs the same condition as `package` so it
+  # gates tag releases without affecting PRs.
+  smoke-test-debian:
+    name: Smoke test (Debian 12)
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ssb-runner-linux
+          path: artifacts
+
+      - name: Run Debian 12 smoke test
+        run: bash .github/scripts/smoke-test-debian.sh
+
   release:
     name: Draft GitHub Release
-    needs: package
+    needs: [package, smoke-test-debian]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

@@ -1,0 +1,51 @@
+# Read by fastforge's deb maker from linux/packaging/deb/make_config.yaml.
+# package_name, maintainer and installed_size are required by MakeDebConfig.
+display_name: SSB Runner
+package_name: ssb-runner
+maintainer:
+  name: BI1QJQ
+  email: bi1qjq@ssbrunner.com
+co_authors:
+  - name: BI1QJQ
+    email: bi1qjq@ssbrunner.com
+  - name: BG7TVF
+    email: bg7tvf@ssbrunner.com
+  - name: BH8GLQ
+    email: bh8glq@ssbrunner.com
+priority: optional
+section: x11
+
+# Informational disk usage in KiB (see Debian policy); refresh after a real build.
+installed_size: 70000
+
+essential: false
+icon: linux/runner/resources/app_icon.png
+
+# Runtime libraries; GTK/GLib pull the rest transitively. The libc6 bound encodes
+# our supported floor (Ubuntu 22.04 / Debian 12, glibc 2.35+): older systems now get
+# a clear apt error instead of a runtime "GLIBC_x.yz not found" (see issue #23).
+dependencies:
+  - libc6 (>= 2.35)
+  - libgtk-3-0
+  - libglib2.0-0
+  - liblzma5
+  - libblkid1
+  - libstdc++6
+  - libasound2
+
+keywords:
+  - ham radio
+  - ssb runner
+  - ssb
+  - hf contest
+
+generic_name: SSB Contest Training Application
+
+categories:
+  - Audio
+  - HamRadio
+
+startup_notify: true
+# You can also specify [metainfo](https://freedesktop.org/software/appstream/docs/chap-Quickstart.html) file
+# which contains metadata of the app.
+# metainfo: linux/packaging/myappid.appdata.xml
