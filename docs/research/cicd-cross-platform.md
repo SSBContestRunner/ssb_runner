@@ -105,33 +105,37 @@
 ### 4.3 流水线设计
 
 ```
-                     ┌──────────────┐
- push/PR ───────────▶│  analyze     │  ubuntu-latest
- (main/dev)          │  analyze+test│  flutter pub get / analyze / test
-                     └──────┬───────┘
-                            │ needs
- tag v* ────────────▶┌──────▼───────────────────────────────┐
-                     │  package (matrix)                     │
-                     │  ├─ ubuntu-latest   → linux  deb,tar.gz
-                     │  ├─ windows-latest  → windows zip
-                     │  └─ macos-latest    → macos   dmg
-                     └──────┬───────────────────────────────┘
-                            │ upload-artifact
-                     ┌──────▼───────────────┐
-                     │  release             │  ubuntu-latest
-                     │  softprops/action-    │  download-artifact → GitHub Release
-                     │  gh-release           │
-                     └──────────────────────┘
+ push/PR (main/dev) ──▶ analyze ──▶ setup（解析 platform 输入 → 要构建的平台）
+                                       │
+             ┌─────────────────────────┼─────────────────────────┐
+   platform=linux              platform=windows            platform=macos
+             ▼                         ▼                         ▼
+      package-linux            package-windows            package-macos
+      ubuntu-22.04             windows-latest             macos-latest
+      deb,appimage,zip         zip                        dmg
+             │                                                    │
+             ▼                                                    ▼
+   smoke-test-debian                                 smoke-test-macos-intel
+   ubuntu-latest（装 .deb + 启动）                    macos-15-intel（校验 x86_64 + 启动）
+             │                                                    │
+             └─────────────────────────┬──────────────────────────┘
+                                       ▼
+                                release（仅 tag，需以上全部成功）
 ```
 
-**触发策略建议**
+`package` 按平台拆成三个独立 job，而不是一个 matrix job，原因有两个：
+
+1. **按要求只打指定平台**：`setup` 把 `platform` 输入解析成平台集合，每个 `package-<平台>` job 只在集合包含自己时才跑。`platform=all`（含 tag 推送）才三平台全打。
+2. **避免连带失败**：matrix job 只有一个聚合结论，任一平台失败就会把**所有**冒烟 job 和 release 一起跳过——即使其他平台的产物其实构建成功了。拆开后每个冒烟 job 只依赖自己那个平台，互不牵连。
+
+**触发策略**
 
 | 事件 | 动作 |
 |---|---|
 | `pull_request` → main/dev | `analyze` + `test`（快，几分钟） |
 | `push` → main/dev | `analyze` + `test`（可选加 Linux 构建做冒烟） |
-| `push tag v*` | `analyze` → 三平台 `package` → `release`（先建 **draft release**，人工确认后再发布） |
-| `workflow_dispatch` | 手动补跑打包 |
+| `push tag v*` | `inputs.platform` 为空 → 按 `all` 处理：`analyze` → `setup` → 三平台 `package` → 两个 `smoke-test` → `release`（先建 **draft release**，人工确认后再发布） |
+| `workflow_dispatch` | 按输入只跑对应平台的 `package` 及其 `smoke-test`；`all` 则全跑 |
 
 **建议加的两个保护**
 
@@ -226,7 +230,7 @@ fastforge package --platform=<linux|windows|macos> --targets=<deb,appimage,zip|z
 
 ### 4.8 参考 workflow（调研草稿；最终实现见 `.github/workflows/ci.yml`）
 
-> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `deb,appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、新增 Debian 12 冒烟测试 job（`.github/scripts/smoke-test-debian.sh`，会 gate 住 release）、新增 macOS Intel 冒烟测试 job（`.github/scripts/smoke-test-macos-intel.sh`，在 `macos-15-intel` 上校验 x86_64 切片并实机启动，同样 gate 住 release）、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`。
+> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `deb,appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、新增 Debian 12 冒烟测试 job（`.github/scripts/smoke-test-debian.sh`，会 gate 住 release）、新增 macOS Intel 冒烟测试 job（`.github/scripts/smoke-test-macos-intel.sh`，在 `macos-15-intel` 上校验 x86_64 切片并实机启动，同样 gate 住 release）、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`、`package` 由单个 matrix job 拆成 `package-linux`/`package-windows`/`package-macos` 三个平台 job（见 4.3）、新增 `setup` job 解析平台输入并在 Windows 上重写 `FLUTTER_ROOT`（见 4.4 ②）。
 
 ```yaml
 name: CI
@@ -403,7 +407,7 @@ jobs:
 3. **fastforge 0.6.6 与 Flutter 3.47 不兼容**：见 4.4 ⑤，需升级到 ≥ 0.6.11。
 4. **子模块 SSH 地址**：已改为 HTTPS，本地克隆执行 `git submodule sync assets` 同步。
 5. **Windows 打包因 `.fvm` 相对路径失败**：CI 首跑时 `package (windows)` 报 `'.fvm' is not recognized as an internal or external command`，`BUILD FAILED`。原因是 fastforge 经 cmd 执行拼接出的 `.fvm/versions/3.47.5\bin\flutter`，混合分隔符无法执行。已改为在 Windows Runner 上把 `FLUTTER_ROOT` 重写为 SDK 的绝对路径，见 4.4 ②。
-6. **冒烟测试会被其他平台的打包失败连带跳过**：`needs: package` 是 job 级依赖，任一平台 matrix 失败都会让两个冒烟 job 一起 skipped。同时两个冒烟 job 原先只判断 tag / dispatch，手动选其他平台时会因 artifact 不存在而失败。已让两个冒烟 job 都读取 `setup` 解析出的 matrix，仅在对应平台确实参与构建时运行。
+6. **冒烟测试会被其他平台的打包失败连带跳过**：原先 `package` 是一个 matrix job，`needs: package` 是 job 级依赖，任一平台失败都会把两个冒烟 job（乃至 release）一起 skipped，哪怕其他平台产物其实构建成功；且两个冒烟 job 原先只判断 tag / dispatch，手动选其他平台时会因 artifact 不存在而直接失败。现已把 `package` 拆成 `package-linux` / `package-windows` / `package-macos` 三个 job，冒烟 job 只 `needs` 自己那个平台——依赖被跳过或失败时自动跳过，无需额外 `if`。详见 4.3。
 
 ---
 

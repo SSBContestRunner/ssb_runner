@@ -56,10 +56,10 @@ jobs:
       - name: Test
         run: flutter test
 
-  # Resolves which platforms the package job should build. Tag pushes always build
+  # Resolves which platforms the package jobs should build. Tag pushes always build
   # everything; a manual dispatch can also request a single platform. This job runs
   # unconditionally so needs.setup.outputs.matrix is always valid JSON, even when
-  # the package job itself is skipped (e.g. on pull requests).
+  # the package jobs themselves are skipped (e.g. on pull requests).
   setup:
     name: Resolve build matrix
     runs-on: ubuntu-latest
@@ -91,14 +91,20 @@ jobs:
           # Windows ships a portable zip, never an Inno Setup installer exe.
           echo "matrix={\"include\":$matrix}" >> "$GITHUB_OUTPUT"
 
-  package:
-    name: Package (${{ matrix.platform }})
+  # One job per platform rather than a single matrix job: a matrix job reports a single
+  # aggregate conclusion, so one platform failing would skip every smoke test and the release
+  # even when the other platforms built fine. Separate jobs keep a failure isolated, and each
+  # smoke test then depends only on the artifact it actually exercises.
+  #
+  # `setup` still decides which platforms to build: tag pushes build all of them, a manual
+  # dispatch builds the one requested, and a push/PR builds none.
+  package-linux:
+    name: Package (linux)
     needs: [analyze, setup]
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
-    runs-on: ${{ matrix.os }}
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && contains(needs.setup.outputs.matrix, '"platform":"linux"'))
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -113,7 +119,6 @@ jobs:
           cache: true
 
       - name: Install Linux build dependencies
-        if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
           # libfuse2 is required to execute appimagetool, which only ships as an AppImage.
@@ -123,17 +128,7 @@ jobs:
           chmod +x appimagetool
           sudo mv appimagetool /usr/local/bin/appimagetool
 
-      - name: Install macOS packaging tools
-        if: matrix.platform == 'macos'
-        # fastforge's dmg maker shells out to appdmg; pre-install it so fastforge
-        # does not need to fall back to `pnpm install -g appdmg` (which may not be on PATH).
-        run: npm install -g appdmg
-
-      # distribute_options.yaml pins FLUTTER_ROOT to the FVM path (.fvm/versions/<version>),
-      # which only exists locally. Recreate that path on the runner so the config stays
-      # untouched and local builds keep working.
-      - name: Link FVM path expected by distribute_options.yaml (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Link FVM path expected by distribute_options.yaml
         shell: bash
         run: |
           set -euo pipefail
@@ -146,13 +141,48 @@ jobs:
           ln -sfn "$FLUTTER_ROOT_DIR" ".fvm/versions/$VERSION"
           echo "linked .fvm/versions/$VERSION -> $FLUTTER_ROOT_DIR"
 
-      # On Windows a junction is not enough: fastforge always goes through cmd, which cannot
-      # run the mixed-separator path that results from the pinned relative FLUTTER_ROOT
-      # (`.fvm/versions/3.47.5` + `\bin\flutter`), so it dies with "'.fvm' is not recognized".
-      # Point the pin at the installed SDK with native separators instead. Only the runner's
-      # checkout is modified -- the committed file and local FVM builds are unaffected.
-      - name: Point FLUTTER_ROOT at the installed SDK (Windows)
-        if: runner.os == 'Windows'
+      - name: Install fastforge
+        # 0.6.11+ is required: earlier releases pass FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER
+        # through --dart-define, which Flutter 3.47 rejects (fastforge #354).
+        run: dart pub global activate fastforge 0.6.12
+
+      - name: Build & package
+        run: dart pub global run fastforge:main package --platform=linux --targets=deb,appimage,zip
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssb-runner-linux
+          path: dist/**
+          if-no-files-found: error
+
+  package-windows:
+    name: Package (windows)
+    needs: [analyze, setup]
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && contains(needs.setup.outputs.matrix, '"platform":"windows"'))
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      # distribute_options.yaml pins FLUTTER_ROOT to a relative FVM path that only exists
+      # locally. A directory junction is not enough on Windows: fastforge runs flutter through
+      # cmd, which cannot execute the mixed-separator path the pin produces
+      # (`.fvm/versions/3.47.5` + `\bin\flutter` -> "'.fvm' is not recognized"). Point the pin
+      # at the installed SDK with native separators instead. Only the runner's checkout is
+      # modified -- the committed file and local FVM builds are unaffected.
+      - name: Point FLUTTER_ROOT at the installed SDK
         shell: pwsh
         run: |
           $flutterBin = (Get-Command flutter).Source
@@ -170,27 +200,82 @@ jobs:
         run: dart pub global activate fastforge 0.6.12
 
       - name: Build & package
-        run: dart pub global run fastforge:main package --platform=${{ matrix.platform }} --targets=${{ matrix.targets }}
+        # Windows ships a portable zip, never an Inno Setup installer exe.
+        run: dart pub global run fastforge:main package --platform=windows --targets=zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ssb-runner-${{ matrix.platform }}
+          name: ssb-runner-windows
+          path: dist/**
+          if-no-files-found: error
+
+  package-macos:
+    name: Package (macos)
+    needs: [analyze, setup]
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && contains(needs.setup.outputs.matrix, '"platform":"macos"'))
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      - name: Install macOS packaging tools
+        # fastforge's dmg maker shells out to appdmg; pre-install it so fastforge
+        # does not need to fall back to `pnpm install -g appdmg` (which may not be on PATH).
+        run: npm install -g appdmg
+
+      # distribute_options.yaml pins FLUTTER_ROOT to the FVM path (.fvm/versions/<version>),
+      # which only exists locally. Recreate that path on the runner so the config stays
+      # untouched and local builds keep working.
+      - name: Link FVM path expected by distribute_options.yaml
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc)
+          test -n "$VERSION"
+          FLUTTER_BIN=$(command -v flutter)
+          FLUTTER_ROOT_DIR=$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd)
+          mkdir -p .fvm/versions
+          rm -rf ".fvm/versions/$VERSION"
+          ln -sfn "$FLUTTER_ROOT_DIR" ".fvm/versions/$VERSION"
+          echo "linked .fvm/versions/$VERSION -> $FLUTTER_ROOT_DIR"
+
+      - name: Install fastforge
+        # 0.6.11+ is required: earlier releases pass FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER
+        # through --dart-define, which Flutter 3.47 rejects (fastforge #354).
+        run: dart pub global activate fastforge 0.6.12
+
+      - name: Build & package
+        run: dart pub global run fastforge:main package --platform=macos --targets=dmg
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssb-runner-macos
           path: dist/**
           if-no-files-found: error
 
   # Installs the built .deb on a clean Debian 12 (our oldest supported target) and fails if
   # it cannot install or its libraries cannot load -- the failure mode from issue #23, which
-  # previously only surfaced on a user's machine. Runs the same condition as `package` so it
-  # gates tag releases without affecting PRs.
+  # previously only surfaced on a user's machine.
+  #
+  # Depending only on package-linux means it runs exactly when the Linux artifact exists, and
+  # an unrelated platform failing no longer skips it. No `if` is needed: a skipped or failed
+  # dependency skips this job too, which is the desired behaviour in both cases.
   smoke-test-debian:
     name: Smoke test (Debian 12)
-    needs: [setup, package]
-    # Same gate as `package`, plus: skip when a manual dispatch did not build Linux (there
-    # would be no artifact to download).
-    if: >-
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && contains(needs.setup.outputs.matrix, '"platform":"linux"'))
+    needs: package-linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -211,12 +296,7 @@ jobs:
   # still building fine on Apple Silicon. Running on an Intel runner catches exactly that.
   smoke-test-macos-intel:
     name: Smoke test (macOS Intel)
-    needs: [setup, package]
-    # Same gate as `package`, plus: skip when a manual dispatch did not build macOS (there
-    # would be no artifact to download).
-    if: >-
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && contains(needs.setup.outputs.matrix, '"platform":"macos"'))
+    needs: package-macos
     runs-on: macos-15-intel
     steps:
       - name: Checkout
@@ -231,9 +311,12 @@ jobs:
       - name: Run macOS Intel smoke test
         run: bash .github/scripts/smoke-test-macos-intel.sh
 
+  # A release only ships a complete set, so here -- unlike the smoke tests -- every platform
+  # and both smoke tests must have succeeded. Tag pushes are the only way in, and those build
+  # all three platforms.
   release:
     name: Draft GitHub Release
-    needs: [package, smoke-test-debian, smoke-test-macos-intel]
+    needs: [package-linux, package-windows, package-macos, smoke-test-debian, smoke-test-macos-intel]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
