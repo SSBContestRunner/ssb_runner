@@ -105,33 +105,37 @@
 ### 4.3 流水线设计
 
 ```
-                     ┌──────────────┐
- push/PR ───────────▶│  analyze     │  ubuntu-latest
- (main/dev)          │  analyze+test│  flutter pub get / analyze / test
-                     └──────┬───────┘
-                            │ needs
- tag v* ────────────▶┌──────▼───────────────────────────────┐
-                     │  package (matrix)                     │
-                     │  ├─ ubuntu-latest   → linux  deb,tar.gz
-                     │  ├─ windows-latest  → windows zip
-                     │  └─ macos-latest    → macos   dmg
-                     └──────┬───────────────────────────────┘
-                            │ upload-artifact
-                     ┌──────▼───────────────┐
-                     │  release             │  ubuntu-latest
-                     │  softprops/action-    │  download-artifact → GitHub Release
-                     │  gh-release           │
-                     └──────────────────────┘
+ push/PR (main/dev) ──▶ analyze ──▶ setup（解析 platform 输入 → 要构建的平台）
+                                       │
+             ┌─────────────────────────┼─────────────────────────┐
+   platform=linux              platform=windows            platform=macos
+             ▼                         ▼                         ▼
+      package-linux            package-windows            package-macos
+      ubuntu-22.04             windows-latest             macos-latest
+      deb,appimage,zip         zip                        dmg
+             │                                                    │
+             ▼                                                    ▼
+   smoke-test-debian                                 smoke-test-macos-intel
+   ubuntu-latest（装 .deb + 启动）                    macos-15-intel（校验 x86_64 + 启动）
+             │                                                    │
+             └─────────────────────────┬──────────────────────────┘
+                                       ▼
+                                release（仅 tag，需以上全部成功）
 ```
 
-**触发策略建议**
+`package` 按平台拆成三个独立 job，而不是一个 matrix job，原因有两个：
+
+1. **按要求只打指定平台**：`setup` 把 `platform` 输入解析成平台集合，每个 `package-<平台>` job 只在集合包含自己时才跑。`platform=all`（含 tag 推送）才三平台全打。
+2. **避免连带失败**：matrix job 只有一个聚合结论，任一平台失败就会把**所有**冒烟 job 和 release 一起跳过——即使其他平台的产物其实构建成功了。拆开后每个冒烟 job 只依赖自己那个平台，互不牵连。
+
+**触发策略**
 
 | 事件 | 动作 |
 |---|---|
 | `pull_request` → main/dev | `analyze` + `test`（快，几分钟） |
 | `push` → main/dev | `analyze` + `test`（可选加 Linux 构建做冒烟） |
-| `push tag v*` | `analyze` → 三平台 `package` → `release`（先建 **draft release**，人工确认后再发布） |
-| `workflow_dispatch` | 手动补跑打包 |
+| `push tag v*` | `inputs.platform` 为空 → 按 `all` 处理：`analyze` → `setup` → 三平台 `package` → 两个 `smoke-test` → `release`（先建 **draft release**，人工确认后再发布） |
+| `workflow_dispatch` | 按输入只跑对应平台的 `package` 及其 `smoke-test`；`all` 则全跑 |
 
 **建议加的两个保护**
 
@@ -162,9 +166,14 @@ variables:
   FLUTTER_ROOT: .fvm/versions/3.47.5   # ← 本地 FVM 路径，CI 里不存在
 ```
 
-实际采用的方式（已落地）：**保持 `distribute_options.yaml` 不动，在 Runner 上把 `.fvm/versions/<version>` 重建为指向 flutter-action 所装 SDK 的软链接 / 目录 junction**，版本号从 `.fvmrc` 解析。这样本地与 CI 行为一致，也不需要改配置文件。
+实际采用的方式（已落地）：**仓库里 `distribute_options.yaml` 保持不动**，只在 Runner 上让这个写死的路径可用。
 
-> ⚠️ 关键点：fastforge 的变量优先级是**配置文件覆盖进程环境变量**，所以"在 CI 里设置 `FLUTTER_ROOT` 环境变量"并不生效，必须让配置里写死的那个路径真实存在。
+- **Linux / macOS**：把 `.fvm/versions/<version>` 重建为指向 flutter-action 所装 SDK 的软链接，版本号从 `.fvmrc` 解析。
+- **Windows**：软链接不够用——fastforge 最终经 cmd 执行 `<root>\bin\flutter`，而配置里的相对路径带正斜杠，拼出的 `.fvm/versions/3.47.5\bin\flutter` 被 cmd 拆成 `.fvm` 而报 `'.fvm' is not recognized`（目录 junction 确实建成了，问题在命令字符串本身）。因此改为**把 Runner 上那份配置文件里的 `FLUTTER_ROOT` 重写成 SDK 的绝对 Windows 路径**（原生反斜杠），提交进仓库的文件与本地 FVM 构建都不受影响。
+
+> ⚠️ 关键点：fastforge 的变量优先级是**配置文件覆盖进程环境变量**（`unified_distributor` 先收集 `Platform.environment`，再用 `distribute_options.yaml` 的 `variables` 覆盖），所以"在 CI 里设置 `FLUTTER_ROOT` 环境变量"并不生效，必须让配置里写死的那个路径真实可用。
+>
+> 另外**不要**把配置写成 `FLUTTER_ROOT: ${FLUTTER_ROOT}` 想借此读环境变量：`pathExpansion` 是拿同一个已合并的 map 去展开，会自我引用。
 
 **③ 修复 assets 子模块的 SSH 地址（已落地）**
 
@@ -185,13 +194,13 @@ sudo apt-get install -y ninja-build libgtk-3-dev liblzma-dev libstdc++-12-dev
 
 ```bash
 dart pub global activate fastforge 0.6.12
-fastforge package --platform=<linux|windows|macos> --targets=<deb,zip|zip|dmg>
+fastforge package --platform=<linux|windows|macos> --targets=<deb,appimage,zip|zip|dmg>
 ```
 
 两个实测结论：
 
 1. **fastforge 必须 ≥ 0.6.11**：0.6.6 等旧版会把版本号以 `--dart-define FLUTTER_BUILD_NAME=...` 传给 `flutter build`，Flutter 3.47 直接报错 `FLUTTER_BUILD_NAME is used by the framework and cannot be set using --dart-define`（fastforge #354 已修复，0.6.11 起改用受支持的 `--build-name/--build-number`，实际改动在 `flutter_app_builder 0.6.2`）。
-2. **fastforge 已无 `tar.gz` target**：Linux 可用归档 target 为 `deb / rpm / appimage / zip`，当前实现取 `deb,zip`；若下载页依赖 `.tar.gz`，需额外自行打包。
+2. **fastforge 已无 `tar.gz` target**：Linux 可用归档 target 为 `deb / rpm / appimage / zip`，当前实现取 `deb,appimage,zip`；若下载页依赖 `.tar.gz`，需额外自行打包。
 3. **macOS 的 `dmg` target 依赖 `appdmg`**：若 Runner 上没有 `appdmg`，fastforge 会回退到 `pnpm install -g appdmg`（pnpm 的全局 bin 未必在 PATH）。实测 `npm install -g appdmg` 更稳，workflow 已采用，并已本地验证 dmg 成功生成。
 
 ### 4.5 制品与发布
@@ -221,7 +230,7 @@ fastforge package --platform=<linux|windows|macos> --targets=<deb,zip|zip|dmg>
 
 ### 4.8 参考 workflow（调研草稿；最终实现见 `.github/workflows/ci.yml`）
 
-> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux targets 为 `deb,zip`、新增 FVM 软链接步骤、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`。
+> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `deb,appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、新增 Debian 12 冒烟测试 job（`.github/scripts/smoke-test-debian.sh`，会 gate 住 release）、新增 macOS Intel 冒烟测试 job（`.github/scripts/smoke-test-macos-intel.sh`，在 `macos-15-intel` 上校验 x86_64 切片并实机启动，同样 gate 住 release）、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`、`package` 由单个 matrix job 拆成 `package-linux`/`package-windows`/`package-macos` 三个平台 job（见 4.3）、新增 `setup` job 解析平台输入并在 Windows 上重写 `FLUTTER_ROOT`（见 4.4 ②）。
 
 ```yaml
 name: CI
@@ -397,6 +406,8 @@ jobs:
 2. **`flutter analyze` 会因一条历史 info 失败**：`lib/contest_run/score_manager.dart:7` 的 `CQ_WPX` 触发 `constant_identifier_names`。本期用 `--no-fatal-infos` 放行，后续可选择重命名常量或收紧 lint 配置。
 3. **fastforge 0.6.6 与 Flutter 3.47 不兼容**：见 4.4 ⑤，需升级到 ≥ 0.6.11。
 4. **子模块 SSH 地址**：已改为 HTTPS，本地克隆执行 `git submodule sync assets` 同步。
+5. **Windows 打包因 `.fvm` 相对路径失败**：CI 首跑时 `package (windows)` 报 `'.fvm' is not recognized as an internal or external command`，`BUILD FAILED`。原因是 fastforge 经 cmd 执行拼接出的 `.fvm/versions/3.47.5\bin\flutter`，混合分隔符无法执行。已改为在 Windows Runner 上把 `FLUTTER_ROOT` 重写为 SDK 的绝对路径，见 4.4 ②。
+6. **冒烟测试会被其他平台的打包失败连带跳过**：原先 `package` 是一个 matrix job，`needs: package` 是 job 级依赖，任一平台失败都会把两个冒烟 job（乃至 release）一起 skipped，哪怕其他平台产物其实构建成功；且两个冒烟 job 原先只判断 tag / dispatch，手动选其他平台时会因 artifact 不存在而直接失败。现已把 `package` 拆成 `package-linux` / `package-windows` / `package-macos` 三个 job，冒烟 job 只 `needs` 自己那个平台——依赖被跳过或失败时自动跳过，无需额外 `if`。详见 4.3。
 
 ---
 
@@ -404,6 +415,7 @@ jobs:
 
 1. **"免费"绑定在 public 仓库上**：一旦仓库转 private，GitHub Free 只有 2,000 分钟/月，macOS 按 $0.062/min 计费，成本会迅速上升。若未来要闭源，应改用 Cirrus / AppVeyor / 自托管。
 2. **macOS 标准 Runner 是 arm64（M1）**：本项目已迁移到 Swift Package Manager，需在 CI 上实测 Xcode + SPM 构建；若遇插件兼容问题，可临时切 `macos-15-intel`。
+   - 注意产物架构：macOS Release 构建不限制 `ARCHS`，Xcode 默认 `ARCHS_STANDARD` = arm64 + x86_64，因此在 arm64 Runner 上产出的仍是 **universal 包**，Intel Mac 可用。该行为没有任何仓库配置兜底（Debug 才设 `ONLY_ACTIVE_ARCH=YES`），一旦有人在 Release 加 `ONLY_ACTIVE_ARCH`/`EXCLUDED_ARCHS` 就会静默丢掉 x86_64 —— 已由 `smoke-test-macos-intel` job 在真实 Intel Runner 上守住。
 3. **fastforge 版本必须 ≥ 0.6.11**：旧版与 Flutter 3.47 不兼容（`FLUTTER_BUILD_NAME` 报错）。CI 已固定 0.6.12，本地开发执行 `dart pub global activate fastforge 0.6.12`。
 4. **子模块已改为 HTTPS**：本地已有克隆若仍指向 SSH，执行一次 `git submodule sync assets` 即可同步。
 5. **analyze job 也必须拉子模块**：`flutter test` 会读取 `assets/dxcc/*`，因此不能省略 `submodules: recursive`。

@@ -1,0 +1,22 @@
+# Read by fastforge's appimage maker from linux/packaging/appimage/make_config.yaml.
+# display_name and icon are required; the maker throws if either is missing or if
+# the icon file does not exist on disk.
+display_name: SSB Runner
+icon: linux/runner/resources/app_icon.png
+
+keywords:
+  - ham radio
+  - ssb runner
+  - ssb
+  - hf contest
+
+generic_name: SSB Contest Training Application
+
+categories:
+  - Audio
+  - HamRadio
+
+startup_notify: true
+# You can also specify [metainfo](https://freedesktop.org/software/appstream/docs/chap-Quickstart.html)
+# file which contains metadata of the app.
+# metainfo: linux/packaging/myappid.appdata.xml

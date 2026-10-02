@@ -87,6 +87,18 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# Microsoft Visual C++ runtime, shipped from build_deps/ next to the executable.
+# The app links the CRT dynamically (/MD is the CMake default here), so without
+# these the portable zip only starts on machines that already have the VC++
+# Redistributable installed.
+set(MSVC_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build_deps/windows/x64")
+install(FILES
+  "${MSVC_RUNTIME_DIR}/msvcp140.dll"
+  "${MSVC_RUNTIME_DIR}/vcruntime140.dll"
+  "${MSVC_RUNTIME_DIR}/vcruntime140_1.dll"
+  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"
