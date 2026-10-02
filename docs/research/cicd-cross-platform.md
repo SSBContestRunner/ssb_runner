@@ -221,7 +221,7 @@ fastforge package --platform=<linux|windows|macos> --targets=<deb,appimage,zip|z
 
 ### 4.8 参考 workflow（调研草稿；最终实现见 `.github/workflows/ci.yml`）
 
-> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `deb,appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、新增 Debian 12 冒烟测试 job（`.github/scripts/smoke-test-debian.sh`，会 gate 住 release）、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`。
+> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `deb,appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、新增 Debian 12 冒烟测试 job（`.github/scripts/smoke-test-debian.sh`，会 gate 住 release）、新增 macOS Intel 冒烟测试 job（`.github/scripts/smoke-test-macos-intel.sh`，在 `macos-15-intel` 上校验 x86_64 切片并实机启动，同样 gate 住 release）、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`。
 
 ```yaml
 name: CI
@@ -404,6 +404,7 @@ jobs:
 
 1. **"免费"绑定在 public 仓库上**：一旦仓库转 private，GitHub Free 只有 2,000 分钟/月，macOS 按 $0.062/min 计费，成本会迅速上升。若未来要闭源，应改用 Cirrus / AppVeyor / 自托管。
 2. **macOS 标准 Runner 是 arm64（M1）**：本项目已迁移到 Swift Package Manager，需在 CI 上实测 Xcode + SPM 构建；若遇插件兼容问题，可临时切 `macos-15-intel`。
+   - 注意产物架构：macOS Release 构建不限制 `ARCHS`，Xcode 默认 `ARCHS_STANDARD` = arm64 + x86_64，因此在 arm64 Runner 上产出的仍是 **universal 包**，Intel Mac 可用。该行为没有任何仓库配置兜底（Debug 才设 `ONLY_ACTIVE_ARCH=YES`），一旦有人在 Release 加 `ONLY_ACTIVE_ARCH`/`EXCLUDED_ARCHS` 就会静默丢掉 x86_64 —— 已由 `smoke-test-macos-intel` job 在真实 Intel Runner 上守住。
 3. **fastforge 版本必须 ≥ 0.6.11**：旧版与 Flutter 3.47 不兼容（`FLUTTER_BUILD_NAME` 报错）。CI 已固定 0.6.12，本地开发执行 `dart pub global activate fastforge 0.6.12`。
 4. **子模块已改为 HTTPS**：本地已有克隆若仍指向 SSH，执行一次 `git submodule sync assets` 即可同步。
 5. **analyze job 也必须拉子模块**：`flutter test` 会读取 `assets/dxcc/*`，因此不能省略 `submodules: recursive`。

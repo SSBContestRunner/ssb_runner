@@ -182,8 +182,12 @@ jobs:
   # gates tag releases without affecting PRs.
   smoke-test-debian:
     name: Smoke test (Debian 12)
-    needs: package
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: [setup, package]
+    # Same gate as `package`, plus: skip when a manual dispatch did not build Linux (there
+    # would be no artifact to download).
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && contains(needs.setup.outputs.matrix, '"platform":"linux"'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -198,9 +202,35 @@ jobs:
       - name: Run Debian 12 smoke test
         run: bash .github/scripts/smoke-test-debian.sh
 
+  # Verifies the macOS .dmg on Intel hardware. The bundle is universal only because Xcode's
+  # Release configuration defaults to ARCHS_STANDARD (arm64 + x86_64); nothing in the repo
+  # pins that, so an ONLY_ACTIVE_ARCH/EXCLUDED_ARCHS change could silently drop x86_64 while
+  # still building fine on Apple Silicon. Running on an Intel runner catches exactly that.
+  smoke-test-macos-intel:
+    name: Smoke test (macOS Intel)
+    needs: [setup, package]
+    # Same gate as `package`, plus: skip when a manual dispatch did not build macOS (there
+    # would be no artifact to download).
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && contains(needs.setup.outputs.matrix, '"platform":"macos"'))
+    runs-on: macos-15-intel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ssb-runner-macos
+          path: artifacts
+
+      - name: Run macOS Intel smoke test
+        run: bash .github/scripts/smoke-test-macos-intel.sh
+
   release:
     name: Draft GitHub Release
-    needs: [package, smoke-test-debian]
+    needs: [package, smoke-test-debian, smoke-test-macos-intel]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
