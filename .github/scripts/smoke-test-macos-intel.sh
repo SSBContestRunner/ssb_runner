@@ -72,25 +72,36 @@ echo "architecture check passed: x86_64 present in every bundled binary"
 # (2) Actually launch it. An arm64-only bundle fails at exec ("bad CPU type in executable"),
 #     which only a real Intel host can observe, so the process must still be alive after a
 #     grace period. The runner provides the GUI session the app needs.
-set +e
-"$exe" > /tmp/app.log 2>&1 &
-pid=$!
-sleep 20
-# `kill -0` also succeeds for a not-yet-reaped zombie, so inspect the process state instead.
-state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ')
-if [[ -n "$state" && "$state" != Z* ]]; then
-  echo "launch smoke: app started and stayed up on Intel"
-  kill "$pid" 2>/dev/null
-  sleep 2
-  kill -9 "$pid" 2>/dev/null
-  rc=0
-else
+#
+#     The launch is retried: on run 36989183503 the app aborted mid-startup with a Dart VM
+#     heap-corruption crash (rc=134) and then launched fine on a rerun of the very same
+#     artifact, so a single early exit is a host flake, not proof the bundle is broken. Only
+#     a launch that aborts on every attempt fails the job; each failure is still reported.
+attempts=3
+rc=1
+for ((attempt = 1; attempt <= attempts; attempt++)); do
+  set +e
+  "$exe" > /tmp/app.log 2>&1 &
+  pid=$!
+  sleep 20
+  # `kill -0` also succeeds for a not-yet-reaped zombie, so inspect the process state instead.
+  state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ')
+  if [[ -n "$state" && "$state" != Z* ]]; then
+    echo "launch smoke: app started and stayed up on Intel (attempt $attempt/$attempts)"
+    kill "$pid" 2>/dev/null
+    sleep 2
+    kill -9 "$pid" 2>/dev/null
+    rc=0
+    set -e
+    break
+  fi
   wait "$pid"
   rc=$?
-fi
-set -e
-if [[ $rc -ne 0 ]]; then
-  echo "::error::app exited early on Intel (rc=$rc)"
+  set -e
+  echo "::warning::app exited early on Intel (rc=$rc) on attempt $attempt/$attempts"
   sed -n '1,40p' /tmp/app.log
+done
+if [[ $rc -ne 0 ]]; then
+  echo "::error::app exited early on Intel (rc=$rc) after $attempts attempts"
   exit 1
 fi

@@ -201,7 +201,32 @@ jobs:
 
       - name: Build & package
         # Windows ships a portable zip, never an Inno Setup installer exe.
-        run: dart pub global run fastforge:main package --platform=windows --targets=zip
+        #
+        # Fastforge shells out to `flutter build windows`, whose Dart build hooks
+        # (flutter_soloud, sqlite3) download prebuilt native libraries from GitHub
+        # releases. A transient failure there aborts the build with no diagnostics --
+        # MSBuild swallows the hook output, leaving only "Building native assets
+        # failed" -- and this step failed on run 36989183503 then passed on an
+        # immediate rerun of the identical commit and runner image. Retry the whole
+        # step so one flake does not fail the release; the hook download cache under
+        # .dart_tool survives between attempts, so a retry does not re-download.
+        shell: pwsh
+        run: |
+          $attempts = 3
+          for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+            Write-Host "== fastforge package attempt $attempt/$attempts =="
+            $ok = $false
+            try {
+              dart pub global run fastforge:main package --platform=windows --targets=zip
+              $ok = ($LASTEXITCODE -eq 0)
+            } catch {
+              Write-Host "attempt $attempt threw: $_"
+            }
+            if ($ok) { exit 0 }
+            Write-Host "::warning::fastforge package failed on attempt $attempt/$attempts"
+          }
+          Write-Host "::error::fastforge package failed after $attempts attempts"
+          exit 1
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
