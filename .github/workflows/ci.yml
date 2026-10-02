@@ -146,20 +146,23 @@ jobs:
           ln -sfn "$FLUTTER_ROOT_DIR" ".fvm/versions/$VERSION"
           echo "linked .fvm/versions/$VERSION -> $FLUTTER_ROOT_DIR"
 
-      - name: Link FVM path expected by distribute_options.yaml (Windows)
+      # On Windows a junction is not enough: fastforge always goes through cmd, which cannot
+      # run the mixed-separator path that results from the pinned relative FLUTTER_ROOT
+      # (`.fvm/versions/3.47.5` + `\bin\flutter`), so it dies with "'.fvm' is not recognized".
+      # Point the pin at the installed SDK with native separators instead. Only the runner's
+      # checkout is modified -- the committed file and local FVM builds are unaffected.
+      - name: Point FLUTTER_ROOT at the installed SDK (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $version = (Get-Content .fvmrc -Raw | ConvertFrom-Json).flutter
-          if (-not $version) { throw '.fvmrc is missing "flutter"' }
           $flutterBin = (Get-Command flutter).Source
           $flutterRoot = Split-Path (Split-Path $flutterBin -Parent) -Parent
-          New-Item -ItemType Directory -Force -Path .fvm/versions | Out-Null
-          $link = ".fvm/versions/$version"
-          if (Test-Path $link) { Remove-Item $link -Recurse -Force }
-          # A directory junction does not need elevated privileges on Windows.
-          New-Item -ItemType Junction -Path $link -Target $flutterRoot | Out-Null
-          Write-Host "linked $link -> $flutterRoot"
+          if (-not (Test-Path $flutterRoot)) { throw "flutter root not found: $flutterRoot" }
+          $config = Get-Content distribute_options.yaml -Raw
+          $updated = $config -replace '(?m)^([ \t]*FLUTTER_ROOT[ \t]*:[ \t]*).*$', ('${1}' + $flutterRoot)
+          if ($updated -eq $config) { throw 'FLUTTER_ROOT not found in distribute_options.yaml' }
+          Set-Content -Path distribute_options.yaml -Value $updated -NoNewline
+          Write-Host "FLUTTER_ROOT -> $flutterRoot"
 
       - name: Install fastforge
         # 0.6.11+ is required: earlier releases pass FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER

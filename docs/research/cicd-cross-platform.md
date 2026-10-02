@@ -162,9 +162,14 @@ variables:
   FLUTTER_ROOT: .fvm/versions/3.47.5   # ← 本地 FVM 路径，CI 里不存在
 ```
 
-实际采用的方式（已落地）：**保持 `distribute_options.yaml` 不动，在 Runner 上把 `.fvm/versions/<version>` 重建为指向 flutter-action 所装 SDK 的软链接 / 目录 junction**，版本号从 `.fvmrc` 解析。这样本地与 CI 行为一致，也不需要改配置文件。
+实际采用的方式（已落地）：**仓库里 `distribute_options.yaml` 保持不动**，只在 Runner 上让这个写死的路径可用。
 
-> ⚠️ 关键点：fastforge 的变量优先级是**配置文件覆盖进程环境变量**，所以"在 CI 里设置 `FLUTTER_ROOT` 环境变量"并不生效，必须让配置里写死的那个路径真实存在。
+- **Linux / macOS**：把 `.fvm/versions/<version>` 重建为指向 flutter-action 所装 SDK 的软链接，版本号从 `.fvmrc` 解析。
+- **Windows**：软链接不够用——fastforge 最终经 cmd 执行 `<root>\bin\flutter`，而配置里的相对路径带正斜杠，拼出的 `.fvm/versions/3.47.5\bin\flutter` 被 cmd 拆成 `.fvm` 而报 `'.fvm' is not recognized`（目录 junction 确实建成了，问题在命令字符串本身）。因此改为**把 Runner 上那份配置文件里的 `FLUTTER_ROOT` 重写成 SDK 的绝对 Windows 路径**（原生反斜杠），提交进仓库的文件与本地 FVM 构建都不受影响。
+
+> ⚠️ 关键点：fastforge 的变量优先级是**配置文件覆盖进程环境变量**（`unified_distributor` 先收集 `Platform.environment`，再用 `distribute_options.yaml` 的 `variables` 覆盖），所以"在 CI 里设置 `FLUTTER_ROOT` 环境变量"并不生效，必须让配置里写死的那个路径真实可用。
+>
+> 另外**不要**把配置写成 `FLUTTER_ROOT: ${FLUTTER_ROOT}` 想借此读环境变量：`pathExpansion` 是拿同一个已合并的 map 去展开，会自我引用。
 
 **③ 修复 assets 子模块的 SSH 地址（已落地）**
 
@@ -397,6 +402,8 @@ jobs:
 2. **`flutter analyze` 会因一条历史 info 失败**：`lib/contest_run/score_manager.dart:7` 的 `CQ_WPX` 触发 `constant_identifier_names`。本期用 `--no-fatal-infos` 放行，后续可选择重命名常量或收紧 lint 配置。
 3. **fastforge 0.6.6 与 Flutter 3.47 不兼容**：见 4.4 ⑤，需升级到 ≥ 0.6.11。
 4. **子模块 SSH 地址**：已改为 HTTPS，本地克隆执行 `git submodule sync assets` 同步。
+5. **Windows 打包因 `.fvm` 相对路径失败**：CI 首跑时 `package (windows)` 报 `'.fvm' is not recognized as an internal or external command`，`BUILD FAILED`。原因是 fastforge 经 cmd 执行拼接出的 `.fvm/versions/3.47.5\bin\flutter`，混合分隔符无法执行。已改为在 Windows Runner 上把 `FLUTTER_ROOT` 重写为 SDK 的绝对路径，见 4.4 ②。
+6. **冒烟测试会被其他平台的打包失败连带跳过**：`needs: package` 是 job 级依赖，任一平台 matrix 失败都会让两个冒烟 job 一起 skipped。同时两个冒烟 job 原先只判断 tag / dispatch，手动选其他平台时会因 artifact 不存在而失败。已让两个冒烟 job 都读取 `setup` 解析出的 matrix，仅在对应平台确实参与构建时运行。
 
 ---
 
