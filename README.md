@@ -66,12 +66,18 @@ Releases are currently **unsigned**. On first launch:
 
 <img src="img/crash_dialog.png" alt="Crash Dialog" width="1000"/>
 
-If you see the crash dialog, click **Accept**, there will be a log file in the following directory.
+If you see the crash dialog, click **Accept**. Log files are written to the
+application data directory, under `log/`:
 
-Windows: `%USERPROFILE%\Documents\ssb_runner\log`
+- Windows: `%APPDATA%\com.ssbrunner\ssb_runner\log`
+- macOS (release builds run sandboxed):
+  `~/Library/Containers/com.ssbrunner.app/Data/Library/Application Support/com.ssbrunner.app/log`
+  (non-sandboxed debug builds use
+  `~/Library/Application Support/com.ssbrunner.app/log`)
+- Linux: `~/.local/share/com.ssbrunner.app/log`
 
-macOS: `~/Documents/ssb_runner/log`
+You can also open **Diagnostics → Export logs** in the settings panel, which
+saves a zip of the logs into your Documents folder and copies its path to the
+clipboard; **Copy diagnostics** puts the summary straight on the clipboard.
 
-Linux: `~/Documents/ssb_runner/log`
-
-Please [open an issue](https://github.com/SSBContestRunner/ssb_runner/issues/new) and attach the log file to it.
+Please [open an issue](https://github.com/SSBContestRunner/ssb_runner/issues/new) and attach the log file (or the exported zip) to it.
