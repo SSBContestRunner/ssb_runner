@@ -123,5 +123,15 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
 done
 if [[ $rc -ne 0 ]]; then
   echo "::error::app exited early on Intel (rc=$rc) after $attempts attempts"
+  # A crash leaves a report in DiagnosticReports whose faulting-thread backtrace names
+  # the framework that died -- the only way to tell a SIGSEGV in Impeller/Metal from one
+  # in a plugin. ReportCrash writes the .ips asynchronously, hence the short wait.
+  sleep 5
+  for dir in "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports; do
+    report=$(ls -t "$dir"/*.ips 2>/dev/null | head -1) || true
+    [[ -n "$report" ]] || continue
+    echo "--- macOS crash report: $report ---"
+    sed -n '1,250p' "$report"
+  done
   exit 1
 fi
