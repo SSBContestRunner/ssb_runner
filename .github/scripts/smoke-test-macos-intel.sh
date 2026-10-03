@@ -78,34 +78,45 @@ echo "architecture check passed: x86_64 present in every bundled binary"
 #     artifact, so a single early exit is a host flake, not proof the bundle is broken. Only
 #     a launch that aborts on every attempt fails the job; each failure is still reported.
 #
-#     Reaping must stay bounded: a bare `wait` blocks as long as the process is alive, and
-#     run 37142104657 hung for 26+ minutes because the liveness probe below found no state
-#     for a process that was in fact still running, so it fell through to `wait`. `ps`
-#     reports `Z` for a zombie and nothing once the shell has reaped it; both mean done.
+#     Liveness must not rely on `ps` alone: `ps -o state=` can transiently report no state at
+#     all for a process that is still alive, which previously dropped the script into a bare
+#     `wait` that blocked for 26+ minutes (run 37142104657). `kill -0` fails only once the pid
+#     is truly gone, so it decides liveness; `ps` is consulted only to tell a running process
+#     from a zombie that the shell has not reaped yet.
 reap() {
   local pid="$1" i state
-  for ((i = 0; i < 10; i++)); do
+  # `wait` blocks for as long as the child is alive, so it is only reached once the pid is
+  # certainly done -- either `kill -0` fails (the shell has reaped it) or the state is `Z`.
+  for ((i = 0; i < 15; i++)); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null
+      return $?
+    fi
     state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ') || true
-    if [[ -z "$state" || "$state" == Z* ]]; then
+    if [[ "$state" == Z* ]]; then
       wait "$pid" 2>/dev/null
       return $?
     fi
     sleep 1
   done
-  echo "::warning::pid $pid still running 10s after it was expected to have exited"
+  echo "::warning::pid $pid still running 15s after it was expected to have exited"
   return 1
 }
 
 attempts=3
 rc=1
+# Trace the launch section: a job killed by `timeout-minutes` uploads no log, so the xtrace
+# in the live log is the only way to see which command a future hang stops on.
+set -x
 for ((attempt = 1; attempt <= attempts; attempt++)); do
   set +e
   "$exe" > /tmp/app.log 2>&1 &
   pid=$!
   sleep 20
-  # `kill -0` also succeeds for a not-yet-reaped zombie, so inspect the process state instead.
-  state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ')
-  if [[ -n "$state" && "$state" != Z* ]]; then
+  # `kill -0` succeeds for a not-yet-reaped zombie too, so `ps` is consulted as well -- but it
+  # must not be the only signal, since it can come back empty for a process that is still up.
+  state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ') || true
+  if kill -0 "$pid" 2>/dev/null && [[ "$state" != Z* ]]; then
     echo "launch smoke: app started and stayed up on Intel (attempt $attempt/$attempts)"
     kill "$pid" 2>/dev/null
     sleep 2
@@ -121,6 +132,7 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
   echo "::warning::app exited early on Intel (rc=$rc) on attempt $attempt/$attempts"
   sed -n '1,40p' /tmp/app.log
 done
+set +x
 if [[ $rc -ne 0 ]]; then
   echo "::error::app exited early on Intel (rc=$rc) after $attempts attempts"
   # A crash leaves a report in DiagnosticReports whose faulting-thread backtrace names
