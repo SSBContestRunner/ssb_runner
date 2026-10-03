@@ -28,7 +28,7 @@ echo "smoke-testing $dmg on Intel (macOS $(sw_vers -productVersion), $(uname -m)
 # has to be parsed out of hdiutil's output.
 mount_point=$(mktemp -d)
 hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount_point" >/dev/null
-trap 'hdiutil detach "$mount_point" -quiet >/dev/null 2>&1 || true; rmdir "$mount_point" 2>/dev/null || true' EXIT
+trap 'hdiutil detach "$mount_point" -force -quiet >/dev/null 2>&1 || true; rmdir "$mount_point" 2>/dev/null || true' EXIT
 
 app=$(find "$mount_point" -maxdepth 1 -name '*.app' -print -quit)
 [[ -n "$app" ]] || { echo "::error::no .app inside the dmg"; exit 1; }
@@ -77,6 +77,25 @@ echo "architecture check passed: x86_64 present in every bundled binary"
 #     heap-corruption crash (rc=134) and then launched fine on a rerun of the very same
 #     artifact, so a single early exit is a host flake, not proof the bundle is broken. Only
 #     a launch that aborts on every attempt fails the job; each failure is still reported.
+#
+#     Reaping must stay bounded: a bare `wait` blocks as long as the process is alive, and
+#     run 37142104657 hung for 26+ minutes because the liveness probe below found no state
+#     for a process that was in fact still running, so it fell through to `wait`. `ps`
+#     reports `Z` for a zombie and nothing once the shell has reaped it; both mean done.
+reap() {
+  local pid="$1" i state
+  for ((i = 0; i < 10; i++)); do
+    state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ') || true
+    if [[ -z "$state" || "$state" == Z* ]]; then
+      wait "$pid" 2>/dev/null
+      return $?
+    fi
+    sleep 1
+  done
+  echo "::warning::pid $pid still running 10s after it was expected to have exited"
+  return 1
+}
+
 attempts=3
 rc=1
 for ((attempt = 1; attempt <= attempts; attempt++)); do
@@ -91,11 +110,12 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
     kill "$pid" 2>/dev/null
     sleep 2
     kill -9 "$pid" 2>/dev/null
+    reap "$pid"
     rc=0
     set -e
     break
   fi
-  wait "$pid"
+  reap "$pid"
   rc=$?
   set -e
   echo "::warning::app exited early on Intel (rc=$rc) on attempt $attempt/$attempts"
