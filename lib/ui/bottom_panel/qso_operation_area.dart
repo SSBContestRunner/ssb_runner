@@ -373,29 +373,60 @@ class _FunctionKeys extends StatelessWidget {
         ) {
           final buttonTextName = '${entry.key.keyLabel} ${entry.value.btnText}';
           return (buttonTextName, entry.value);
-        });
-    return GridView.count(
-      crossAxisCount: 4,
-      mainAxisSpacing: 16.0,
-      crossAxisSpacing: 16.0,
-      childAspectRatio: 2.5,
-      children: functionKeyBtns.map((element) {
-        final (text, event) = element;
-        return Tooltip(
-          message: 'Send $text',
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
-              ),
-            ),
-            onPressed: () {
-              onOperationEvent(event);
-            },
-            child: Text(text),
+        }).toList();
+
+    // Two rows of four whose height is shared from the parent rather than
+    // derived from a fixed aspect ratio, so the key label keeps enough room to
+    // wrap onto a second line instead of being clipped when the window shrinks.
+    final rows = <Widget>[];
+    for (var start = 0; start < functionKeyBtns.length; start += 4) {
+      final end = (start + 4).clamp(start, functionKeyBtns.length);
+      rows.add(
+        Expanded(
+          child: Row(
+            spacing: 16.0,
+            children: functionKeyBtns
+                .sublist(start, end)
+                .map(
+                  (element) => Expanded(
+                    child: _FunctionKeyButton(
+                      text: element.$1,
+                      onPressed: () {
+                        onOperationEvent(element.$2);
+                      },
+                    ),
+                  ),
+                )
+                .toList(),
           ),
-        );
-      }).toList(),
+        ),
+      );
+    }
+
+    return Column(spacing: 16.0, children: rows);
+  }
+}
+
+class _FunctionKeyButton extends StatelessWidget {
+  final String text;
+  final void Function() onPressed;
+
+  const _FunctionKeyButton({required this.text, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Send $text',
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Text(text, maxLines: 2, textAlign: TextAlign.center),
+      ),
     );
   }
 }
