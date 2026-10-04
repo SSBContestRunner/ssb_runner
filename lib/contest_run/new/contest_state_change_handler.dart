@@ -7,7 +7,6 @@ import 'package:ssb_runner/audio/mix_pileup.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/common/calculate_list_diff.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
-import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
@@ -335,15 +334,14 @@ class ContestStateChangeHandler {
 
     await Future.delayed(Duration(milliseconds: 500));
 
-    final misMatchCallsignLength = calculateMismatch(
-      answer: toState.currentCallAnswer,
-      submit: toState.submitCall,
-    );
+    final answer = toState.currentCallAnswer;
+    final submit = toState.submitCall;
 
-    if (misMatchCallsignLength >= callsignMismatchThreadshold) {
-      _stateMachine.transition(CallsignInvalid());
-    } else {
+    if (submit == answer ||
+        shouldRepeatCallsign(answer: answer, submit: submit)) {
       _stateMachine.transition(ReceiveExchange());
+    } else {
+      _stateMachine.transition(CallsignInvalid());
     }
   }
 

@@ -1,5 +1,4 @@
 import 'package:ssb_runner/common/calculate_list_diff.dart';
-import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
@@ -92,36 +91,33 @@ initSingleCallRunStateMachine({
         event as SubmitCall;
 
         final submitCall = event.call;
+        final currentCallAnswer = state.currentCallAnswer;
 
-        final diff = calculateMismatch(
-          answer: state.currentCallAnswer,
-          submit: submitCall,
-        );
-
-        if (diff > callsignMismatchThreadshold) {
+        if (submitCall == currentCallAnswer) {
           return definition.transitionTo(
-            state.copyWith(audioPlayType: NoPlay()),
+            HeAskForExchange(
+              currentCallAnswer: currentCallAnswer,
+              currentExchangeAnswer: state.currentExchangeAnswer,
+              submitCall: submitCall,
+              isPlayMyCall: false,
+            ),
           );
         }
 
-        if (diff > 0) {
+        if (shouldRepeatCallsign(
+          answer: currentCallAnswer,
+          submit: submitCall,
+        )) {
           return definition.transitionTo(
             HeRepeatCorrectCallAnswer(
-              currentCallAnswer: state.currentCallAnswer,
+              currentCallAnswer: currentCallAnswer,
               currentExchangeAnswer: state.currentExchangeAnswer,
               submitCall: submitCall,
             ),
           );
         }
 
-        return definition.transitionTo(
-          HeAskForExchange(
-            currentCallAnswer: state.currentCallAnswer,
-            currentExchangeAnswer: state.currentExchangeAnswer,
-            submitCall: event.call,
-            isPlayMyCall: false,
-          ),
-        );
+        return definition.transitionTo(state.copyWith(audioPlayType: NoPlay()));
       });
     });
 
@@ -293,13 +289,11 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
   String answerCall,
   String answerExchange,
 ) {
-  int diff = calculateMismatch(answer: answerCall, submit: submitCall);
-
-  if (diff >= callsignMismatchThreadshold) {
-    return NoPlay();
+  if (answerCall == submitCall) {
+    return PlayExchange(exchange: answerExchange, isMe: false);
   }
 
-  if (diff > 0) {
+  if (shouldRepeatCallsign(answer: answerCall, submit: submitCall)) {
     return PlayCallExchange(
       call: answerCall,
       exchange: answerExchange,
@@ -307,5 +301,5 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
     );
   }
 
-  return PlayExchange(exchange: answerExchange, isMe: false);
+  return NoPlay();
 }
