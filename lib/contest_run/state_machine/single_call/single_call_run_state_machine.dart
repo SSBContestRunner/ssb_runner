@@ -150,6 +150,26 @@ initSingleCallRunStateMachine({
         return definition.transitionTo(state);
       });
 
+      definition.on(SubmitCallAndHisExchange, (state, event) {
+        final stateVal = state as HeRepeatCorrectCallAnswer;
+        final eventVal = event as SubmitCallAndHisExchange;
+
+        return definition.transitionTo(
+          ReportMyExchange(
+            currentCallAnswer: stateVal.currentCallAnswer,
+            currentExchangeAnswer: stateVal.currentExchangeAnswer,
+            submitCall: eventVal.call,
+            myExchange: eventVal.myExchange,
+            audioPlayType: PlayCallExchange(
+              call: eventVal.call,
+              exchange: eventVal.myExchange,
+              isMe: true,
+            ),
+            isOperateInput: eventVal.isOperateInput,
+          ),
+        );
+      });
+
       definition.on(SubmitHisExchange, (state, event) {
         state as HeRepeatCorrectCallAnswer;
         return definition.transitionTo(
