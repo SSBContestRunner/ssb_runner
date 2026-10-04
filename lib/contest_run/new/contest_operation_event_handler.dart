@@ -251,7 +251,8 @@ class ContestOperationEventHandler {
       return;
     }
 
-    if (_stateMachine.currentState is WaitingSubmitCall) {
+    if (_stateMachine.currentState is WaitingSubmitCall ||
+        _stateMachine.currentState is HeRepeatCorrectCallAnswer) {
       _stateMachine.transition(SubmitCall(call: _hisCall));
       return;
     }

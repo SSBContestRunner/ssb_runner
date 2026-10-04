@@ -150,6 +150,43 @@ initSingleCallRunStateMachine({
         return definition.transitionTo(state);
       });
 
+      definition.on(SubmitCall, (state, event) {
+        final stateVal = state as HeRepeatCorrectCallAnswer;
+        final submitCall = (event as SubmitCall).call;
+
+        if (submitCall == stateVal.currentCallAnswer) {
+          return definition.transitionTo(
+            HeAskForExchange(
+              currentCallAnswer: stateVal.currentCallAnswer,
+              currentExchangeAnswer: stateVal.currentExchangeAnswer,
+              submitCall: submitCall,
+              isPlayMyCall: false,
+            ),
+          );
+        }
+
+        if (shouldRepeatCallsign(
+          answer: stateVal.currentCallAnswer,
+          submit: submitCall,
+        )) {
+          return definition.transitionTo(
+            HeRepeatCorrectCallAnswer(
+              currentCallAnswer: stateVal.currentCallAnswer,
+              currentExchangeAnswer: stateVal.currentExchangeAnswer,
+              submitCall: submitCall,
+            ),
+          );
+        }
+
+        return definition.transitionTo(
+          WaitingSubmitCall(
+            currentCallAnswer: stateVal.currentCallAnswer,
+            currentExchangeAnswer: stateVal.currentExchangeAnswer,
+            audioPlayType: NoPlay(),
+          ),
+        );
+      });
+
       definition.on(SubmitCallAndHisExchange, (state, event) {
         final stateVal = state as HeRepeatCorrectCallAnswer;
         final eventVal = event as SubmitCallAndHisExchange;
