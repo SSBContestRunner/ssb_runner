@@ -33,8 +33,27 @@ class _OptionsCubit extends Cubit<_Options> {
           difficulty: _settings.difficulty,
           volume: _settings.audioVolume,
         ),
-      );
+      ) {
+    durationController = TextEditingController(text: state.duration.toString());
+    durationFocusNode = FocusNode()
+      ..addListener(_handleDurationFocusChange);
+  }
+
   final AppSettings _settings;
+
+  // Owned by the cubit so the field widget stays stateless while keeping its
+  // editing state and focus stable across rebuilds.
+  late final TextEditingController durationController;
+  late final FocusNode durationFocusNode;
+
+  void _handleDurationFocusChange() {
+    if (durationFocusNode.hasFocus) return;
+    // An empty box stays empty while it has focus; only fall back to the stored
+    // value once focus leaves, so the field never displays a blank duration.
+    if (durationController.text.isEmpty) {
+      durationController.text = state.duration.toString();
+    }
+  }
 
   void setMode(TrainingMode? value) {
     if (value != null) {
@@ -51,8 +70,8 @@ class _OptionsCubit extends Cubit<_Options> {
   }
 
   void setDuration(String input) {
-    final parsed = int.tryParse(input) ?? 0;
-    if (parsed > maxDurationInMinutesPerRun) {
+    final parsed = int.tryParse(input);
+    if (parsed != null && parsed > maxDurationInMinutesPerRun) {
       toastification.show(
         title: Text('Max duration is $maxDurationInMinutesPerRun minutes'),
         autoCloseDuration: const Duration(seconds: 2),
@@ -60,9 +79,18 @@ class _OptionsCubit extends Cubit<_Options> {
         style: ToastificationStyle.fillColored,
       );
     }
-    final value = parsed.clamp(0, maxDurationInMinutesPerRun).toInt();
+    final value = (parsed ?? 0).clamp(0, maxDurationInMinutesPerRun).toInt();
     _settings.contestDuration = value;
     _emit(duration: value);
+
+    // Show the clamped value immediately, e.g. typing 999 becomes 120.
+    if (parsed != null && parsed > maxDurationInMinutesPerRun) {
+      final text = value.toString();
+      durationController.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
   }
 
   void setPhonic(PhonicType? value) {
@@ -75,6 +103,15 @@ class _OptionsCubit extends Cubit<_Options> {
   void setVolume(double value) {
     _settings.audioVolume = value;
     _emit(volume: value);
+  }
+
+  @override
+  Future<void> close() {
+    durationFocusNode
+      ..removeListener(_handleDurationFocusChange)
+      ..dispose();
+    durationController.dispose();
+    return super.close();
   }
 
   void _emit({
@@ -129,8 +166,8 @@ class OptionsSetting extends StatelessWidget {
                     label: 'Practice duration in minutes',
                     child: TextFormField(
                       enabled: enabled,
-                      initialValue: state.duration.toString(),
-                      key: ValueKey(state.duration),
+                      controller: cubit.durationController,
+                      focusNode: cubit.durationFocusNode,
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
                       ],
