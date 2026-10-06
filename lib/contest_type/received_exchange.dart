@@ -32,6 +32,15 @@ const List<String> arrlCanadaProvinces = [
   'SK', 'YT',
 ];
 
+/// Every state/province an ARRL DX operator may send.
+final Set<String> arrlStateProvinceCodes = {
+  ...arrlUsStates,
+  ...arrlCanadaProvinces,
+};
+
+bool isValidArrlStateProvince(String value) =>
+    arrlStateProvinceCodes.contains(value.trim().toUpperCase());
+
 /// US call-area digit -> candidate states (ARRL DX multiplier set).
 const Map<String, List<String>> _usAreaStates = {
   '0': ['CO', 'IA', 'KS', 'MN', 'MO', 'ND', 'NE', 'SD'],
@@ -91,6 +100,21 @@ const Map<String, int> _usAreaItuZones = {
 
 const List<int> _jidxJd1Prefectures = [48, 49, 50];
 
+/// US call-area digit -> CQ zone. cty only carries the US entity default (5),
+/// which is wrong for the western (3) and central (4) call areas.
+const Map<String, int> _usAreaCqZones = {
+  '0': 4,
+  '1': 5,
+  '2': 5,
+  '3': 5,
+  '4': 5,
+  '5': 4,
+  '6': 3,
+  '7': 3,
+  '8': 5,
+  '9': 5,
+};
+
 /// Plausible ARRL DX power values for DX stations.
 const List<String> arrlPowerValues = [
   '100',
@@ -120,14 +144,21 @@ String? _firstDigit(String callsign) =>
     RegExp(r'[0-9]').firstMatch(callsign)?.group(0);
 
 /// CQ zone of the caller, or a random 1..[fallbackMax] when unknown.
+/// US calls are refined by call area.
 String _cqZoneExchange(
   SessionRandom random,
   String callerCallsign,
   DxccManager dxccManager, {
   int fallbackMax = 40,
-}) =>
-    dxccManager.findCallsignCqZone(callerCallsign)?.toString() ??
-    random.nextExchange(fallbackMax).toString();
+}) {
+  final call = callerCallsign.toUpperCase();
+  if (dxccManager.findCallsignDxccId(call) == 291) {
+    final zone = _usAreaCqZones[_firstDigit(call)];
+    if (zone != null) return zone.toString();
+  }
+  return dxccManager.findCallsignCqZone(call)?.toString() ??
+      random.nextExchange(fallbackMax).toString();
+}
 
 String _canadaProvince(SessionRandom random, String callsign) {
   final call = callsign.toUpperCase();

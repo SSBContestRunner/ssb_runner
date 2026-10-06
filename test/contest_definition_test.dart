@@ -205,6 +205,89 @@ void main() {
     expect(arrlPowerValues, contains(power));
   });
 
+  test('CQ WW refines US callers to their call-area CQ zone', () {
+    final us = _FakeDxccManager(dxccId: 291, cqZone: 5);
+    String zoneFor(String call) => _type('CQ-WW-SSB', dxccManager: us)
+        .exchangeManager
+        .generateExchange(SessionRandom(1), callerCallsign: call);
+    expect(zoneFor('W6ABC'), '3');
+    expect(zoneFor('W0ABC'), '4');
+    expect(zoneFor('W4ABC'), '5');
+  });
+
+  test('ARRL operator exchange follows the station role', () {
+    final wve = _FakeDxccManager(dxccId: 291);
+    final wvePlan = ContestRegistry.byId(
+      'ARRL-DX',
+    ).myExchangePlan(stationCallsign: 'W1ABC', dxccManager: wve);
+    expect(wvePlan.fields.single.id, 'stateProvince');
+    // RUN gate: a W/VE operator must configure a valid state/province.
+    expect(
+      validateStationExchange(
+        plan: wvePlan,
+        config: StationExchangeConfig.empty,
+        stationCallsign: 'W1ABC',
+        dxccManager: wve,
+      ),
+      isNotNull,
+    );
+    expect(
+      validateStationExchange(
+        plan: wvePlan,
+        config: const StationExchangeConfig({'stateProvince': 'ZZ'}),
+        stationCallsign: 'W1ABC',
+        dxccManager: wve,
+      ),
+      isNotNull,
+    );
+    expect(
+      validateStationExchange(
+        plan: wvePlan,
+        config: const StationExchangeConfig({'stateProvince': 'CT'}),
+        stationCallsign: 'W1ABC',
+        dxccManager: wve,
+      ),
+      isNull,
+    );
+    expect(
+      ContestRegistry.byId('ARRL-DX')
+          .create(
+            stationCallsign: 'W1ABC',
+            dxccManager: wve,
+            stationExchange: const StationExchangeConfig({
+              'stateProvince': 'CT',
+            }),
+          )
+          .buildMyExchange(1),
+      'CT',
+    );
+
+    // A DX operator must configure power instead.
+    final dx = _FakeDxccManager(dxccId: 318);
+    final dxPlan = ContestRegistry.byId(
+      'ARRL-DX',
+    ).myExchangePlan(stationCallsign: 'BI1QJQ', dxccManager: dx);
+    expect(dxPlan.fields.single.id, 'power');
+    expect(
+      validateStationExchange(
+        plan: dxPlan,
+        config: StationExchangeConfig.empty,
+        stationCallsign: 'BI1QJQ',
+        dxccManager: dx,
+      ),
+      isNotNull,
+    );
+    expect(
+      validateStationExchange(
+        plan: dxPlan,
+        config: const StationExchangeConfig({'power': '100'}),
+        stationCallsign: 'BI1QJQ',
+        dxccManager: dx,
+      ),
+      isNull,
+    );
+  });
+
   test('ARRL accepts letter exchanges, other contests stay numeric', () {
     expect(_type('ARRL-DX').allowExchangeRegex.hasMatch('X'), isTrue);
     expect(_type('CQ-WW-SSB').allowExchangeRegex.hasMatch('X'), isFalse);

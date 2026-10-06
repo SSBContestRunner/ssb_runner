@@ -128,7 +128,7 @@ class ArrlDxDefinition extends _NumericContestDefinition {
   @override
   String get name => 'ARRL DX';
   @override
-  String get exchangeLabel => '59 Power';
+  String get exchangeLabel => '59 State/Province (W/VE) / 59 Power (DX)';
   @override
   int get exchangeAudioDigits => 0;
   @override
@@ -143,19 +143,39 @@ class ArrlDxDefinition extends _NumericContestDefinition {
   MyExchangePlan myExchangePlan({
     required String stationCallsign,
     required DxccManager dxccManager,
-  }) => MyExchangePlan(
-    fields: [
-      StationExchangeField(
-        id: 'power',
-        label: 'Power',
-        min: 1,
-        max: 1500,
-        audioDigits: 0,
-        helperText: 'Transmitter output in watts',
-      ),
-    ],
-    sendsSerial: false,
-  );
+  }) {
+    // W/VE operators send a state/province; DX operators send power. The
+    // configured (or derived) value is what gets transmitted, and RUN refuses
+    // to start until the field for this role is filled in.
+    if (isWveDxcc(dxccManager.findCallsignDxccId(stationCallsign))) {
+      return MyExchangePlan(
+        fields: [
+          StationExchangeField(
+            id: 'stateProvince',
+            label: 'State/Province',
+            numeric: false,
+            audioDigits: 0,
+            helperText: 'Two-letter state or province code',
+            validator: isValidArrlStateProvince,
+          ),
+        ],
+        sendsSerial: false,
+      );
+    }
+    return MyExchangePlan(
+      fields: [
+        StationExchangeField(
+          id: 'power',
+          label: 'Power',
+          min: 1,
+          max: 1500,
+          audioDigits: 0,
+          helperText: 'Transmitter output in watts',
+        ),
+      ],
+      sendsSerial: false,
+    );
+  }
 
   @override
   int pointsFor(QsoTableData qso, DxccManager dxcc, String station) => 3;
