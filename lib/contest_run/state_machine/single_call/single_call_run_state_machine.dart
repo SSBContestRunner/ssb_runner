@@ -291,12 +291,20 @@ initSingleCallRunStateMachine({
         final stateVal = state as WaitingSubmitMyExchange;
         final eventVal = event as SubmitMyExchange;
 
+        // The operator may correct the callsign while copying the exchange;
+        // only then is the corrected call announced before signing off.
+        final correctedCall =
+            eventVal.call.isNotEmpty && eventVal.call != stateVal.submitCall
+            ? eventVal.call
+            : null;
+
         return definition.transitionTo(
           QsoEnd(
             currentCallAnswer: stateVal.currentCallAnswer,
             currentExchangeAnswer: stateVal.currentExchangeAnswer,
             submitCall: stateVal.submitCall,
             submitExchange: eventVal.exchange,
+            correctedCall: correctedCall,
           ),
         );
       });

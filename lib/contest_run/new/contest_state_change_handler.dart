@@ -108,10 +108,24 @@ class ContestStateChangeHandler {
         );
         break;
       case QsoEnd():
-        final pcmData = await _audioLoader.loadAudio(
-          myAudioAccentDir,
-          CommonPayload(fileName: 'TU_QRZ.wav'),
-        );
+        // When the operator fixed the callsign while copying the exchange, read
+        // the corrected call before signing off so both sides agree on it.
+        final correctedCall = toState.correctedCall;
+        final list = [
+          if (correctedCall != null)
+            await _audioLoader.loadAudio(
+              myAudioAccentDir,
+              CallsignPayload(
+                callsign: correctedCall,
+                phonicType: _appSettings.phonicType,
+              ),
+            ),
+          await _audioLoader.loadAudio(
+            myAudioAccentDir,
+            CommonPayload(fileName: 'TU_QRZ.wav'),
+          ),
+        ];
+        final pcmData = await concatUint8List(list);
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: true,

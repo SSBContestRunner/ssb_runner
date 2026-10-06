@@ -207,7 +207,7 @@ class ContestOperationEventHandler {
     }
 
     if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
-      transition(SubmitMyExchange(exchange: _exchange));
+      transition(SubmitMyExchange(exchange: _exchange, call: _hisCall));
       return;
     }
 

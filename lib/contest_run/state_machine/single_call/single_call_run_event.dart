@@ -51,8 +51,12 @@ class ReceiveExchange extends SingleCallRunEvent {
 class Retry extends SingleCallRunEvent {}
 
 class SubmitMyExchange extends SingleCallRunEvent {
-  SubmitMyExchange({required this.exchange});
+  SubmitMyExchange({required this.exchange, required this.call});
   final String exchange;
+
+  /// Callsign currently in the input, so a correction made while copying the
+  /// exchange can be announced when the QSO is signed off.
+  final String call;
 }
 
 class SubmitHisExchange extends SingleCallRunEvent {

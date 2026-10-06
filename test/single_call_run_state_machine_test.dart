@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state_machine.dart';
@@ -31,6 +32,31 @@ void main() {
       expect(toState, isA<WaitingSubmitCall>());
     });
   });
+
+  group('WaitingSubmitMyExchange 录入序号阶段提交', () {
+    test('在录入序号阶段更正呼号时，签字前带上更正后的呼号', () {
+      // 先前发错呼号（B10）给了信号报告，进入录入序号阶段后才改成正确呼号。
+      final machine = _machineInSubmitExchangeState(submitCall: 'B10');
+
+      final toState = machine.transition(
+        SubmitMyExchange(exchange: '59 001', call: 'B100IARU'),
+      );
+
+      expect(toState, isA<QsoEnd>());
+      expect((toState as QsoEnd).correctedCall, 'B100IARU');
+    });
+
+    test('呼号未改动时不朗读更正呼号', () {
+      final machine = _machineInSubmitExchangeState(submitCall: 'B100IARU');
+
+      final toState = machine.transition(
+        SubmitMyExchange(exchange: '59 001', call: 'B100IARU'),
+      );
+
+      expect(toState, isA<QsoEnd>());
+      expect((toState as QsoEnd).correctedCall, isNull);
+    });
+  });
 }
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null> _machineInRepeatState(
@@ -42,6 +68,20 @@ StateMachine<SingleCallRunState, SingleCallRunEvent, Null> _machineInRepeatState
       currentCallAnswer: answer,
       currentExchangeAnswer: '59 001',
       submitCall: submitCall,
+    ),
+    transitionListener: (_) {},
+  );
+}
+
+StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
+_machineInSubmitExchangeState({required String submitCall}) {
+  return initSingleCallRunStateMachine(
+    initialState: WaitingSubmitMyExchange(
+      currentCallAnswer: 'B100IARU',
+      currentExchangeAnswer: '59 001',
+      submitCall: submitCall,
+      audioPlayType: NoPlay(),
+      isOperateInput: true,
     ),
     transitionListener: (_) {},
   );
