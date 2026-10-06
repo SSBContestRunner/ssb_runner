@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show LazyDatabase;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
+import 'package:ssb_runner/contest_type/received_exchange.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
@@ -10,10 +11,12 @@ import 'package:ssb_runner/training/session_random.dart';
 /// Avoids loading the real DXCC table; the definitions only need the lookups
 /// below.
 class _FakeDxccManager extends DxccManager {
-  _FakeDxccManager({this.dxccId = 0})
+  _FakeDxccManager({this.dxccId = 0, this.cqZone = 24, this.ituZone})
     : super(database: AppDatabase(_unusedExecutor()));
 
   final int dxccId;
+  final int? cqZone;
+  final int? ituZone;
 
   @override
   int findCallsignDxccId(String callsign) => dxccId;
@@ -22,10 +25,10 @@ class _FakeDxccManager extends DxccManager {
   String findCallSignContinent(String callsign) => 'AS';
 
   @override
-  int? findCallsignCqZone(String callsign) => 24;
+  int? findCallsignCqZone(String callsign) => cqZone;
 
   @override
-  int? findCallsignItuZone(String callsign) => null;
+  int? findCallsignItuZone(String callsign) => ituZone;
 }
 
 ContestType _type(
@@ -79,7 +82,10 @@ void main() {
       expect(contestType.exchangeManager, isNotNull);
       expect(contestType.allowExchangeRegex, isNotNull);
       expect(
-        contestType.exchangeManager.generateExchange(SessionRandom(1)),
+        contestType.exchangeManager.generateExchange(
+          SessionRandom(1),
+          callerCallsign: 'BI1ABC',
+        ),
         isNotEmpty,
         reason: '${definition.id} must generate a received exchange',
       );
@@ -144,5 +150,90 @@ void main() {
     expect(_type('IARU-HF').formatExchangeForAudio('5'), '05');
     expect(_type('JIDX-SSB').formatExchangeForAudio('5'), '05');
     expect(_type('ARRL-DX').formatExchangeForAudio('100'), '100');
+  });
+
+  test('received exchange follows the caller for zone contests', () {
+    expect(
+      _type('CQ-WW-SSB', dxccManager: _FakeDxccManager(cqZone: 24))
+          .exchangeManager
+          .generateExchange(SessionRandom(1), callerCallsign: 'BI1ABC'),
+      '24',
+    );
+    expect(
+      _type('IARU-HF', dxccManager: _FakeDxccManager(ituZone: 44))
+          .exchangeManager
+          .generateExchange(SessionRandom(1), callerCallsign: 'BY1ABC'),
+      '44',
+    );
+  });
+
+  test('IARU refines US callers to their call-area ITU zone', () {
+    final us = _FakeDxccManager(dxccId: 291, ituZone: 8);
+    String zoneFor(String call) => _type('IARU-HF', dxccManager: us)
+        .exchangeManager
+        .generateExchange(SessionRandom(1), callerCallsign: call);
+    expect(zoneFor('W6ABC'), '6');
+    expect(zoneFor('W5ABC'), '7');
+    expect(zoneFor('W4ABC'), '8');
+  });
+
+  test('JIDX received exchange uses a prefecture for JA, zone for DX', () {
+    final prefecture = int.parse(
+      _type('JIDX-SSB', dxccManager: _FakeDxccManager(dxccId: 339))
+          .exchangeManager
+          .generateExchange(SessionRandom(3), callerCallsign: 'JA1ABC'),
+    );
+    expect(prefecture, inInclusiveRange(10, 17));
+    expect(
+      _type('JIDX-SSB', dxccManager: _FakeDxccManager(cqZone: 24))
+          .exchangeManager
+          .generateExchange(SessionRandom(1), callerCallsign: 'BI1ABC'),
+      '24',
+    );
+  });
+
+  test('ARRL received exchange is a state for W/VE, power for DX', () {
+    expect(
+      _type('ARRL-DX', dxccManager: _FakeDxccManager(dxccId: 291))
+          .exchangeManager
+          .generateExchange(SessionRandom(1), callerCallsign: 'W6ABC'),
+      'CA',
+    );
+    final power = _type('ARRL-DX', dxccManager: _FakeDxccManager(dxccId: 318))
+        .exchangeManager
+        .generateExchange(SessionRandom(1), callerCallsign: 'BI1ABC');
+    expect(arrlPowerValues, contains(power));
+  });
+
+  test('ARRL accepts letter exchanges, other contests stay numeric', () {
+    expect(_type('ARRL-DX').allowExchangeRegex.hasMatch('X'), isTrue);
+    expect(_type('CQ-WW-SSB').allowExchangeRegex.hasMatch('X'), isFalse);
+  });
+
+  test('JIDX constrains the operator prefecture to its JA call area', () {
+    final ja = _FakeDxccManager(dxccId: 339);
+    final plan = ContestRegistry.byId(
+      'JIDX-SSB',
+    ).myExchangePlan(stationCallsign: 'JA1ABC', dxccManager: ja);
+    expect(plan.fields.single.min, 10);
+    expect(plan.fields.single.max, 17);
+    expect(
+      validateStationExchange(
+        plan: plan,
+        config: const StationExchangeConfig({'prefecture': '40'}),
+        stationCallsign: 'JA1ABC',
+        dxccManager: ja,
+      ),
+      isNotNull,
+    );
+    expect(
+      validateStationExchange(
+        plan: plan,
+        config: const StationExchangeConfig({'prefecture': '12'}),
+        stationCallsign: 'JA1ABC',
+        dxccManager: ja,
+      ),
+      isNull,
+    );
   });
 }

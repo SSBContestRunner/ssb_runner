@@ -150,8 +150,10 @@ Uint8List _pcm() {
 
 class _FixedExchangeManager implements ExchangeManager {
   @override
-  String generateExchange(SessionRandom random) =>
-      random.nextExchange(3000).toString();
+  String generateExchange(
+    SessionRandom random, {
+    required String callerCallsign,
+  }) => random.nextExchange(3000).toString();
 
   @override
   String processExchange(String exchange) => exchange;

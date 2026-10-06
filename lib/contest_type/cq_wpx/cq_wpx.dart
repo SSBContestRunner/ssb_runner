@@ -53,7 +53,11 @@ class CqWpxContestType implements ContestType {
 
 class _CqWpxExchangeManager implements ExchangeManager {
   @override
-  String generateExchange(SessionRandom random) {
+  String generateExchange(
+    SessionRandom random, {
+    required String callerCallsign,
+  }) {
+    // WPX is a running serial for every station, independent of its callsign.
     final exchange = random.nextExchange(3000);
     return exchange.toString();
   }

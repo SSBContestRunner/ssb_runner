@@ -7,7 +7,7 @@ import 'package:ssb_runner/db/table/qso_table.dart';
 
 part 'app_database.g.dart';
 
-const _schemaVersion = 3;
+const _schemaVersion = 4;
 
 @DriftDatabase(tables: [PrefixTable, QsoTable, EventLogTable])
 class AppDatabase extends _$AppDatabase {
@@ -31,6 +31,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await migrator.addColumn(prefixTable, prefixTable.cqz);
         await migrator.addColumn(prefixTable, prefixTable.ituz);
+        await delete(prefixTable).go();
+      }
+      // v4 ships ITU zones in the cty asset; drop the cached prefixes so the
+      // next loadDxcc() re-parses them.
+      if (from < 4) {
         await delete(prefixTable).go();
       }
     },
