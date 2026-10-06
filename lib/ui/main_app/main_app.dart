@@ -260,11 +260,11 @@ class _StartupFailure extends StatelessWidget {
   Future<void> _exportLogs(BuildContext context) async {
     try {
       final file = await exportLogArchive();
-      await Clipboard.setData(ClipboardData(text: file.path));
-      if (!context.mounted) {
+      if (!context.mounted || file == null) {
         return;
       }
 
+      await Clipboard.setData(ClipboardData(text: file.path));
       toastification.show(
         title: Text('Exported to ${file.path}'),
         autoCloseDuration: const Duration(seconds: 4),

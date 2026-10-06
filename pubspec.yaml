@@ -54,6 +54,7 @@ dependencies:
   toastification: ^3.0.3
   catcher_2: ^2.1.5
   intl: ^0.20.2
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:

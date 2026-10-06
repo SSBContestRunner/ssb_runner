@@ -88,11 +88,11 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
   Future<void> _exportLogs() async {
     try {
       final file = await exportLogArchive();
-      await Clipboard.setData(ClipboardData(text: file.path));
-      if (!mounted) {
+      if (!mounted || file == null) {
         return;
       }
 
+      await Clipboard.setData(ClipboardData(text: file.path));
       toastification.show(
         title: Text('Exported to ${file.path}'),
         autoCloseDuration: const Duration(seconds: 4),

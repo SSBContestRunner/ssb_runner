@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:archive/archive.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:file_selector/file_selector.dart';
 
 import 'log_paths.dart';
 import 'log_session.dart';
@@ -53,8 +53,21 @@ Future<String> diagnosticSummary({int tailLines = 100}) async {
   return buffer.toString();
 }
 
-/// Zips the log directory plus the diagnostic summary into Documents.
-Future<File> exportLogArchive() async {
+/// Zips the log directory plus the diagnostic summary into the location the
+/// user picks in the system save dialog.
+///
+/// Returns `null` when the user cancels the dialog.
+Future<File?> exportLogArchive() async {
+  final target = await getSaveLocation(
+    suggestedName: 'ssb-runner-diagnostics-${_timestamp()}.zip',
+    acceptedTypeGroups: const [
+      XTypeGroup(label: 'Zip archive', extensions: ['zip']),
+    ],
+  );
+  if (target == null) {
+    return null;
+  }
+
   final location = LogSession.location ?? await resolveLogDirectory();
   final archive = Archive()
     ..addFile(
@@ -68,10 +81,7 @@ Future<File> exportLogArchive() async {
   }
 
   final encoded = ZipEncoder().encode(archive);
-  final documents = await getApplicationDocumentsDirectory();
-  final output = File(
-    '${documents.path}/ssb-runner-diagnostics-${_timestamp()}.zip',
-  );
+  final output = File(target.path);
   await output.writeAsBytes(encoded, flush: true);
   return output;
 }
