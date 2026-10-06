@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -35,24 +37,9 @@ void main() {
     // The function keys used to be laid out by a fixed aspect ratio, which
     // shrank each cell to ~56x23px so the label (e.g. "F1 CQ") was clipped
     // instead of wrapping. The labels must always be fully readable.
-    final prefs = await SharedPreferencesWithCache.create(
-      cacheOptions: const SharedPreferencesWithCacheOptions(),
-    );
-    final settings = AppSettings(prefs: prefs);
-    final database = AppDatabase(
-      LazyDatabase(() async => throw StateError('no db')),
-    );
-    final inputHandler = ContestInputHandler();
+    final harness = await _createHarness();
     final contestManager = ContestManager(
-      contestDataManager: ContestDataManager(
-        audioLoader: AudioLoader(),
-        audioPlayer: AudioPlayer(),
-        appSettings: settings,
-        appDatabase: database,
-        callsignLoader: CallsignLoader(),
-        dxccManager: DxccManager(database: database),
-        inputHandler: inputHandler,
-      ),
+      contestDataManager: harness.dataManager,
     );
 
     await tester.pumpWidget(
@@ -60,10 +47,10 @@ void main() {
         home: Scaffold(
           body: MultiRepositoryProvider(
             providers: [
-              RepositoryProvider<AppSettings>.value(value: settings),
+              RepositoryProvider<AppSettings>.value(value: harness.settings),
               RepositoryProvider<ContestManager>.value(value: contestManager),
               RepositoryProvider<ContestInputHandler>.value(
-                value: inputHandler,
+                value: harness.inputHandler,
               ),
             ],
             child: BlocProvider<MainPageCubit>(
@@ -95,4 +82,68 @@ void main() {
       );
     }
   });
+
+  test('the operation area follows the contest lifecycle for mouse clicks', () async {
+    // Regression: mouse clicks on the on-screen F1-F8 buttons are forwarded to
+    // the active contest's operation handler. The cubit never attached to the
+    // running state, so the handler stayed null and every click was dropped
+    // while the keyboard shortcuts kept working.
+    final harness = await _createHarness();
+    final manager = _ContestManagerSpy(contestDataManager: harness.dataManager);
+
+    final cubit = QsoOperationAreaCubit(
+      contestManager: manager,
+      contestInputHandler: harness.inputHandler,
+    );
+    addTearDown(cubit.dispose);
+
+    expect(
+      manager.hasRunningListener,
+      isTrue,
+      reason: 'without a subscription the clicked operation event has no handler',
+    );
+  });
+}
+
+class _ContestManagerSpy extends ContestManager {
+  _ContestManagerSpy({required super.contestDataManager});
+
+  final _runningController = StreamController<bool>.broadcast();
+
+  @override
+  Stream<bool> get isContestRunningStream => _runningController.stream;
+
+  bool get hasRunningListener => _runningController.hasListener;
+}
+
+Future<
+  ({
+    AppSettings settings,
+    ContestDataManager dataManager,
+    ContestInputHandler inputHandler,
+  })
+>
+_createHarness() async {
+  final prefs = await SharedPreferencesWithCache.create(
+    cacheOptions: const SharedPreferencesWithCacheOptions(),
+  );
+  final settings = AppSettings(prefs: prefs);
+  final database = AppDatabase(
+    LazyDatabase(() async => throw StateError('no db')),
+  );
+  final inputHandler = ContestInputHandler();
+  final dataManager = ContestDataManager(
+    audioLoader: AudioLoader(),
+    audioPlayer: AudioPlayer(),
+    appSettings: settings,
+    appDatabase: database,
+    callsignLoader: CallsignLoader(),
+    dxccManager: DxccManager(database: database),
+    inputHandler: inputHandler,
+  );
+  return (
+    settings: settings,
+    dataManager: dataManager,
+    inputHandler: inputHandler,
+  );
 }

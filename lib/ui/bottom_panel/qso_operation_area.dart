@@ -24,7 +24,9 @@ class QsoOperationAreaCubit extends Cubit<int> {
     required ContestInputHandler contestInputHandler,
   }) : _inputHandler = contestInputHandler,
        _contestManager = contestManager,
-       super(0);
+       super(0) {
+    attachOperationContestRunning();
+  }
 
   StreamSubscription? _inputControlStreamSubscription;
   StreamSubscription? _contestOperationEventHandlerSubscription;
