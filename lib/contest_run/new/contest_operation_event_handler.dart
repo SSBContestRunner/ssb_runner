@@ -207,7 +207,7 @@ class ContestOperationEventHandler {
     }
 
     if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
-      transition(SubmitMyExchange(exchange: _exchange));
+      transition(SubmitMyExchange(exchange: _exchange, call: _hisCall));
       return;
     }
 
@@ -251,7 +251,8 @@ class ContestOperationEventHandler {
       return;
     }
 
-    if (_stateMachine.currentState is WaitingSubmitCall) {
+    if (_stateMachine.currentState is WaitingSubmitCall ||
+        _stateMachine.currentState is HeRepeatCorrectCallAnswer) {
       _stateMachine.transition(SubmitCall(call: _hisCall));
       return;
     }

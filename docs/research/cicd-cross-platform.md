@@ -177,7 +177,7 @@ variables:
 
 **③ 修复 assets 子模块的 SSH 地址（已落地）**
 
-已把 `.gitmodules` 的 URL 改为 HTTPS（该仓库是公开的）：`https://github.com/SSBContestRunner/ssb_runner_assets.git`。
+已把 `.gitmodules` 的 URL 改为 SSH（本地 push 走开发者自己的 SSH key）：`git@github.com:SSBContestRunner/ssb_runner_assets.git`。该仓库是公开的，而 CI runner 没有 SSH key，因此各 job 在 checkout 前用 `git config --global url.https://github.com/.insteadOf git@github.com:` 把子模块改回 HTTPS 克隆。
 
 > 注意：`flutter test` 会读取 `assets/dxcc/*`，所以 **analyze job 也必须**开启 `submodules: recursive`。
 

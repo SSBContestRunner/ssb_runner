@@ -1,3 +1,5 @@
+import 'package:ssb_runner/common/constants.dart';
+
 /// 计算去除 LCS 之后的最大差异，即为不匹配度
 /// LCS：最长公共子序列，两字符串中，顺序一致但无需连续的最长子序列
 /// 例如 answer="ABCDEFGHIJ", submit="CDXEFGHYW"
@@ -35,4 +37,22 @@ int calculateMismatch({required String answer, required String submit}) {
 
   // 返回较大的剩余长度
   return answerRemaining > submitRemaining ? answerRemaining : submitRemaining;
+}
+
+/// 判断对方是否需要重放（重发）呼号：
+/// - 我方抄到的呼号是对方呼号的开头（只抄到前缀，尚未抄全）
+/// - 或抄到的呼号与正确呼号的差异未超过阈值
+///
+/// 完全抄对（相等）时不重放，直接进入下一环节。
+bool shouldRepeatCallsign({required String answer, required String submit}) {
+  if (submit.isEmpty || submit == answer) {
+    return false;
+  }
+
+  if (answer.startsWith(submit)) {
+    return true;
+  }
+
+  return calculateMismatch(answer: answer, submit: submit) <=
+      callsignMismatchThreadshold;
 }

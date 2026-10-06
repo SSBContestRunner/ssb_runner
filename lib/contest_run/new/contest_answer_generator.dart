@@ -37,7 +37,10 @@ class ContestAnswerGenerator implements AnswerSource {
     final callSign = callSigns[index];
 
     final exchangeManager = _contestType.exchangeManager;
-    final exchange = exchangeManager.generateExchange(_random);
+    final exchange = exchangeManager.generateExchange(
+      _random,
+      callerCallsign: callSign,
+    );
 
     final pileupCount = _mode == TrainingMode.pileup
         ? max(2, _difficulty.pileupCallers + 1)

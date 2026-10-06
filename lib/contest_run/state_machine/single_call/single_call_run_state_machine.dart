@@ -1,5 +1,4 @@
 import 'package:ssb_runner/common/calculate_list_diff.dart';
-import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
@@ -92,36 +91,33 @@ initSingleCallRunStateMachine({
         event as SubmitCall;
 
         final submitCall = event.call;
+        final currentCallAnswer = state.currentCallAnswer;
 
-        final diff = calculateMismatch(
-          answer: state.currentCallAnswer,
-          submit: submitCall,
-        );
-
-        if (diff > callsignMismatchThreadshold) {
+        if (submitCall == currentCallAnswer) {
           return definition.transitionTo(
-            state.copyWith(audioPlayType: NoPlay()),
+            HeAskForExchange(
+              currentCallAnswer: currentCallAnswer,
+              currentExchangeAnswer: state.currentExchangeAnswer,
+              submitCall: submitCall,
+              isPlayMyCall: false,
+            ),
           );
         }
 
-        if (diff > 0) {
+        if (shouldRepeatCallsign(
+          answer: currentCallAnswer,
+          submit: submitCall,
+        )) {
           return definition.transitionTo(
             HeRepeatCorrectCallAnswer(
-              currentCallAnswer: state.currentCallAnswer,
+              currentCallAnswer: currentCallAnswer,
               currentExchangeAnswer: state.currentExchangeAnswer,
               submitCall: submitCall,
             ),
           );
         }
 
-        return definition.transitionTo(
-          HeAskForExchange(
-            currentCallAnswer: state.currentCallAnswer,
-            currentExchangeAnswer: state.currentExchangeAnswer,
-            submitCall: event.call,
-            isPlayMyCall: false,
-          ),
-        );
+        return definition.transitionTo(state.copyWith(audioPlayType: NoPlay()));
       });
     });
 
@@ -152,6 +148,63 @@ initSingleCallRunStateMachine({
     builder.state(HeRepeatCorrectCallAnswer, (definition) {
       definition.on(Retry, (state, event) {
         return definition.transitionTo(state);
+      });
+
+      definition.on(SubmitCall, (state, event) {
+        final stateVal = state as HeRepeatCorrectCallAnswer;
+        final submitCall = (event as SubmitCall).call;
+
+        if (submitCall == stateVal.currentCallAnswer) {
+          return definition.transitionTo(
+            HeAskForExchange(
+              currentCallAnswer: stateVal.currentCallAnswer,
+              currentExchangeAnswer: stateVal.currentExchangeAnswer,
+              submitCall: submitCall,
+              isPlayMyCall: false,
+            ),
+          );
+        }
+
+        if (shouldRepeatCallsign(
+          answer: stateVal.currentCallAnswer,
+          submit: submitCall,
+        )) {
+          return definition.transitionTo(
+            HeRepeatCorrectCallAnswer(
+              currentCallAnswer: stateVal.currentCallAnswer,
+              currentExchangeAnswer: stateVal.currentExchangeAnswer,
+              submitCall: submitCall,
+            ),
+          );
+        }
+
+        return definition.transitionTo(
+          WaitingSubmitCall(
+            currentCallAnswer: stateVal.currentCallAnswer,
+            currentExchangeAnswer: stateVal.currentExchangeAnswer,
+            audioPlayType: NoPlay(),
+          ),
+        );
+      });
+
+      definition.on(SubmitCallAndHisExchange, (state, event) {
+        final stateVal = state as HeRepeatCorrectCallAnswer;
+        final eventVal = event as SubmitCallAndHisExchange;
+
+        return definition.transitionTo(
+          ReportMyExchange(
+            currentCallAnswer: stateVal.currentCallAnswer,
+            currentExchangeAnswer: stateVal.currentExchangeAnswer,
+            submitCall: eventVal.call,
+            myExchange: eventVal.myExchange,
+            audioPlayType: PlayCallExchange(
+              call: eventVal.call,
+              exchange: eventVal.myExchange,
+              isMe: true,
+            ),
+            isOperateInput: eventVal.isOperateInput,
+          ),
+        );
       });
 
       definition.on(SubmitHisExchange, (state, event) {
@@ -238,12 +291,20 @@ initSingleCallRunStateMachine({
         final stateVal = state as WaitingSubmitMyExchange;
         final eventVal = event as SubmitMyExchange;
 
+        // The operator may correct the callsign while copying the exchange;
+        // only then is the corrected call announced before signing off.
+        final correctedCall =
+            eventVal.call.isNotEmpty && eventVal.call != stateVal.submitCall
+            ? eventVal.call
+            : null;
+
         return definition.transitionTo(
           QsoEnd(
             currentCallAnswer: stateVal.currentCallAnswer,
             currentExchangeAnswer: stateVal.currentExchangeAnswer,
             submitCall: stateVal.submitCall,
             submitExchange: eventVal.exchange,
+            correctedCall: correctedCall,
           ),
         );
       });
@@ -293,13 +354,11 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
   String answerCall,
   String answerExchange,
 ) {
-  int diff = calculateMismatch(answer: answerCall, submit: submitCall);
-
-  if (diff >= callsignMismatchThreadshold) {
-    return NoPlay();
+  if (answerCall == submitCall) {
+    return PlayExchange(exchange: answerExchange, isMe: false);
   }
 
-  if (diff > 0) {
+  if (shouldRepeatCallsign(answer: answerCall, submit: submitCall)) {
     return PlayCallExchange(
       call: answerCall,
       exchange: answerExchange,
@@ -307,5 +366,5 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
     );
   }
 
-  return PlayExchange(exchange: answerExchange, isMe: false);
+  return NoPlay();
 }

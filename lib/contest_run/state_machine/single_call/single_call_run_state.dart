@@ -98,6 +98,7 @@ class QsoEnd extends SingleCallRunState {
     required this.currentExchangeAnswer,
     required this.submitCall,
     required this.submitExchange,
+    this.correctedCall,
   });
 
   final String currentCallAnswer;
@@ -105,6 +106,10 @@ class QsoEnd extends SingleCallRunState {
 
   final String submitCall;
   final String submitExchange;
+
+  /// Callsign the operator fixed while copying the exchange, announced before
+  /// signing off. Null when the first submission already stood.
+  final String? correctedCall;
 }
 
 class HeAskForExchange extends SingleCallRunState {
