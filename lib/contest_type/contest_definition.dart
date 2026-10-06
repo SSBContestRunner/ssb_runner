@@ -61,7 +61,7 @@ class CqWpxDefinition extends ContestDefinition {
   @override
   String get id => 'CQ-WPX';
   @override
-  String get name => 'CQ WPX SSB';
+  String get name => 'CQ WPX';
   @override
   String get exchangeLabel => '59 #';
   @override
@@ -90,7 +90,7 @@ class CqWwSsbDefinition extends _NumericContestDefinition {
   @override
   String get id => 'CQ-WW-SSB';
   @override
-  String get name => 'CQ WW SSB';
+  String get name => 'CQ WW';
   @override
   String get exchangeLabel => '59 Zone';
   @override
@@ -125,7 +125,7 @@ class ArrlDxDefinition extends _NumericContestDefinition {
   @override
   String get id => 'ARRL-DX';
   @override
-  String get name => 'ARRL DX SSB';
+  String get name => 'ARRL DX';
   @override
   String get exchangeLabel => '59 Power';
   @override
@@ -163,7 +163,7 @@ class IaruHfDefinition extends _NumericContestDefinition {
   @override
   String get id => 'IARU-HF';
   @override
-  String get name => 'IARU HF SSB';
+  String get name => 'IARU HF';
   @override
   String get exchangeLabel => '59 ITU Zone';
   @override
@@ -206,7 +206,7 @@ class JidxSsbDefinition extends _NumericContestDefinition {
   @override
   String get id => 'JIDX-SSB';
   @override
-  String get name => 'JIDX SSB';
+  String get name => 'JIDX';
   @override
   String get exchangeLabel => '59 Prefecture / CQ Zone';
   @override

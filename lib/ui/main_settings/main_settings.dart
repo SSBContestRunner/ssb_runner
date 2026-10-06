@@ -125,7 +125,7 @@ class _ContestSettingsState extends State<_ContestSettings> {
             spacing: 12.0,
             children: [
               Expanded(
-                flex: 2,
+                flex: 1,
                 child: DropdownMenu<String>(
                   enabled: isEnabled,
                   controller: _contestNameController,
@@ -149,7 +149,7 @@ class _ContestSettingsState extends State<_ContestSettings> {
                 ),
               ),
               Expanded(
-                flex: 1,
+                flex: 2,
                 child: TextField(
                   enabled: isEnabled,
                   readOnly: true,
