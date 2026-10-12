@@ -333,7 +333,6 @@ initSingleCallRunStateMachine({
             currentCallAnswer: eventVal.callAnswer,
             currentExchangeAnswer: eventVal.exchangeAnswer,
             pileupCallsigns: eventVal.pileupCallsigns,
-            isSearchAndPounce: eventVal.isSearchAndPounce,
           ),
         );
       });

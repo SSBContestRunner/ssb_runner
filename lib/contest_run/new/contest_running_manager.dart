@@ -7,6 +7,7 @@ import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart'
 import 'package:ssb_runner/contest_run/new/contest_state_change_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/search_and_pounce_run_state_machine.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state_machine.dart';
@@ -113,36 +114,59 @@ class ContestRunningManager {
   void _setupStateMachine() async {
     final contestAnswer = _answerGenerator.generateAnswer();
 
-    final waitingSubmitCall = WaitingSubmitCall(
+    void transitionListener(
+      Transition<SingleCallRunState, SingleCallRunEvent, Null> transition,
+    ) {
+      if (transition
+          is! TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) {
+        return;
+      }
+
+      final toState = transition.to;
+      _contestStateChangeHandler.handleToState(
+        toState,
+        event: transition.event,
+      );
+
+      if (toState is WaitingSubmitMyExchange &&
+          toState.isOperateInput &&
+          !_inputHandler.isRstFilled) {
+        _inputHandler.onRstFilled(true);
+      } else if (toState is SpWaitingHisExchange &&
+          !_inputHandler.isRstFilled) {
+        // S&P copies the runner's serial into the exchange field, so prefill
+        // the report and move focus there to start copying.
+        _inputHandler.onRstFilled(true);
+      }
+    }
+
+    if (contestAnswer.isSearchAndPounce) {
+      // S&P drives its own state machine: Enter pounces with our callsign, the
+      // second Enter sends our exchange and commits, his TU closes the QSO.
+      final initialState = SpListeningCq(
+        currentCallAnswer: contestAnswer.callSign,
+        currentExchangeAnswer: contestAnswer.exchange,
+      );
+      _stateMachine = initSearchAndPounceRunStateMachine(
+        initialState: initialState,
+        transitionListener: transitionListener,
+      );
+      _contestStateChangeHandler.handleToState(initialState);
+      return;
+    }
+
+    final initialState = WaitingSubmitCall(
       currentCallAnswer: contestAnswer.callSign,
       currentExchangeAnswer: contestAnswer.exchange,
       pileupCallsigns: contestAnswer.pileupCallsigns,
-      isSearchAndPounce: contestAnswer.isSearchAndPounce,
     );
 
     _stateMachine = initSingleCallRunStateMachine(
-      initialState: waitingSubmitCall,
-      transitionListener: (transition) {
-        if (transition
-            is! TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) {
-          return;
-        }
-
-        final toState = transition.to;
-        _contestStateChangeHandler.handleToState(
-          toState,
-          event: transition.event,
-        );
-
-        if (toState is WaitingSubmitMyExchange &&
-            toState.isOperateInput &&
-            !_inputHandler.isRstFilled) {
-          _inputHandler.onRstFilled(true);
-        }
-      },
+      initialState: initialState,
+      transitionListener: transitionListener,
     );
 
-    _contestStateChangeHandler.handleToState(waitingSubmitCall);
+    _contestStateChangeHandler.handleToState(initialState);
   }
 
   void _setupKeyboardListener() {

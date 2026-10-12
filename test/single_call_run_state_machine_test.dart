@@ -1,5 +1,7 @@
-import 'package:flutter_test/flutter_test.dart';
+// `Retry` also exists in test_api; hide it so the state machine's event wins.
+import 'package:flutter_test/flutter_test.dart' hide Retry;
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/search_and_pounce_run_state_machine.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state_machine.dart';
@@ -57,12 +59,69 @@ void main() {
       expect((toState as QsoEnd).correctedCall, isNull);
     });
   });
+
+  group('S&P 状态机', () {
+    test('第 1 次回车发送本台呼号并等待对方回应', () {
+      final machine = _spMachine();
+
+      final toState = machine.transition(SpPounce());
+
+      expect(toState, isA<SpWaitingHisExchange>());
+      expect((toState as SpWaitingHisExchange).currentCallAnswer, 'A1AAA');
+    });
+
+    test('第 2 次回车直接落库，不存在第三个等待确认的状态', () {
+      final machine = _spMachine();
+      machine.transition(SpPounce());
+
+      final toState = machine.transition(
+        SpSubmitHisExchange(exchange: '007', myExchange: '001'),
+      );
+
+      expect(toState, isA<SpQsoEnd>());
+      final qsoEnd = toState as SpQsoEnd;
+      expect(qsoEnd.currentExchangeAnswer, '007');
+      expect(qsoEnd.myExchange, '001');
+    });
+
+    test('对方 TU 播完后自动回到下一台 CQ', () {
+      final machine = _spMachine();
+      machine.transition(SpPounce());
+      machine.transition(
+        SpSubmitHisExchange(exchange: '007', myExchange: '001'),
+      );
+
+      final next = machine.transition(
+        NextCall(callAnswer: 'B2BBB', exchangeAnswer: '002'),
+      );
+
+      expect(next, isA<SpListeningCq>());
+      expect((next as SpListeningCq).currentCallAnswer, 'B2BBB');
+    });
+
+    test('未抄到序号时回车重听，不进入签字', () {
+      final machine = _spMachine();
+      machine.transition(SpPounce());
+
+      final toState = machine.transition(Retry());
+
+      expect(toState, isA<SpWaitingHisExchange>());
+    });
+  });
 }
 
-StateMachine<SingleCallRunState, SingleCallRunEvent, Null> _machineInRepeatState(
-  String answer, {
-  required String submitCall,
-}) {
+StateMachine<SingleCallRunState, SingleCallRunEvent, Null> _spMachine() {
+  return initSearchAndPounceRunStateMachine(
+    initialState: SpListeningCq(
+      currentCallAnswer: 'A1AAA',
+      currentExchangeAnswer: '007',
+    ),
+    transitionListener: (_) {},
+  );
+}
+
+StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
+_machineInRepeatState(String answer, {required String submitCall}) {
   return initSingleCallRunStateMachine(
     initialState: HeRepeatCorrectCallAnswer(
       currentCallAnswer: answer,

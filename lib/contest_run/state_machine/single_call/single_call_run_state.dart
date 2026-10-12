@@ -7,20 +7,16 @@ class WaitingSubmitCall extends SingleCallRunState {
     required this.currentCallAnswer,
     required this.currentExchangeAnswer,
     this.pileupCallsigns = const [],
-    this.isSearchAndPounce = false,
     AudioPlayType? audioPlayType,
   }) : audioPlayType =
            audioPlayType ??
            (pileupCallsigns.length > 1
                ? PlayPileup(calls: pileupCallsigns)
-               : isSearchAndPounce
-               ? PlaySearchAndPounce(call: currentCallAnswer)
                : PlayCall(callToPlay: currentCallAnswer));
 
   final String currentCallAnswer;
   final String currentExchangeAnswer;
   final List<String> pileupCallsigns;
-  final bool isSearchAndPounce;
   final AudioPlayType audioPlayType;
 
   // copy with
@@ -28,7 +24,6 @@ class WaitingSubmitCall extends SingleCallRunState {
     String? currentCallAnswer,
     String? currentExchangeAnswer,
     List<String>? pileupCallsigns,
-    bool? isSearchAndPounce,
     AudioPlayType? audioPlayType,
   }) {
     return WaitingSubmitCall(
@@ -36,7 +31,6 @@ class WaitingSubmitCall extends SingleCallRunState {
       currentExchangeAnswer:
           currentExchangeAnswer ?? this.currentExchangeAnswer,
       pileupCallsigns: pileupCallsigns ?? this.pileupCallsigns,
-      isSearchAndPounce: isSearchAndPounce ?? this.isSearchAndPounce,
       audioPlayType: audioPlayType ?? this.audioPlayType,
     );
   }
@@ -157,3 +151,56 @@ class HeRepeatCorrectCallAnswer extends SingleCallRunState {
   final String submitCall;
   late final AudioPlayType audioPlayType;
 }
+
+// region Search & Pounce states
+//
+// S&P drives its own state machine (see search_and_pounce_run_state_machine.dart)
+// with a two-Enter QSO, matching N1MM's ESM behaviour:
+//   SpListeningCq        hear "CQ <his call>"; the operator copies his callsign
+//     → Enter 1, send our callsign
+//   SpWaitingHisExchange he answers with our call + his serial; the operator
+//                        copies the serial
+//     → Enter 2, send our exchange; the QSO commits here
+//   SpQsoEnd             we send "Roger + our serial", he answers TU, then the
+//                        next CQ follows — no third Enter
+
+/// Listening to a station calling CQ. The operator copies his callsign, then
+/// Enter pounces with our callsign.
+class SpListeningCq extends SingleCallRunState {
+  SpListeningCq({
+    required this.currentCallAnswer,
+    required this.currentExchangeAnswer,
+  });
+
+  final String currentCallAnswer;
+  final String currentExchangeAnswer;
+}
+
+/// We pounced with our callsign; he answers with our call and his serial. The
+/// operator copies the serial, then Enter sends our exchange and commits.
+class SpWaitingHisExchange extends SingleCallRunState {
+  SpWaitingHisExchange({
+    required this.currentCallAnswer,
+    required this.currentExchangeAnswer,
+  });
+
+  final String currentCallAnswer;
+  final String currentExchangeAnswer;
+}
+
+/// Signing off: we transmit our exchange, he answers TU, then the next CQ
+/// follows. Entering this state is what commits the QSO.
+class SpQsoEnd extends SingleCallRunState {
+  SpQsoEnd({
+    required this.currentCallAnswer,
+    required this.currentExchangeAnswer,
+    required this.myExchange,
+  });
+
+  final String currentCallAnswer;
+  final String currentExchangeAnswer;
+
+  /// The exchange we transmit, used for the "send our exchange" playback.
+  final String myExchange;
+}
+// endregion

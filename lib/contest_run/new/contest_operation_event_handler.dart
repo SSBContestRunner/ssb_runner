@@ -201,6 +201,35 @@ class ContestOperationEventHandler {
   }
 
   Future<void> _handleSubmit({bool isOperateInput = true}) async {
+    // S&P drives Enter by state (N1MM style): the first Enter pounces with our
+    // callsign once his call has been copied, the second sends our exchange and
+    // commits. Neither step falls back to the Run-mode input heuristics.
+    final currentState = _stateMachine.currentState;
+    if (currentState is SpListeningCq) {
+      if (_hisCall.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
+      _stateMachine.transition(SpPounce());
+      return;
+    }
+
+    if (currentState is SpWaitingHisExchange) {
+      if (_exchange.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
+      _stateMachine.transition(
+        SpSubmitHisExchange(
+          exchange: _exchange,
+          myExchange: await _myExchange(),
+        ),
+      );
+      return;
+    }
+
     if (_hisCall.isEmpty && _exchange.isEmpty) {
       transition(Retry());
       return;
