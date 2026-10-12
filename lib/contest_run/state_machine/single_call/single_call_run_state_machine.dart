@@ -15,11 +15,6 @@ initSingleCallRunStateMachine({
     builder.initialState(initialState);
 
     builder.state(WaitingSubmitCall, (definition) {
-      definition.on(Cancel, (state, event) {
-        state as WaitingSubmitCall;
-        return definition.transitionTo(state.copyWith(audioPlayType: NoPlay()));
-      });
-
       definition.on(WorkedBefore, (state, event) {
         final eventVal = event as WorkedBefore;
         final currentCallAnswer = eventVal.nextCallAnswer;
@@ -225,17 +220,6 @@ initSingleCallRunStateMachine({
     });
 
     builder.state(ReportMyExchange, (definition) {
-      definition.on(Cancel, (state, event) {
-        state as ReportMyExchange;
-        return definition.transitionTo(
-          WaitingSubmitCall(
-            currentCallAnswer: state.currentCallAnswer,
-            currentExchangeAnswer: state.currentExchangeAnswer,
-            audioPlayType: NoPlay(),
-          ),
-        );
-      });
-
       definition.on(ReceiveExchange, (state, event) {
         state as ReportMyExchange;
 
@@ -268,11 +252,6 @@ initSingleCallRunStateMachine({
     });
 
     builder.state(WaitingSubmitMyExchange, (definition) {
-      definition.on(Cancel, (state, event) {
-        state as WaitingSubmitMyExchange;
-        return definition.transitionTo(state.copyWith(audioPlayType: NoPlay()));
-      });
-
       definition.on(Retry, (state, event) {
         final stateVal = state as WaitingSubmitMyExchange;
 

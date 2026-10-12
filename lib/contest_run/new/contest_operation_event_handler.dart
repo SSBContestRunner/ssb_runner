@@ -266,11 +266,11 @@ class ContestOperationEventHandler {
     return _contestType.buildMyExchange(done + 1);
   }
 
+  /// Esc stops whatever is being sent, in Run and S&P alike: it drops the
+  /// playing or queued audio immediately, as N1MM's "stop sending" does. It
+  /// leaves the state machine and the operator's input untouched.
   void _handleCancel() {
-    if (_audioPlayer.isMePlaying()) {
-      _stateMachine.transition(Cancel());
-      _audioPlayer.resetStream();
-    }
+    _audioPlayer.resetStream();
   }
 
   Future<void> _handleHisCall() async {

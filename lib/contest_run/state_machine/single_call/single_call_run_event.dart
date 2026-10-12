@@ -75,8 +75,6 @@ class NextCall extends SingleCallRunEvent {
   final List<String> pileupCallsigns;
 }
 
-class Cancel extends SingleCallRunEvent {}
-
 // region Search & Pounce events
 
 /// Operator pressed Enter while listening to a CQ: pounce with our callsign.
