@@ -188,11 +188,15 @@ class ContestStateChangeHandler {
         _audioPlayer.addAudioData(pcmData);
         break;
       case SpListeningCq():
-        // A runner calling CQ; pressing Enter pounces with our callsign.
+        // A runner calling CQ; pressing Enter pounces with our callsign. On a
+        // Retry (the operator pressed AGN/CQ for a repeat) our own clip is
+        // already playing, so the runner's CQ is queued behind it instead of
+        // resetting the stream — otherwise the AGN is cut off unheard. Entering
+        // the state fresh replaces whatever came before.
         await _playAudioByPlayType(
           PlaySearchAndPounce(call: toState.currentCallAnswer),
           _dxccManager.findCallsignDxccId(toState.currentCallAnswer),
-          isResetAudioStream: true,
+          isResetAudioStream: event is! Retry,
         );
         break;
       case SpWaitingHisExchange():
