@@ -120,44 +120,48 @@ class _ContestSettingsState extends State<_ContestSettings> {
         builder: (context, isContestRunning) {
           final isEnabled = !isContestRunning;
 
-          return Flex(
-            direction: Axis.horizontal,
+          // Stack the two fields instead of placing them side by side: the
+          // 370px sidebar cannot fit the Name dropdown and the Exchange label
+          // (ARRL's is "59 State/Province (W/VE) / 59 Power (DX)") on one row,
+          // so a horizontal layout clipped both.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: 12.0,
             children: [
-              Expanded(
-                flex: 2,
-                child: DropdownMenu<String>(
-                  enabled: isEnabled,
-                  controller: _contestNameController,
-                  onSelected: (id) {
-                    if (id != null) {
-                      context.read<ContestSettingCubit>().changeContest(id);
-                    }
-                  },
-                  dropdownMenuEntries: ContestRegistry.all
-                      .map(
-                        (contest) => DropdownMenuEntry(
-                          value: contest.id,
-                          label: contest.name,
-                        ),
-                      )
-                      .toList(),
-                  label: const Text('Name'),
-                  inputDecorationTheme: const InputDecorationTheme(
-                    border: OutlineInputBorder(),
-                  ),
+              DropdownMenu<String>(
+                enabled: isEnabled,
+                controller: _contestNameController,
+                // Fill the full width; without this the dropdown sizes to its
+                // intrinsic (content) width instead of the column width.
+                expandedInsets: EdgeInsets.zero,
+                onSelected: (id) {
+                  if (id != null) {
+                    context.read<ContestSettingCubit>().changeContest(id);
+                  }
+                },
+                dropdownMenuEntries: ContestRegistry.all
+                    .map(
+                      (contest) => DropdownMenuEntry(
+                        value: contest.id,
+                        label: contest.name,
+                      ),
+                    )
+                    .toList(),
+                label: const Text('Name'),
+                inputDecorationTheme: const InputDecorationTheme(
+                  border: OutlineInputBorder(),
                 ),
               ),
-              Expanded(
-                flex: 1,
-                child: TextField(
-                  enabled: isEnabled,
-                  readOnly: true,
-                  controller: _contestExchangeController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Exchange',
-                  ),
+              TextField(
+                enabled: isEnabled,
+                readOnly: true,
+                // The exchange label can be long, so let it wrap onto more
+                // lines rather than being clipped at the field edge.
+                maxLines: null,
+                controller: _contestExchangeController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Exchange',
                 ),
               ),
             ],

@@ -51,8 +51,12 @@ class ReceiveExchange extends SingleCallRunEvent {
 class Retry extends SingleCallRunEvent {}
 
 class SubmitMyExchange extends SingleCallRunEvent {
-  SubmitMyExchange({required this.exchange});
+  SubmitMyExchange({required this.exchange, required this.call});
   final String exchange;
+
+  /// Callsign currently in the input, so a correction made while copying the
+  /// exchange can be announced when the QSO is signed off.
+  final String call;
 }
 
 class SubmitHisExchange extends SingleCallRunEvent {
@@ -65,12 +69,26 @@ class NextCall extends SingleCallRunEvent {
     required this.callAnswer,
     required this.exchangeAnswer,
     this.pileupCallsigns = const [],
-    this.isSearchAndPounce = false,
   });
   final String callAnswer;
   final String exchangeAnswer;
   final List<String> pileupCallsigns;
-  final bool isSearchAndPounce;
 }
 
-class Cancel extends SingleCallRunEvent {}
+// region Search & Pounce events
+
+/// Operator pressed Enter while listening to a CQ: pounce with our callsign.
+class SpPounce extends SingleCallRunEvent {}
+
+/// Operator copied the runner's serial and pressed Enter: send our exchange.
+/// The QSO commits on this event — there is no separate confirmation step.
+class SpSubmitHisExchange extends SingleCallRunEvent {
+  SpSubmitHisExchange({required this.exchange, required this.myExchange});
+
+  /// The runner's serial the operator copied.
+  final String exchange;
+
+  /// The exchange we transmit.
+  final String myExchange;
+}
+// endregion

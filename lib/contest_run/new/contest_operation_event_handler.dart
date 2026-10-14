@@ -201,13 +201,42 @@ class ContestOperationEventHandler {
   }
 
   Future<void> _handleSubmit({bool isOperateInput = true}) async {
+    // S&P drives Enter by state (N1MM style): the first Enter pounces with our
+    // callsign once his call has been copied, the second sends our exchange and
+    // commits. Neither step falls back to the Run-mode input heuristics.
+    final currentState = _stateMachine.currentState;
+    if (currentState is SpListeningCq) {
+      if (_hisCall.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
+      _stateMachine.transition(SpPounce());
+      return;
+    }
+
+    if (currentState is SpWaitingHisExchange) {
+      if (_exchange.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
+      _stateMachine.transition(
+        SpSubmitHisExchange(
+          exchange: _exchange,
+          myExchange: await _myExchange(),
+        ),
+      );
+      return;
+    }
+
     if (_hisCall.isEmpty && _exchange.isEmpty) {
       transition(Retry());
       return;
     }
 
     if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
-      transition(SubmitMyExchange(exchange: _exchange));
+      transition(SubmitMyExchange(exchange: _exchange, call: _hisCall));
       return;
     }
 
@@ -237,11 +266,11 @@ class ContestOperationEventHandler {
     return _contestType.buildMyExchange(done + 1);
   }
 
+  /// Esc stops whatever is being sent, in Run and S&P alike: it drops the
+  /// playing or queued audio immediately, as N1MM's "stop sending" does. It
+  /// leaves the state machine and the operator's input untouched.
   void _handleCancel() {
-    if (_audioPlayer.isMePlaying()) {
-      _stateMachine.transition(Cancel());
-      _audioPlayer.resetStream();
-    }
+    _audioPlayer.resetStream();
   }
 
   Future<void> _handleHisCall() async {
@@ -251,7 +280,8 @@ class ContestOperationEventHandler {
       return;
     }
 
-    if (_stateMachine.currentState is WaitingSubmitCall) {
+    if (_stateMachine.currentState is WaitingSubmitCall ||
+        _stateMachine.currentState is HeRepeatCorrectCallAnswer) {
       _stateMachine.transition(SubmitCall(call: _hisCall));
       return;
     }

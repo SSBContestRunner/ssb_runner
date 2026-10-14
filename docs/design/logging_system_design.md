@@ -522,7 +522,7 @@ class AppLogger {
 | 环境采集 | `lib/logging/logging_bootstrap.dart` | 记录 exe 同级原生库清单 |
 | Catcher2 桥接 | `lib/error_handling.dart` | 报告写入同一日志流；release 使用 `PageReportMode` |
 | 启动链改造 | `lib/ui/main_app/main_app.dart` | 每步 `boot.step`；失败进错误页（复制诊断 / 导出日志） |
-| 导出与摘要 | `lib/logging/log_export.dart` | zip 输出到 Documents；摘要复制到剪贴板 |
+| 导出与摘要 | `lib/logging/log_export.dart` | zip 经系统另存对话框由用户选择位置；摘要复制到剪贴板 |
 | 详细日志开关 | `lib/settings/app_settings.dart` + `lib/ui/main_settings/diagnostics_setting.dart` | 持久化并即时生效 |
 | print 劫持 | `appZoneSpecification()` | 三方 `print` 纳入日志流，带防重入与防自捕获 |
 

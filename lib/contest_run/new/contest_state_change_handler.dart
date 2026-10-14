@@ -7,7 +7,6 @@ import 'package:ssb_runner/audio/mix_pileup.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
 import 'package:ssb_runner/common/calculate_list_diff.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
-import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
@@ -80,7 +79,17 @@ class ContestStateChangeHandler {
         await _handleReportMyExchange(toState);
         break;
       case QsoEnd():
-        await _handleQsoEnd(toState);
+        await _logQsoAndAdvance(
+          correctCall: toState.currentCallAnswer,
+          correctExchange: toState.currentExchangeAnswer,
+        );
+        break;
+      case SpQsoEnd():
+        // The second Enter commits the QSO; his TU and the next CQ follow.
+        await _logQsoAndAdvance(
+          correctCall: toState.currentCallAnswer,
+          correctExchange: toState.currentExchangeAnswer,
+        );
         break;
       default:
         break;
@@ -109,10 +118,24 @@ class ContestStateChangeHandler {
         );
         break;
       case QsoEnd():
-        final pcmData = await _audioLoader.loadAudio(
-          myAudioAccentDir,
-          CommonPayload(fileName: 'TU_QRZ.wav'),
-        );
+        // When the operator fixed the callsign while copying the exchange, read
+        // the corrected call before signing off so both sides agree on it.
+        final correctedCall = toState.correctedCall;
+        final list = [
+          if (correctedCall != null)
+            await _audioLoader.loadAudio(
+              myAudioAccentDir,
+              CallsignPayload(
+                callsign: correctedCall,
+                phonicType: _appSettings.phonicType,
+              ),
+            ),
+          await _audioLoader.loadAudio(
+            myAudioAccentDir,
+            CommonPayload(fileName: 'TU_QRZ.wav'),
+          ),
+        ];
+        final pcmData = await concatUint8List(list);
         _audioPlayer.addAudioData(
           pcmData,
           isResetCurrentStream: true,
@@ -163,6 +186,67 @@ class ContestStateChangeHandler {
         );
 
         _audioPlayer.addAudioData(pcmData);
+        break;
+      case SpListeningCq():
+        // A runner calling CQ; pressing Enter pounces with our callsign. On a
+        // Retry (the operator pressed AGN/CQ for a repeat) our own clip is
+        // already playing, so the runner's CQ is queued behind it instead of
+        // resetting the stream — otherwise the AGN is cut off unheard. Entering
+        // the state fresh replaces whatever came before.
+        await _playAudioByPlayType(
+          PlaySearchAndPounce(call: toState.currentCallAnswer),
+          _dxccManager.findCallsignDxccId(toState.currentCallAnswer),
+          isResetAudioStream: event is! Retry,
+        );
+        break;
+      case SpWaitingHisExchange():
+        final dxccId = _dxccManager.findCallsignDxccId(
+          toState.currentCallAnswer,
+        );
+        // On the initial pounce, send our callsign before the runner answers;
+        // on Retry the callsign has already been sent, so replay only the answer.
+        if (event is SpPounce) {
+          final myCallPcmData = await _audioLoader.loadAudio(
+            myAudioAccentDir,
+            CallsignPayload(
+              callsign: _stationCallsign,
+              phonicType: _appSettings.phonicType,
+            ),
+          );
+          _audioPlayer.addAudioData(
+            myCallPcmData,
+            isResetCurrentStream: true,
+            isMyAudio: true,
+          );
+        }
+        // The runner answers with our call + his exchange.
+        await _playAudioByPlayType(
+          PlayCallExchange(
+            call: _stationCallsign,
+            exchange: toState.currentExchangeAnswer,
+            isMe: false,
+          ),
+          dxccId,
+        );
+        break;
+      case SpQsoEnd():
+        final dxccId = _dxccManager.findCallsignDxccId(
+          toState.currentCallAnswer,
+        );
+        // Step 4: we send "Roger + our serial", interrupting whatever is still
+        // playing since the operator sent it with Enter.
+        await _playAudioByPlayType(
+          PlayExchange(exchange: toState.myExchange, isMe: true),
+          dxccId,
+          isResetAudioStream: true,
+        );
+        // Step 5: he signs off with TU. No received-TU clip exists, so the
+        // operator's own TU clip is reused as a received signal.
+        final tuPcmData = await _audioLoader.loadAudio(
+          myAudioAccentDir,
+          CommonPayload(fileName: 'TU_QRZ.wav'),
+        );
+        _audioPlayer.addAudioData(tuPcmData);
         break;
     }
   }
@@ -313,12 +397,15 @@ class ContestStateChangeHandler {
       case WaitingSubmitMyExchange():
       case HeAskForExchange():
       case HeRepeatCorrectCallAnswer():
+      case SpListeningCq():
+      case SpWaitingHisExchange():
         _retryTimer = Timer(_timeoutDuration, () {
           _stateMachine.transition(Retry());
         });
         break;
       case QsoEnd():
       case ReportMyExchange():
+      case SpQsoEnd():
         break;
     }
   }
@@ -335,15 +422,14 @@ class ContestStateChangeHandler {
 
     await Future.delayed(Duration(milliseconds: 500));
 
-    final misMatchCallsignLength = calculateMismatch(
-      answer: toState.currentCallAnswer,
-      submit: toState.submitCall,
-    );
+    final answer = toState.currentCallAnswer;
+    final submit = toState.submitCall;
 
-    if (misMatchCallsignLength >= callsignMismatchThreadshold) {
-      _stateMachine.transition(CallsignInvalid());
-    } else {
+    if (submit == answer ||
+        shouldRepeatCallsign(answer: answer, submit: submit)) {
       _stateMachine.transition(ReceiveExchange());
+    } else {
+      _stateMachine.transition(CallsignInvalid());
     }
   }
 
@@ -353,7 +439,12 @@ class ContestStateChangeHandler {
     }
   }
 
-  Future<void> _handleQsoEnd(QsoEnd toState) async {
+  /// Commits the QSO and rolls into the next one. Run mode (`QsoEnd`) and S&P
+  /// (`SpQsoEnd`) share this; only the sign-off audio differs.
+  Future<void> _logQsoAndAdvance({
+    required String correctCall,
+    required String correctExchange,
+  }) async {
     final callsign = _inputHandler.hisCall;
     final exchange = _inputHandler.exchange;
 
@@ -367,9 +458,9 @@ class ContestStateChangeHandler {
         runId: _contestRunId,
         stationCallsign: _stationCallsign,
         callsign: callsign,
-        callsignCorrect: toState.currentCallAnswer,
+        callsignCorrect: correctCall,
         exchange: _contestType.exchangeManager.processExchange(exchange),
-        exchangeCorrect: toState.currentExchangeAnswer,
+        exchangeCorrect: correctExchange,
       ),
     );
 
@@ -395,7 +486,6 @@ class ContestStateChangeHandler {
         callAnswer: contestAnswer.callSign,
         exchangeAnswer: contestAnswer.exchange,
         pileupCallsigns: contestAnswer.pileupCallsigns,
-        isSearchAndPounce: contestAnswer.isSearchAndPounce,
       ),
     );
   }
