@@ -72,7 +72,19 @@ class ContestStateChangeHandler {
   }) async {
     _setupRetryTimer(toState);
 
-    await _playAudioByStateChange(toState, event);
+    try {
+      await _playAudioByStateChange(toState, event);
+    } catch (error, stackTrace) {
+      // Audio is presentation only: a failed clip must never block QSO
+      // logging or the state-machine follow-up below.
+      log.error(
+        'Failed to play audio for state change',
+        tag: 'contest.state',
+        fields: <String, Object?>{'to': '$toState', 'event': '$event'},
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
 
     switch (toState) {
       case ReportMyExchange():
@@ -166,7 +178,10 @@ class ContestStateChangeHandler {
                 phonicType: _appSettings.phonicType,
               ),
             ),
-          await loadAssetsWavPcmData('$accent/Common/NR.wav'),
+          await _audioLoader.loadAudio(
+            accent,
+            CommonPayload(fileName: 'NR.wav'),
+          ),
         ];
 
         final pcmData = await concatUint8List(list);
