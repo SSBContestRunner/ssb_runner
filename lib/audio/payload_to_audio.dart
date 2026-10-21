@@ -70,10 +70,12 @@ Future<Uint8List> _loadAssetBytes(String filePath) async {
   }
 }
 
-/// Maps a missing accent-specific clip to the neutral `Global` bundle.
+/// Maps a missing accent-specific clip to a fallback clip.
 ///
-/// Common and number clips keep their category; letter clips fall back to the
-/// ICAO set because `Global` ships no separate Location/Alphabet folders.
+/// Common and number clips keep their category and use the neutral `Global`
+/// bundle. Letter clips always fall back to ICAO: Location/Alphabet use the
+/// same accent's ICAO set so mixed mode keeps the speaker's accent, while a
+/// missing ICAO clip uses the Global ICAO set.
 String? _fallbackAssetPath(String filePath) {
   final parts = filePath.split('/');
 
@@ -81,6 +83,7 @@ String? _fallbackAssetPath(String filePath) {
     return null;
   }
 
+  final accent = parts.first;
   final category = parts[1];
   final fileName = parts.sublist(2).join('/');
 
@@ -89,9 +92,10 @@ String? _fallbackAssetPath(String filePath) {
     case 'Number':
       return 'Global/$category/$fileName';
     case 'ICAO':
+      return 'Global/ICAO/$fileName';
     case 'Location':
     case 'Alphabet':
-      return 'Global/ICAO/$fileName';
+      return '$accent/ICAO/$fileName';
   }
 
   return null;
