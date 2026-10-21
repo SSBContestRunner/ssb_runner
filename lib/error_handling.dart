@@ -7,14 +7,18 @@ import 'package:catcher_2/model/report.dart';
 import 'package:catcher_2/model/report_handler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/logging/crash_issue_reporter.dart';
+import 'package:toastification/toastification.dart';
 
 /// Builds the Catcher2 configurations used for debug and release builds.
 ///
 /// Reports are funnelled into the shared log file by [_LoggingReportHandler],
 /// so unhandled exceptions and ordinary progress records end up interleaved in
-/// a single timeline.
+/// a single timeline. Release builds additionally file accepted reports as
+/// GitHub issues through [CrashIssueReporter].
 Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
   final logHandler = _LoggingReportHandler();
+  final issueReporter = CrashIssueReporter(onResult: _showReportResult);
 
   final debugOptions = Catcher2Options(DialogReportMode(), <ReportHandler>[
     ConsoleHandler(),
@@ -23,7 +27,8 @@ Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
 
   final releaseOptions = Catcher2Options(
     PageReportMode(showStackTrace: false),
-    <ReportHandler>[logHandler],
+    <ReportHandler>[logHandler, issueReporter],
+    handlerTimeout: 30000,
   );
 
   log.info('error handling ready', tag: 'crash');
@@ -45,7 +50,7 @@ class _LoggingReportHandler extends ReportHandler {
       fields: <String, Object?>{
         'error_type': '${report.error.runtimeType}',
         'platform': '${report.platformType}',
-        'device': report.deviceParameters,
+        'device': safeDeviceParameters(report.deviceParameters),
         'application': report.applicationParameters,
       },
       error: report.error,
@@ -54,4 +59,36 @@ class _LoggingReportHandler extends ReportHandler {
 
     return true;
   }
+}
+
+/// Feedback shown after the report page has already closed.
+void _showReportResult(CrashReportOutcome outcome, Uri? issueUrl) {
+  if (outcome == CrashReportOutcome.disabled) {
+    return;
+  }
+
+  final failed = outcome == CrashReportOutcome.failed;
+  final Widget? description;
+  if (failed) {
+    description = const Text(
+      'Export logs from Settings and attach them manually.',
+    );
+  } else if (issueUrl != null) {
+    description = Text(issueUrl.toString());
+  } else {
+    description = null;
+  }
+
+  toastification.show(
+    title: Text(switch (outcome) {
+      CrashReportOutcome.created => 'Crash report submitted',
+      CrashReportOutcome.duplicate => 'Crash report added to an existing issue',
+      CrashReportOutcome.failed => 'Crash report could not be sent',
+      CrashReportOutcome.disabled => '',
+    }),
+    description: description,
+    type: failed ? ToastificationType.warning : ToastificationType.success,
+    style: ToastificationStyle.fillColored,
+    autoCloseDuration: Duration(seconds: failed ? 6 : 5),
+  );
 }

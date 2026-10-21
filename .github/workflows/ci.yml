@@ -157,7 +157,10 @@ jobs:
         run: dart pub global activate fastforge 0.6.12
 
       - name: Build & package
-        run: dart pub global run fastforge:main package --platform=linux --targets=deb,appimage,zip
+        run: >-
+          dart pub global run fastforge:main package --platform=linux
+          --targets=deb,appimage,zip
+          --build-dart-define CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -232,7 +235,7 @@ jobs:
             Write-Host "== fastforge package attempt $attempt/$attempts =="
             $ok = $false
             try {
-              dart pub global run fastforge:main package --platform=windows --targets=zip
+              dart pub global run fastforge:main package --platform=windows --targets=zip --build-dart-define "CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}"
               $ok = ($LASTEXITCODE -eq 0)
             } catch {
               Write-Host "attempt $attempt threw: $_"
@@ -302,7 +305,10 @@ jobs:
         run: dart pub global activate fastforge 0.6.12
 
       - name: Build & package
-        run: dart pub global run fastforge:main package --platform=macos --targets=dmg
+        run: >-
+          dart pub global run fastforge:main package --platform=macos
+          --targets=dmg
+          --build-dart-define CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
