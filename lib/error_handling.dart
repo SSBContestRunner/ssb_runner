@@ -50,7 +50,7 @@ class _LoggingReportHandler extends ReportHandler {
       fields: <String, Object?>{
         'error_type': '${report.error.runtimeType}',
         'platform': '${report.platformType}',
-        'device': report.deviceParameters,
+        'device': safeDeviceParameters(report.deviceParameters),
         'application': report.applicationParameters,
       },
       error: report.error,

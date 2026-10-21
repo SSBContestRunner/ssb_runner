@@ -71,17 +71,65 @@ Future<LogLocation> resolveLogDirectory() async {
   );
 }
 
+final RegExp _posixHomePattern = RegExp(r'/(?:Users|home)/[^/\s]+');
+final RegExp _windowsHomePattern = RegExp(r'[A-Za-z]:[\\/]Users[\\/][^\\/\s]+');
+
+/// Home directory spellings that may be exposed by the current process.
+///
+/// Sandboxed release builds may expose a container path as `HOME`, so the
+/// current user directory is also derived from `USER`/`USERNAME`.
+Set<String> _homeCandidates() {
+  final candidates = <String>{};
+  for (final key in const <String>['HOME', 'USERPROFILE']) {
+    final value = Platform.environment[key];
+    if (value != null && value.isNotEmpty) {
+      candidates.add(value);
+    }
+  }
+
+  final user = Platform.environment['USER'] ?? Platform.environment['USERNAME'];
+  if (user != null && user.isNotEmpty) {
+    candidates
+      ..add('/Users/$user')
+      ..add('/home/$user');
+    final systemDrive = Platform.environment['SystemDrive'];
+    if (systemDrive != null && systemDrive.isNotEmpty) {
+      candidates.add('$systemDrive\\Users\\$user');
+    }
+  }
+
+  return candidates;
+}
+
+String _replaceHome(String text) {
+  var redacted = text;
+  for (final candidate in _homeCandidates()) {
+    redacted = redacted
+        .replaceAll(candidate.replaceAll('\\', '/'), '~')
+        .replaceAll(candidate, '~');
+  }
+  return redacted;
+}
+
 /// Replaces the user home directory prefix with a tilde.
 String redactPath(String path) {
   if (path.isEmpty) {
     return path;
   }
 
-  final home =
-      Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'];
-  if (home == null || home.isEmpty) {
-    return path;
+  return _replaceHome(
+    path,
+  ).replaceFirst(_posixHomePattern, '~').replaceFirst(_windowsHomePattern, '~');
+}
+
+/// Redacts user-home prefixes anywhere in [text], including log messages that
+/// embed paths inside a field value.
+String redactText(String text) {
+  if (text.isEmpty) {
+    return text;
   }
 
-  return path.replaceAll(home.replaceAll('\\', '/'), '~').replaceAll(home, '~');
+  return _replaceHome(
+    text,
+  ).replaceAll(_posixHomePattern, '~').replaceAll(_windowsHomePattern, '~');
 }

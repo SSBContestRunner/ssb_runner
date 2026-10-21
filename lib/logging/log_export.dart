@@ -25,7 +25,14 @@ List<File> listLogFiles(String directoryPath) {
 }
 
 /// Human readable summary that can be pasted into a chat when reporting a bug.
-Future<String> diagnosticSummary({int tailLines = 100}) async {
+///
+/// When [currentSessionOnly] is set, records written by earlier app runs are
+/// dropped before the tail is taken. Each run starts with the `# app=` header
+/// written by `buildSessionHeader`.
+Future<String> diagnosticSummary({
+  int tailLines = 100,
+  bool currentSessionOnly = false,
+}) async {
   final location = LogSession.location ?? await resolveLogDirectory();
   final buffer = StringBuffer()
     ..writeln('SSB Runner diagnostic summary')
@@ -37,11 +44,14 @@ Future<String> diagnosticSummary({int tailLines = 100}) async {
 
   final latest = File('${location.path}/latest.log');
   if (latest.existsSync()) {
-    final lines = await latest.readAsLines();
+    var lines = await latest.readAsLines();
+    if (currentSessionOnly) {
+      lines = _currentSessionLines(lines);
+    }
     final start = lines.length > tailLines ? lines.length - tailLines : 0;
     buffer.writeln(
-      '--- latest.log (last ${lines.length - start} of '
-      '${lines.length} lines) ---',
+      '--- latest.log (${currentSessionOnly ? 'current session ' : 'last '}'
+      '${lines.length - start} of ${lines.length} lines) ---',
     );
     for (final line in lines.sublist(start)) {
       buffer.writeln(line);
@@ -51,6 +61,20 @@ Future<String> diagnosticSummary({int tailLines = 100}) async {
   }
 
   return buffer.toString();
+}
+
+/// Drops records from previous app runs, including their session headers.
+List<String> _currentSessionLines(List<String> lines) {
+  final start = lines.lastIndexWhere((line) => line.startsWith('# app='));
+  if (start < 0) {
+    return lines;
+  }
+
+  var bodyStart = start;
+  while (bodyStart < lines.length && lines[bodyStart].startsWith('# ')) {
+    bodyStart++;
+  }
+  return lines.sublist(bodyStart);
 }
 
 /// Zips the log directory plus the diagnostic summary into the location the
