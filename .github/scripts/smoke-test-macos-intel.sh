@@ -103,6 +103,32 @@ reap() {
   return 1
 }
 
+# The release build keeps its own timeline in a file (lib/logging): stdout and stderr only
+# ever carry the engine's two lines, so /tmp/app.log cannot say which boot step died. Print
+# the tail of the newest app log after every failed launch, which is the only way to tell a
+# crash in `soloud_init` from one after the window was shown.
+dump_app_logs() {
+  local bundle_id root file found=0
+  bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
+    "$app/Contents/Info.plist" 2>/dev/null) || true
+  # Mirrors lib/logging/log_paths.dart: application support, temporary dir, next to the
+  # executable. Sandboxed releases see those under the app's container, so search both.
+  for root in \
+    "$HOME/Library/Containers/$bundle_id/Data/Library/Application Support" \
+    "$HOME/Library/Containers/$bundle_id/Data/tmp" \
+    "$HOME/Library/Application Support" \
+    "${TMPDIR:-/tmp}/ssb_runner" \
+    "$(dirname "$exe")/log"; do
+    [[ -d "$root" ]] || continue
+    while IFS= read -r -d '' file; do
+      echo "--- app log: $file (last 120 lines) ---"
+      tail -n 120 "$file" || true
+      found=1
+    done < <(find "$root" -type f -name 'latest.log' -print0 2>/dev/null)
+  done
+  [[ $found -eq 1 ]] || echo "--- app log: no latest.log found (crash before the log sink opened?) ---"
+}
+
 attempts=3
 rc=1
 # Trace the launch section: a job killed by `timeout-minutes` uploads no log, so the xtrace
@@ -131,6 +157,7 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
   set -e
   echo "::warning::app exited early on Intel (rc=$rc) on attempt $attempt/$attempts"
   sed -n '1,40p' /tmp/app.log
+  dump_app_logs
 done
 set +x
 if [[ $rc -ne 0 ]]; then
