@@ -156,7 +156,7 @@ dump_app_logs() {
       echo "--- app log: $file (last 120 lines) ---"
       tail -n 120 "$file" || true
       found=1
-    done < <(bounded 30 "scanning $root" \
+    done < <(bounded 10 "scanning $root" \
       find "$root" -maxdepth 5 -type f -name 'latest.log' -print0 2>/dev/null)
   done
   [[ $found -eq 1 ]] || echo "--- app log: no latest.log found (crash before the log sink opened?) ---"
@@ -197,7 +197,8 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
   set -e
   echo "::warning::app exited early on Intel (rc=$rc) on attempt $attempt/$attempts"
   sed -n '1,40p' /tmp/app.log
-  dump_app_logs
+  # Whole-dump deadline, so three attempts cannot add up to more than the step budget.
+  bounded 30 "collecting app logs" dump_app_logs || true
 done
 set +x
 if [[ $rc -ne 0 ]]; then
