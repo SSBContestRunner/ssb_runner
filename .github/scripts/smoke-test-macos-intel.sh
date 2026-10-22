@@ -24,11 +24,42 @@ dmg=$(find artifacts -name '*.dmg' -print -quit)
 [[ -n "$dmg" ]] || { echo "::error::no .dmg found under artifacts/"; exit 1; }
 echo "smoke-testing $dmg on Intel (macOS $(sw_vers -productVersion), $(uname -m))"
 
+# `timeout(1)` is GNU coreutils, which macOS runners do not ship. Without a deadline a stuck
+# mount or a slow directory scan burns the job's whole timeout-minutes budget, and a job
+# cancelled by that limit uploads no log at all (the log blob is missing, not just truncated),
+# so the failure arrives with no diagnostics -- exactly what run 39726662271 did. Everything
+# that can block goes through here instead, so a hang fails the step with its own message.
+bounded() {
+  local seconds=$1 label=$2 pid waited=0
+  shift 2
+  "$@" &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if ((waited >= seconds)); then
+      echo "::error::$label did not finish within ${seconds}s"
+      kill -9 "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      return 124
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "$pid" 2>/dev/null
+}
+
 # Mount to an explicit, empty directory so the volume name (which may contain spaces) never
 # has to be parsed out of hdiutil's output.
 mount_point=$(mktemp -d)
-hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount_point" >/dev/null
-trap 'hdiutil detach "$mount_point" -force -quiet >/dev/null 2>&1 || true; rmdir "$mount_point" 2>/dev/null || true' EXIT
+cleanup() {
+  bounded 60 "unmounting $mount_point" \
+    hdiutil detach "$mount_point" -force -quiet >/dev/null 2>&1 || true
+  rmdir "$mount_point" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+bounded 120 "mounting $(basename "$dmg")" \
+  hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount_point" >/dev/null ||
+  { echo "::error::hdiutil could not mount $dmg"; exit 1; }
 
 app=$(find "$mount_point" -maxdepth 1 -name '*.app' -print -quit)
 [[ -n "$app" ]] || { echo "::error::no .app inside the dmg"; exit 1; }
@@ -120,14 +151,23 @@ dump_app_logs() {
     "${TMPDIR:-/tmp}/ssb_runner" \
     "$(dirname "$exe")/log"; do
     [[ -d "$root" ]] || continue
+    # Bounded so an unexpectedly deep or slow tree cannot stall the step.
     while IFS= read -r -d '' file; do
       echo "--- app log: $file (last 120 lines) ---"
       tail -n 120 "$file" || true
       found=1
-    done < <(find "$root" -type f -name 'latest.log' -print0 2>/dev/null)
+    done < <(bounded 30 "scanning $root" \
+      find "$root" -maxdepth 5 -type f -name 'latest.log' -print0 2>/dev/null)
   done
   [[ $found -eq 1 ]] || echo "--- app log: no latest.log found (crash before the log sink opened?) ---"
 }
+
+# SoLoud's engine start-up runs on a worker isolate and, on this runner's VM, segfaults inside
+# Apple's AVAudioSession (the VM's own audio daemon, audioanalyticsd, dies with an invalid code
+# signature at the same moment). A native SIGSEGV cannot be caught by the app's Dart error
+# handling, so it says nothing about the x86_64 bundle this job verifies -- the slice check
+# above already covers the plugin. Skip audio for the launch check; the app logs that it did.
+launch_env=(SSB_RUNNER_DISABLE_AUDIO=1)
 
 attempts=3
 rc=1
@@ -136,7 +176,7 @@ rc=1
 set -x
 for ((attempt = 1; attempt <= attempts; attempt++)); do
   set +e
-  "$exe" > /tmp/app.log 2>&1 &
+  env "${launch_env[@]}" "$exe" > /tmp/app.log 2>&1 &
   pid=$!
   sleep 20
   # `kill -0` succeeds for a not-yet-reaped zombie too, so `ps` is consulted as well -- but it
@@ -167,10 +207,31 @@ if [[ $rc -ne 0 ]]; then
   # in a plugin. ReportCrash writes the .ips asynchronously, hence the short wait.
   sleep 5
   for dir in "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports; do
-    report=$(ls -t "$dir"/*.ips 2>/dev/null | head -1) || true
+    # Only this app's reports: system daemons (audioanalyticsd etc.) also crash here and
+    # their newest report would otherwise hide the one that matters.
+    report=$(ls -t "$dir"/"$(basename "$app" .app)"*.ips 2>/dev/null | head -1) || true
     [[ -n "$report" ]] || continue
     echo "--- macOS crash report: $report ---"
-    sed -n '1,250p' "$report"
+    # The .ips is JSON, and the faulting thread's frames are what identify the dying
+    # framework; printing the raw file would be truncated before they appear.
+    python3 - "$report" <<'PY' || true
+import json
+import sys
+
+with open(sys.argv[1], errors='replace') as handle:
+    header, _, body = handle.read().partition('\n')
+report = json.loads(body)
+
+print('exception:', report.get('exception'))
+print('termination:', report.get('termination'))
+index = report.get('faultingThread', 0)
+thread = report['threads'][index]
+label = thread.get('name') or thread.get('queue') or '?'
+print(f'faulting thread {index}: {label}')
+for frame in thread.get('frames', [])[:40]:
+    image = report['usedImages'][frame['imageIndex']]
+    print(' ', image.get('name'), frame.get('symbol'), f"+{frame.get('imageOffset')}")
+PY
   done
   exit 1
 fi
