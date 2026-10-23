@@ -348,7 +348,11 @@ jobs:
   smoke-test-macos-intel:
     name: Smoke test (macOS Intel)
     needs: package-macos
-    runs-on: macos-15-intel
+    # macos-15-intel cannot run this job: the step starts and then neither finishes nor
+    # honours its own `timeout-minutes`. The job is cancelled by the job-level timeout, and
+    # a cancelled job uploads no log at all (runs 39726662271, 39804098152, 39967581856
+    # all ended that way). macos-26-intel is the other x64 label.
+    runs-on: macos-26-intel
     # The script's own waits are bounded, but keep a backstop so a stuck mount or app
     # launch fails the job instead of hanging until GitHub's 6-hour default.
     timeout-minutes: 10
@@ -368,9 +372,6 @@ jobs:
         # why the hang (run 39726662271) arrived with no diagnostics. The script's own waits
         # are bounded to a few minutes, so this only catches an unforeseen hang.
         timeout-minutes: 4
-        # TEMPORARY (diagnosing the hang): let the job finish so its log survives even when
-        # the step is killed. Revert to a hard failure once the cause is known.
-        continue-on-error: true
         run: bash .github/scripts/smoke-test-macos-intel.sh
 
       # Runs even when the smoke test above was killed by its timeout, so whatever it left
