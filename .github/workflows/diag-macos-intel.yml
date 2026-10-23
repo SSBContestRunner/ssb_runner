@@ -1,0 +1,71 @@
+name: Diag (macOS Intel)
+
+# Temporary diagnostic workflow. The macOS Intel smoke test hangs and a job cancelled by
+# timeout-minutes uploads no log, so this splits the same work into small steps that each
+# time out on their own and never fail the job -- whatever hangs, the job still finishes and
+# keeps its log. Delete once the root cause is fixed.
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  diag:
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    steps:
+      - name: Host
+        timeout-minutes: 1
+        run: |
+          date -u
+          uname -m
+          sw_vers -productVersion
+
+      - name: Download artifact
+        timeout-minutes: 3
+        uses: actions/download-artifact@v4
+        with:
+          name: ssb-runner-macos
+          path: artifacts
+          run-id: 39814270920
+          github-token: ${{ github.token }}
+
+      - name: Mount dmg
+        timeout-minutes: 2
+        continue-on-error: true
+        run: |
+          set -x
+          mkdir -p "$RUNNER_TEMP/mnt"
+          dmg=$(find artifacts -name '*.dmg' -print -quit)
+          echo "dmg=$dmg"
+          time hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$RUNNER_TEMP/mnt"
+          ls -la "$RUNNER_TEMP/mnt"
+
+      - name: Launch app from a copy
+        timeout-minutes: 2
+        continue-on-error: true
+        run: |
+          set -x
+          cp -R "$RUNNER_TEMP/mnt/SSB Runner.app" "$RUNNER_TEMP/"
+          SSB_RUNNER_DISABLE_AUDIO=1 "$RUNNER_TEMP/SSB Runner.app/Contents/MacOS/SSB Runner" > "$RUNNER_TEMP/app.log" 2>&1 &
+          pid=$!
+          sleep 20
+          ps -o pid,state -p "$pid" || true
+          kill -9 "$pid" 2>/dev/null || true
+          cat "$RUNNER_TEMP/app.log" || true
+          app_log="$HOME/Library/Containers/com.ssbrunner.app/Data/Library/Application Support/com.ssbrunner.app/log/latest.log"
+          if [[ -f "$app_log" ]]; then tail -n 80 "$app_log"; else echo "no app log at $app_log"; fi
+
+      - name: Detach
+        if: always()
+        timeout-minutes: 1
+        continue-on-error: true
+        run: hdiutil detach "$RUNNER_TEMP/mnt" -force || true
+
+      - name: Finished
+        if: always()
+        run: |
+          echo "diag complete"
+          ps -ef | grep -i 'SSB Runner' | grep -v grep || echo "no app processes"
