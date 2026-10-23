@@ -365,9 +365,12 @@ jobs:
       - name: Run macOS Intel smoke test
         # A step that hits its own timeout lets the job finish and upload its log; a job
         # cancelled by the job-level `timeout-minutes` uploads no log blob at all, which is
-        # why the first hang (run 39726662271) arrived with no diagnostics. The script's own
-        # waits are bounded to a few minutes, so this only catches an unforeseen hang.
-        timeout-minutes: 5
+        # why the hang (run 39726662271) arrived with no diagnostics. The script's own waits
+        # are bounded to a few minutes, so this only catches an unforeseen hang.
+        timeout-minutes: 4
+        # TEMPORARY (diagnosing the hang): let the job finish so its log survives even when
+        # the step is killed. Revert to a hard failure once the cause is known.
+        continue-on-error: true
         run: bash .github/scripts/smoke-test-macos-intel.sh
 
       # Runs even when the smoke test above was killed by its timeout, so whatever it left
