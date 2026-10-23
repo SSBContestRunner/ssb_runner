@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:catcher_2/catcher_2.dart';
@@ -170,7 +171,26 @@ class _MainAppCubit extends Cubit<_AppState> {
     }
   }
 
+  /// Environment variable that skips audio initialisation when set to `1`.
+  ///
+  /// SoLoud starts its engine on a worker isolate, and on hosts whose CoreAudio
+  /// stack is unusable (the headless macOS VMs used by CI, for example) that
+  /// call dies inside Apple's `AVAudioSession` with a SIGSEGV. A native crash
+  /// cannot be intercepted by the `catch` below and takes the whole process
+  /// down, so callers that only need the rest of the app to run--notably the
+  /// macOS smoke test--use this to opt out.
+  static const String _disableAudioEnv = 'SSB_RUNNER_DISABLE_AUDIO';
+
   Future<void> _initAudio() async {
+    if (Platform.environment[_disableAudioEnv] == '1') {
+      log.warn(
+        'SoLoud init skipped by environment',
+        tag: 'audio.soloud',
+        fields: <String, Object?>{'env': _disableAudioEnv},
+      );
+      return;
+    }
+
     try {
       await SoLoud.instance.init(channels: Channels.mono);
       log.info('SoLoud initialized', tag: 'audio.soloud');

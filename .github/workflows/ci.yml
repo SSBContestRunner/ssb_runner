@@ -348,7 +348,11 @@ jobs:
   smoke-test-macos-intel:
     name: Smoke test (macOS Intel)
     needs: package-macos
-    runs-on: macos-15-intel
+    # macos-15-intel cannot run this job: the step starts and then neither finishes nor
+    # honours its own `timeout-minutes`. The job is cancelled by the job-level timeout, and
+    # a cancelled job uploads no log at all (runs 39726662271, 39804098152, 39967581856
+    # all ended that way). macos-26-intel is the other x64 label.
+    runs-on: macos-26-intel
     # The script's own waits are bounded, but keep a backstop so a stuck mount or app
     # launch fails the job instead of hanging until GitHub's 6-hour default.
     timeout-minutes: 10
@@ -363,7 +367,26 @@ jobs:
           path: artifacts
 
       - name: Run macOS Intel smoke test
+        # A step that hits its own timeout lets the job finish and upload its log; a job
+        # cancelled by the job-level `timeout-minutes` uploads no log blob at all, which is
+        # why the hang (run 39726662271) arrived with no diagnostics. The script's own waits
+        # are bounded to a few minutes, so this only catches an unforeseen hang.
+        timeout-minutes: 4
         run: bash .github/scripts/smoke-test-macos-intel.sh
+
+      # Runs even when the smoke test above was killed by its timeout, so whatever it left
+      # behind -- a stuck mount, a still-running app, or a half-written app log -- is visible.
+      - name: Show what the smoke test left behind
+        if: always()
+        shell: bash
+        run: |
+          echo "== SSB Runner processes =="
+          ps -ef | grep -i 'SSB Runner' | grep -v grep || echo "none"
+          echo "== mounted disk images =="
+          hdiutil info | grep -E '^/dev/disk|^/Volumes/' || echo "none"
+          echo "== app log =="
+          app_log="$HOME/Library/Containers/com.ssbrunner.app/Data/Library/Application Support/com.ssbrunner.app/log/latest.log"
+          if [[ -f "$app_log" ]]; then tail -n 200 "$app_log"; else echo "no app log at $app_log"; fi
 
   # A release only ships a complete set, so here -- unlike the smoke tests -- every platform
   # and both smoke tests must have succeeded. Tag pushes are the only way in, and those build
