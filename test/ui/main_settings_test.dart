@@ -37,6 +37,8 @@ void main() {
 
     await _pumpSettings(tester, settings);
 
+    expect(find.text('Preview crash page'), findsOneWidget);
+
     // SettingItem pads 14px on each side of the 370px sidebar.
     const contentWidth = 370.0 - 28.0;
 

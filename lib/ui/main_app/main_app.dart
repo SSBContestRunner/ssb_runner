@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:catcher_2/catcher_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,10 +13,10 @@ import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/boot_trace.dart';
-import 'package:ssb_runner/logging/log_export.dart';
 import 'package:ssb_runner/logging/logging_bootstrap.dart';
 import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/ui/diagnostics_actions.dart';
 import 'package:ssb_runner/ui/main_app/home_page.dart';
 import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
@@ -246,11 +245,11 @@ class _StartupFailure extends StatelessWidget {
                 spacing: 12,
                 children: [
                   OutlinedButton(
-                    onPressed: () => _copySummary(context),
+                    onPressed: () => copyDiagnosticSummary(context),
                     child: const Text('Copy diagnostics'),
                   ),
                   FilledButton(
-                    onPressed: () => _exportLogs(context),
+                    onPressed: () => exportDiagnosticArchive(context),
                     child: const Text('Export logs'),
                   ),
                 ],
@@ -260,44 +259,5 @@ class _StartupFailure extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _copySummary(BuildContext context) async {
-    final summary = await diagnosticSummary();
-    await Clipboard.setData(ClipboardData(text: summary));
-    if (!context.mounted) {
-      return;
-    }
-
-    toastification.show(
-      title: const Text('Diagnostics copied'),
-      autoCloseDuration: const Duration(seconds: 2),
-      type: ToastificationType.success,
-      style: ToastificationStyle.fillColored,
-    );
-  }
-
-  Future<void> _exportLogs(BuildContext context) async {
-    try {
-      final file = await exportLogArchive();
-      if (!context.mounted || file == null) {
-        return;
-      }
-
-      await Clipboard.setData(ClipboardData(text: file.path));
-      toastification.show(
-        title: Text('Exported to ${file.path}'),
-        autoCloseDuration: const Duration(seconds: 4),
-        type: ToastificationType.success,
-        style: ToastificationStyle.fillColored,
-      );
-    } catch (error, stackTrace) {
-      log.error(
-        'log export failed',
-        tag: 'crash',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
   }
 }

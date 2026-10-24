@@ -19,6 +19,9 @@ import 'package:ssb_runner/logging/log_session.dart';
 /// scoped to this repository only and grants `Issues: Read and write`.
 const String _configuredToken = String.fromEnvironment('CRASH_ISSUE_TOKEN');
 
+/// Whether this build can publish crash reports to the issue tracker.
+bool get crashIssueReportingEnabled => _configuredToken.isNotEmpty;
+
 const String _repositorySlug = 'SSBContestRunner/ssb_runner';
 const String _apiHost = 'api.github.com';
 const String _apiVersion = '2022-11-28';
