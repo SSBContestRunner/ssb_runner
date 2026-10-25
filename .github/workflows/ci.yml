@@ -39,7 +39,7 @@ jobs:
         run: 'git config --global url.https://github.com/.insteadOf git@github.com:'
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # test/dxcc_loader_test.dart reads assets/dxcc/*, and assets is a git submodule.
           submodules: recursive
@@ -117,7 +117,7 @@ jobs:
         run: 'git config --global url.https://github.com/.insteadOf git@github.com:'
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -163,7 +163,7 @@ jobs:
           --build-dart-define CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ssb-runner-linux
           path: dist/**
@@ -183,7 +183,7 @@ jobs:
         run: 'git config --global url.https://github.com/.insteadOf git@github.com:'
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -247,7 +247,7 @@ jobs:
           exit 1
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ssb-runner-windows
           path: dist/**
@@ -267,7 +267,7 @@ jobs:
         run: 'git config --global url.https://github.com/.insteadOf git@github.com:'
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -311,7 +311,7 @@ jobs:
           --build-dart-define CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ssb-runner-macos
           path: dist/**
@@ -330,10 +330,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ssb-runner-linux
           path: artifacts
@@ -358,10 +358,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download macOS artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ssb-runner-macos
           path: artifacts
@@ -400,7 +400,7 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -414,7 +414,7 @@ jobs:
           ls -la release
 
       - name: Create draft release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release/*
           draft: true
