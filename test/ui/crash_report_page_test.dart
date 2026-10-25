@@ -8,16 +8,15 @@ import 'package:ssb_runner/error_handling.dart';
 import 'package:ssb_runner/ui/crash_report_page.dart';
 
 void main() {
-  test('debug config routes the preview marker to the crash page', () async {
-    final (debugOptions, releaseOptions) = await initErrorHandling();
+  test(
+    'debug config keeps the dialog mode and release uses the crash page',
+    () async {
+      final (debugOptions, releaseOptions) = await initErrorHandling();
 
-    expect(debugOptions.reportMode, isA<DialogReportMode>());
-    expect(
-      debugOptions.explicitExceptionReportModesMap[crashReportPreviewMarker],
-      isA<CrashReportMode>(),
-    );
-    expect(releaseOptions.reportMode, isA<CrashReportMode>());
-  });
+      expect(debugOptions.reportMode, isA<DialogReportMode>());
+      expect(releaseOptions.reportMode, isA<CrashReportMode>());
+    },
+  );
 
   testWidgets('shows the crash details and diagnostics actions', (
     tester,

@@ -1,12 +1,9 @@
-import 'package:catcher_2/catcher_2.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/log_export.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
-import 'package:ssb_runner/ui/crash_report_page.dart';
 import 'package:toastification/toastification.dart';
 
 /// Settings section exposing the log level switch and the diagnostic export.
@@ -69,25 +66,7 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
             ),
           ],
         ),
-        if (kDebugMode)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: _showCrashPreview,
-              icon: const Icon(Icons.bug_report_outlined),
-              label: const Text('Preview crash page'),
-            ),
-          ),
       ],
-    );
-  }
-
-  /// Routes a checked error through the debug Catcher2 config so the crash
-  /// page opens exactly as it does for real reports.
-  void _showCrashPreview() {
-    Catcher2.reportCheckedError(
-      StateError('Crash page preview ($crashReportPreviewMarker)'),
-      StackTrace.current,
     );
   }
 

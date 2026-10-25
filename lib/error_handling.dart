@@ -4,7 +4,6 @@ import 'package:catcher_2/model/catcher_2_options.dart';
 import 'package:catcher_2/model/platform_type.dart';
 import 'package:catcher_2/model/report.dart';
 import 'package:catcher_2/model/report_handler.dart';
-import 'package:catcher_2/model/report_mode.dart';
 import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/crash_issue_reporter.dart';
@@ -22,15 +21,10 @@ Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
   final logHandler = _LoggingReportHandler();
   final issueReporter = CrashIssueReporter(onResult: _showReportResult);
 
-  final debugOptions = Catcher2Options(
-    DialogReportMode(),
-    <ReportHandler>[ConsoleHandler(), logHandler],
-    explicitExceptionReportModesMap: <String, ReportMode>{
-      // Lets the debug-only entry in Diagnostics settings preview the crash
-      // page without changing the default debug dialog.
-      crashReportPreviewMarker: CrashReportMode(canSendReport: false),
-    },
-  );
+  final debugOptions = Catcher2Options(DialogReportMode(), <ReportHandler>[
+    ConsoleHandler(),
+    logHandler,
+  ]);
 
   final releaseOptions = Catcher2Options(
     CrashReportMode(

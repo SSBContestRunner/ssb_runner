@@ -5,10 +5,6 @@ import 'package:catcher_2/model/platform_type.dart';
 import 'package:flutter/material.dart';
 import 'package:ssb_runner/ui/diagnostics_actions.dart';
 
-/// Error text that routes a checked error to [CrashReportMode] through
-/// Catcher2's explicit report mode map.
-const String crashReportPreviewMarker = 'ssb-runner-crash-preview';
-
 /// Release report mode that shows a full error page with recovery actions
 /// instead of Catcher2's bare default page.
 class CrashReportMode extends ReportMode {
