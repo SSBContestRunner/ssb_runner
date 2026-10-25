@@ -310,6 +310,51 @@ jobs:
           --targets=dmg
           --build-dart-define CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}
 
+      # Replaces the old Intel-runner smoke test (that VM froze intermittently and was
+      # cancelled before it could report anything). The bundle is universal only because
+      # Xcode's Release configuration leaves ARCHS_STANDARD (arm64 + x86_64) in place;
+      # nothing in the repo pins it, so an ONLY_ACTIVE_ARCH/EXCLUDED_ARCHS change would
+      # silently drop the x86_64 slice while still building fine on Apple Silicon. `lipo`
+      # reads both slices without needing Intel hardware, so assert both here instead.
+      - name: Verify universal slices (arm64 + x86_64)
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)
+          [[ -n "$app" ]] || { echo "::error::no .app under build/macos/Build/Products/Release"; exit 1; }
+          echo "checking $app"
+          status=0
+          check_universal() {
+            local bin="$1" info
+            info=$(lipo -info "$bin" 2>&1) || true
+            if grep -q 'x86_64' <<<"$info" && grep -q 'arm64' <<<"$info"; then
+              echo "  ok   $(basename "$bin"): $info"
+            else
+              echo "::error::$(basename "$bin") is not universal: $info"
+              status=1
+            fi
+          }
+          exe="$app/Contents/MacOS/$(basename "$app" .app)"
+          [[ -x "$exe" ]] || { echo "::error::no executable at $exe"; exit 1; }
+          check_universal "$exe"
+          # Covers the engine (FlutterMacOS), the plugins, and App.framework -- the Dart AOT
+          # snapshot is compiled per architecture by two gen_snapshot runs and lipo'd
+          # together, so it is the piece most likely to drift.
+          for fw in "$app/Contents/Frameworks"/*.framework; do
+            [[ -d "$fw" ]] || continue
+            name=$(basename "$fw" .framework)
+            # Versioned bundles keep the binary under Versions/A; flat bundles do not.
+            bin="$fw/Versions/A/$name"
+            [[ -f "$bin" ]] || bin="$fw/$name"
+            if [[ -f "$bin" ]]; then
+              check_universal "$bin"
+            else
+              echo "::error::no binary inside $(basename "$fw")"
+              status=1
+            fi
+          done
+          [[ $status -eq 0 ]] || exit 1
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -341,77 +386,9 @@ jobs:
       - name: Run Debian 12 smoke test
         run: bash .github/scripts/smoke-test-debian.sh
 
-  # Verifies the macOS .dmg on Intel hardware. The bundle is universal only because Xcode's
-  # Release configuration defaults to ARCHS_STANDARD (arm64 + x86_64); nothing in the repo
-  # pins that, so an ONLY_ACTIVE_ARCH/EXCLUDED_ARCHS change could silently drop x86_64 while
-  # still building fine on Apple Silicon. Running on an Intel runner catches exactly that.
-  #
-  # Advisory, not a release gate: the Intel runner itself intermittently freezes. Runs
-  # 39726662271, 39804098152, 39967581856 and 40158515361 were all cancelled at 15 minutes
-  # (10-minute job timeout plus GitHub's cancellation grace) and uploaded no log blob at all
-  # -- the API answers 404 BlobNotFound. While the VM is frozen neither the step nor the job
-  # timeout terminates anything cleanly, so the job can neither report where it stopped nor
-  # retry in place. That is why `release` does not depend on this job: a frozen Intel runner
-  # must not hold back an otherwise complete release. A red result here still means the
-  # x86_64 slice must be checked by hand before shipping.
-  smoke-test-macos-intel:
-    name: Smoke test (macOS Intel)
-    needs: package-macos
-    # macos-15-intel cannot run this job: the step starts and then neither finishes nor
-    # honours its own `timeout-minutes`. The job is cancelled by the job-level timeout, and
-    # a cancelled job uploads no log at all (runs 39726662271, 39804098152, 39967581856
-    # all ended that way). macos-26-intel is the other x64 label.
-    runs-on: macos-26-intel
-    # The script's own waits are bounded, but keep a backstop so a stuck mount or app
-    # launch fails the job instead of hanging until GitHub's 6-hour default.
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: ssb-runner-macos
-          path: artifacts
-
-      - name: Run macOS Intel smoke test
-        # A step that hits its own timeout lets the job finish and upload its log; a job
-        # cancelled by the job-level `timeout-minutes` uploads no log blob at all, which is
-        # why the hang (run 39726662271) arrived with no diagnostics. The script's own waits
-        # are bounded to a few minutes, so this only catches an unforeseen hang.
-        id: smoke-first
-        timeout-minutes: 4
-        # continue-on-error so a normal failure still reaches the retry below.
-        continue-on-error: true
-        run: bash .github/scripts/smoke-test-macos-intel.sh
-
-      # Run 36989183503 showed a launch can abort on one host and then pass untouched on a
-      # rerun of the same artifact, so retry a failure once. A frozen runner cannot be
-      # retried from here -- the job is cancelled before this step is ever reached.
-      - name: Retry macOS Intel smoke test
-        if: steps.smoke-first.outcome == 'failure'
-        timeout-minutes: 4
-        run: bash .github/scripts/smoke-test-macos-intel.sh
-
-      # Runs even when the smoke test above was killed by its timeout, so whatever it left
-      # behind -- a stuck mount, a still-running app, or a half-written app log -- is visible.
-      - name: Show what the smoke test left behind
-        if: always()
-        shell: bash
-        run: |
-          echo "== SSB Runner processes =="
-          ps -ef | grep -i 'SSB Runner' | grep -v grep || echo "none"
-          echo "== mounted disk images =="
-          hdiutil info | grep -E '^/dev/disk|^/Volumes/' || echo "none"
-          echo "== app log =="
-          app_log="$HOME/Library/Containers/com.ssbrunner.app/Data/Library/Application Support/com.ssbrunner.app/log/latest.log"
-          if [[ -f "$app_log" ]]; then tail -n 200 "$app_log"; else echo "no app log at $app_log"; fi
-
   # A release only ships a complete set, so every package and the Debian smoke test must
-  # have succeeded. The macOS Intel smoke test is deliberately absent from `needs`: its
-  # runner freezes intermittently (see that job), and an advisory check must not hold back
-  # an otherwise complete release. Tag pushes are the only way in, and those build all
+  # have succeeded. macOS needs no separate job: its universal slices are verified inside
+  # package-macos on the arm64 runner. Tag pushes are the only way in, and those build all
   # three platforms.
   release:
     name: Draft GitHub Release

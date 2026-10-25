@@ -39,7 +39,7 @@ and Web scaffolds are not release targets.
 | Platform | Architecture | Minimum version |
 | --- | --- | --- |
 | Windows | x64 | Windows 10 or 11 |
-| macOS | Universal — Apple Silicon and Intel | macOS 12 Monterey or later |
+| macOS | Universal — Apple Silicon, Intel (best-effort) | macOS 12 Monterey or later |
 | Linux | x86_64 | glibc 2.35+ — Ubuntu 22.04 / Debian 12 or newer |
 
 #### Artifacts
@@ -49,6 +49,8 @@ and Web scaffolds are not release targets.
     bundled, so no installer — and no separate VC++ Redistributable — is needed.
 - **macOS** (universal; runs natively on both Apple Silicon and Intel Macs)
   - `.dmg` — drag **SSB Runner.app** into *Applications*.
+  - Intel support is best-effort: the bundle is checked to contain an x86_64 slice, but
+    releases are not launched on Intel hardware. Apple ends Intel Mac support with macOS 26.
 - **Linux** (x86_64)
   - `.deb` — install with `apt`, which also pulls in the EGL/GLES runtime the
     Flutter engine loads.
