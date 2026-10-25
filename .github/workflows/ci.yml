@@ -345,6 +345,15 @@ jobs:
   # Release configuration defaults to ARCHS_STANDARD (arm64 + x86_64); nothing in the repo
   # pins that, so an ONLY_ACTIVE_ARCH/EXCLUDED_ARCHS change could silently drop x86_64 while
   # still building fine on Apple Silicon. Running on an Intel runner catches exactly that.
+  #
+  # Advisory, not a release gate: the Intel runner itself intermittently freezes. Runs
+  # 39726662271, 39804098152, 39967581856 and 40158515361 were all cancelled at 15 minutes
+  # (10-minute job timeout plus GitHub's cancellation grace) and uploaded no log blob at all
+  # -- the API answers 404 BlobNotFound. While the VM is frozen neither the step nor the job
+  # timeout terminates anything cleanly, so the job can neither report where it stopped nor
+  # retry in place. That is why `release` does not depend on this job: a frozen Intel runner
+  # must not hold back an otherwise complete release. A red result here still means the
+  # x86_64 slice must be checked by hand before shipping.
   smoke-test-macos-intel:
     name: Smoke test (macOS Intel)
     needs: package-macos
@@ -371,6 +380,17 @@ jobs:
         # cancelled by the job-level `timeout-minutes` uploads no log blob at all, which is
         # why the hang (run 39726662271) arrived with no diagnostics. The script's own waits
         # are bounded to a few minutes, so this only catches an unforeseen hang.
+        id: smoke-first
+        timeout-minutes: 4
+        # continue-on-error so a normal failure still reaches the retry below.
+        continue-on-error: true
+        run: bash .github/scripts/smoke-test-macos-intel.sh
+
+      # Run 36989183503 showed a launch can abort on one host and then pass untouched on a
+      # rerun of the same artifact, so retry a failure once. A frozen runner cannot be
+      # retried from here -- the job is cancelled before this step is ever reached.
+      - name: Retry macOS Intel smoke test
+        if: steps.smoke-first.outcome == 'failure'
         timeout-minutes: 4
         run: bash .github/scripts/smoke-test-macos-intel.sh
 
@@ -388,12 +408,14 @@ jobs:
           app_log="$HOME/Library/Containers/com.ssbrunner.app/Data/Library/Application Support/com.ssbrunner.app/log/latest.log"
           if [[ -f "$app_log" ]]; then tail -n 200 "$app_log"; else echo "no app log at $app_log"; fi
 
-  # A release only ships a complete set, so here -- unlike the smoke tests -- every platform
-  # and both smoke tests must have succeeded. Tag pushes are the only way in, and those build
-  # all three platforms.
+  # A release only ships a complete set, so every package and the Debian smoke test must
+  # have succeeded. The macOS Intel smoke test is deliberately absent from `needs`: its
+  # runner freezes intermittently (see that job), and an advisory check must not hold back
+  # an otherwise complete release. Tag pushes are the only way in, and those build all
+  # three platforms.
   release:
     name: Draft GitHub Release
-    needs: [package-linux, package-windows, package-macos, smoke-test-debian, smoke-test-macos-intel]
+    needs: [package-linux, package-windows, package-macos, smoke-test-debian]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
