@@ -92,7 +92,6 @@ flutter:
 
   assets:
     - assets/callsign/
-    - assets/dxcc/
     - assets/voice/Global/ICAO/
     - assets/voice/Global/Number/
     - assets/voice/Global/Common/

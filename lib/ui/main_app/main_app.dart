@@ -45,6 +45,42 @@ class _MainAppState extends State<MainApp> {
         return AppExitResponse.exit;
       },
     );
+
+    // The window is hidden until the first frame is on screen, so it appears
+    // straight into the loading view instead of as a blank window.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _revealWindow());
+  }
+
+  Future<void> _revealWindow() async {
+    try {
+      // macOS binds the native window to the plugin only during this call.
+      await windowManager.ensureInitialized();
+      await windowManager.setSize(const Size(1280, 720));
+      await windowManager.center();
+      await windowManager.setResizable(true);
+      await windowManager.setMinimumSize(const Size(1024, 650));
+    } catch (error, stackTrace) {
+      log.warn(
+        'window configure failed',
+        tag: 'boot',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    try {
+      // Always restore opacity, even when the configuration above failed.
+      await windowManager.setOpacity(1);
+      await windowManager.show();
+      await windowManager.focus();
+    } catch (error, stackTrace) {
+      log.error(
+        'window show failed',
+        tag: 'boot',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   @override
@@ -158,8 +194,9 @@ class _MainAppCubit extends Cubit<_AppState> {
     final warnings = <String>[];
 
     try {
-      await boot.step('soloud_init', _initAudio);
-      await boot.step('window_ready', _initWindow);
+      // Started first, awaited before `_Ready`: the engine takes 80-165 ms and
+      // must be up before the first voice segment is played.
+      final audioReady = boot.step('soloud_init', _initAudio);
 
       final prefs = await boot.step(
         'prefs_ready',
@@ -192,6 +229,8 @@ class _MainAppCubit extends Cubit<_AppState> {
       }
 
       await boot.step('callsign_loaded', callsignLoader.loadCallsigns);
+
+      await audioReady;
 
       emit(
         _Ready(
@@ -245,18 +284,6 @@ class _MainAppCubit extends Cubit<_AppState> {
         stackTrace: stackTrace,
       );
     }
-  }
-
-  Future<void> _initWindow() async {
-    await windowManager.ensureInitialized();
-    final windowOptions = WindowOptions(size: Size(1280, 720), center: true);
-
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
-      await windowManager.setResizable(true);
-      await windowManager.setMinimumSize(const Size(1024, 650));
-    });
   }
 }
 
