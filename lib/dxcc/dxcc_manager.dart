@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart';
 import 'package:ssb_runner/common/extract_prefix.dart';
 import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:worker_manager/worker_manager.dart';
 import 'package:xml/xml.dart';
 
@@ -14,9 +15,10 @@ class DxccManager {
 
   DxccManager({required this.database});
 
-  late final List<PrefixTableData> _prefixes;
+  /// Cached prefixes, empty until [loadDxcc] succeeds.
+  List<PrefixTableData> _prefixes = const <PrefixTableData>[];
 
-  late final Map<String, int> _prefixToDxccMap;
+  Map<String, int> _prefixToDxccMap = const <String, int>{};
 
   int findCallsignDxccId(String callsign) {
     final prefix = extractPrefix(callsign);
@@ -80,16 +82,34 @@ class DxccManager {
   }
 
   Future<void> loadDxcc() async {
-    final prefixFromDb = await database.select(database.prefixTable).get();
+    final cachedPrefixes = await _readCachedPrefixes();
 
-    if (prefixFromDb.isNotEmpty) {
-      _assignPrefixes(prefixFromDb);
+    if (cachedPrefixes != null && cachedPrefixes.isNotEmpty) {
+      _assignPrefixes(cachedPrefixes);
       return;
     }
 
     final prefixFromXml = await _loadDxccInternal();
-    await _saveToDb(prefixFromXml);
     _assignPrefixes(prefixFromXml);
+    await _saveToDb(prefixFromXml);
+  }
+
+  /// Reads the cached prefix table, or `null` when the database cannot be read.
+  ///
+  /// The cache is an optimisation: an unusable database must still let the app
+  /// resolve callsigns from the bundled asset.
+  Future<List<PrefixTableData>?> _readCachedPrefixes() async {
+    try {
+      return await database.select(database.prefixTable).get();
+    } catch (error, stackTrace) {
+      log.warn(
+        'dxcc cache read failed, loading from asset',
+        tag: 'dxcc',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
   }
 
   void _assignPrefixes(List<PrefixTableData> prefixes) {
@@ -117,18 +137,30 @@ class DxccManager {
     });
   }
 
+  /// Stores the prefix cache; a failure only costs the next launch some parsing.
   Future<void> _saveToDb(List<PrefixTableData> prefixes) async {
-    final insetStatement = database.into(database.prefixTable);
+    try {
+      await database.transaction(() async {
+        final insertStatement = database.into(database.prefixTable);
 
-    for (final prefix in prefixes) {
-      await insetStatement.insert(
-        PrefixTableCompanion.insert(
-          call: prefix.call,
-          dxccId: prefix.dxccId,
-          continent: prefix.continent,
-          cqz: Value(prefix.cqz),
-          ituz: Value(prefix.ituz),
-        ),
+        for (final prefix in prefixes) {
+          await insertStatement.insert(
+            PrefixTableCompanion.insert(
+              call: prefix.call,
+              dxccId: prefix.dxccId,
+              continent: prefix.continent,
+              cqz: Value(prefix.cqz),
+              ituz: Value(prefix.ituz),
+            ),
+          );
+        }
+      });
+    } catch (error, stackTrace) {
+      log.warn(
+        'dxcc cache write failed, continuing without cache',
+        tag: 'dxcc',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }

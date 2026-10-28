@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 import 'package:drift_flutter/drift_flutter.dart';
-import 'package:ssb_runner/common/dirs.dart';
+import 'package:ssb_runner/db/database_bootstrap.dart';
 import 'package:ssb_runner/db/table/event_log_table.dart';
 import 'package:ssb_runner/db/table/prefix_table.dart';
 import 'package:ssb_runner/db/table/qso_table.dart';
@@ -47,13 +48,22 @@ class AppDatabase extends _$AppDatabase {
   );
 
   static DatabaseConnection _openConnection() {
+    return DatabaseConnection.delayed(_connect());
+  }
+
+  /// Opens the database in the directory resolved by [ensureDatabaseReady],
+  /// or in memory when no writable directory exists.
+  static Future<DatabaseConnection> _connect() async {
+    final bootstrap = await ensureDatabaseReady();
+    final path = bootstrap.path;
+
+    if (path == null) {
+      return DatabaseConnection(NativeDatabase.memory());
+    }
+
     return driftDatabase(
       name: 'ssb_runner_database',
-      native: DriftNativeOptions(
-        databaseDirectory: () async {
-          return '${await getAppDirectory()}/$dirDb';
-        },
-      ),
+      native: DriftNativeOptions(databasePath: () async => path),
     );
   }
 }

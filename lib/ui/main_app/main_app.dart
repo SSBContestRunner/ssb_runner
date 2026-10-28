@@ -10,6 +10,7 @@ import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/db/database_bootstrap.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/boot_trace.dart';
@@ -74,20 +75,36 @@ class _MainAppState extends State<MainApp> {
                 dxccManager: context.read(),
                 callsignLoader: context.read(),
               ),
-            child: BlocBuilder<_MainAppCubit, _AppState>(
-              builder: (context, state) {
-                switch (state) {
-                  case _Loading():
-                    return Container(
-                      color: ColorScheme.of(context).surface,
-                      child: const Center(child: CircularProgressIndicator()),
-                    );
-                  case _Ready(:final deps):
-                    return HomePage(prefs: deps.prefs);
-                  case _Failed(:final message):
-                    return _StartupFailure(message: message);
+            child: BlocListener<_MainAppCubit, _AppState>(
+              listenWhen: (previous, current) =>
+                  current is _Ready && current.deps.warning != null,
+              listener: (context, state) {
+                final warning = (state as _Ready).deps.warning;
+                if (warning == null) {
+                  return;
                 }
+
+                // The overlay may not be mounted yet when startup finishes
+                // before the first frame.
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _showStartupWarning(warning),
+                );
               },
+              child: BlocBuilder<_MainAppCubit, _AppState>(
+                builder: (context, state) {
+                  switch (state) {
+                    case _Loading():
+                      return Container(
+                        color: ColorScheme.of(context).surface,
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    case _Ready(:final deps):
+                      return HomePage(prefs: deps.prefs);
+                    case _Failed(:final message):
+                      return _StartupFailure(message: message);
+                  }
+                },
+              ),
             ),
           ),
         ),
@@ -105,7 +122,10 @@ class _MainAppState extends State<MainApp> {
 class _AppDeps {
   final SharedPreferencesWithCache prefs;
 
-  _AppDeps({required this.prefs});
+  /// Non-fatal problem to surface once the main page is up.
+  final String? warning;
+
+  _AppDeps({required this.prefs, this.warning});
 }
 
 sealed class _AppState {
@@ -135,6 +155,8 @@ class _MainAppCubit extends Cubit<_AppState> {
     required DxccManager dxccManager,
     required CallsignLoader callsignLoader,
   }) async {
+    final warnings = <String>[];
+
     try {
       await boot.step('soloud_init', _initAudio);
       await boot.step('window_ready', _initWindow);
@@ -154,10 +176,31 @@ class _MainAppCubit extends Cubit<_AppState> {
         () => workerManager.init(dynamicSpawning: true),
       );
 
-      await boot.step('dxcc_loaded', dxccManager.loadDxcc);
+      // Resolve the database folder before drift opens it: the result reports
+      // whether the history could be carried over from older versions.
+      final database = await boot.step('db_ready', ensureDatabaseReady);
+      if (database.warning != null) {
+        warnings.add(database.warning!);
+      }
+
+      try {
+        await boot.step('dxcc_loaded', dxccManager.loadDxcc);
+      } catch (_) {
+        // BootTrace logged the error already. Callsign lookups stay disabled
+        // rather than keeping the whole app from starting.
+        warnings.add('Callsign lookups are unavailable.');
+      }
+
       await boot.step('callsign_loaded', callsignLoader.loadCallsigns);
 
-      emit(_Ready(_AppDeps(prefs: prefs)));
+      emit(
+        _Ready(
+          _AppDeps(
+            prefs: prefs,
+            warning: warnings.isEmpty ? null : warnings.join('\n'),
+          ),
+        ),
+      );
       log.info('application ready', tag: 'boot');
     } catch (error, stackTrace) {
       log.fatal(
@@ -215,6 +258,18 @@ class _MainAppCubit extends Cubit<_AppState> {
       await windowManager.setMinimumSize(const Size(1024, 650));
     });
   }
+}
+
+/// Reports a non-fatal startup problem, such as the history not being where the
+/// user expects it, without keeping the app from running.
+void _showStartupWarning(String message) {
+  toastification.show(
+    title: const Text('History database'),
+    description: Text(message),
+    type: ToastificationType.warning,
+    style: ToastificationStyle.fillColored,
+    autoCloseDuration: const Duration(seconds: 10),
+  );
 }
 
 class _StartupFailure extends StatelessWidget {

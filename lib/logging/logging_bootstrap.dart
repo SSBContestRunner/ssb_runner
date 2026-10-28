@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:ssb_runner/common/dirs.dart';
 
 import 'app_logger.dart';
 import 'boot_trace.dart';
@@ -51,6 +52,7 @@ Future<void> bootstrapLogging() async {
   });
 
   await boot.step('runtime_env_probe', probeRuntimeEnvironment);
+  await boot.step('storage_probe', probeStorageRoots);
 }
 
 /// Records the native libraries shipped next to the executable.
@@ -80,6 +82,28 @@ Future<void> probeRuntimeEnvironment() async {
       'exe_dir': redactPath(executableDirectory.path),
       'library_count': libraries.length,
       'libraries': libraries.join(','),
+    },
+  );
+}
+
+/// Records whether the folders the app writes to are usable.
+///
+/// Windows reports the Documents folder as existing even when it is a redirect
+/// whose target is gone, and every write below it then fails with "path not
+/// found". The type/link details recorded here make that visible in the
+/// diagnostics summary instead of only showing up as an opaque errno.
+Future<void> probeStorageRoots() async {
+  final documents = await documentsPath();
+  final roots = await appDataRoots();
+
+  log.info(
+    'storage probe',
+    tag: 'env',
+    fields: <String, Object?>{
+      'roots': <Map<String, Object?>>[
+        if (documents != null) describeDirectory(documents),
+        for (final root in roots) describeDirectory(root),
+      ],
     },
   );
 }

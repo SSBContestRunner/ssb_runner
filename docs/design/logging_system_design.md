@@ -487,7 +487,7 @@ class AppLogger {
 | facade 选型 | `package:logging` | 生态标准、层级命名、level 过滤，且已是 transitive 依赖 |
 | 主格式 | logfmt 单行文本 | 人工 grep 友好、体积小；JSONL 作为可选模式 |
 | 日志目录 | Application Support | Windows Documents 受 OneDrive 影响，不适合放日志 |
-| DB 目录 | 不动 | 避免数据迁移风险 |
+| DB 目录 | 与日志同在 Application Support，首次启动从 Documents 复制一次 | Documents 被 OneDrive 重定向后目录创建会失败并让整个启动失败；一次性复制既保留历史又避开该位置 |
 | 常开 IOSink | 是 | 崩溃前尽量多落盘；代价是需要在生命周期钩子强制 flush |
 
 ---
