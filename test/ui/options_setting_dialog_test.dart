@@ -8,6 +8,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
@@ -60,6 +61,46 @@ void main() {
     expect(find.text('No completed sessions yet.'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('Incoming accent selection is labelled and persisted', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics && widget.properties.label == 'Incoming accent',
+      ),
+      findsOneWidget,
+    );
+    expect(settings.incomingAccent, IncomingAccent.auto);
+
+    await tester.tap(find.text('Auto'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('UK').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(settings.incomingAccent, IncomingAccent.uk);
+  });
+
+  testWidgets('Incoming accent is disabled while a session runs', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+    final cubit = _RunningMainSettingsCubit(
+      contestManager: _createContestManager(settings),
+    )..markRunning();
+    await _pumpHarness(tester, settings, cubit: cubit);
+
+    final menu = tester.widget<DropdownMenu<IncomingAccent>>(
+      find.byType(DropdownMenu<IncomingAccent>),
+    );
+    expect(menu.enabled, isFalse);
   });
 
   testWidgets('Backspace in Duration keeps focus on the Duration field', (
@@ -133,16 +174,22 @@ Future<AppSettings> _createSettings() async {
 
 /// Builds a callsign field above the options panel so focus can be moved away
 /// from the duration field.
-Future<void> _pumpHarness(WidgetTester tester, AppSettings settings) async {
+Future<void> _pumpHarness(
+  WidgetTester tester,
+  AppSettings settings, {
+  MainSettingsCubit? cubit,
+}) async {
   await tester.pumpWidget(
     ToastificationWrapper(
       child: MaterialApp(
         home: RepositoryProvider<AppSettings>.value(
           value: settings,
           child: BlocProvider<MainSettingsCubit>.value(
-            value: MainSettingsCubit(
-              contestManager: _createContestManager(settings),
-            ),
+            value:
+                cubit ??
+                MainSettingsCubit(
+                  contestManager: _createContestManager(settings),
+                ),
             child: const Scaffold(
               body: Column(
                 children: [
@@ -180,6 +227,14 @@ FocusNode _durationFocusNode(WidgetTester tester) =>
 
 String _durationText(WidgetTester tester) =>
     _durationEditable(tester).controller.text;
+
+/// Forces the "session running" state without starting a real session, so the
+/// settings panel's disabled state can be asserted in isolation.
+class _RunningMainSettingsCubit extends MainSettingsCubit {
+  _RunningMainSettingsCubit({required super.contestManager});
+
+  void markRunning() => emit(true);
+}
 
 ContestManager _createContestManager(AppSettings settings) {
   return ContestManager(

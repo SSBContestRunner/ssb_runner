@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/mix_pileup.dart';
@@ -49,6 +50,9 @@ class ContestStateChangeHandler {
   late final DxccManager _dxccManager = _contestDataManager.dxccManager;
   late final AppSettings _appSettings = _contestDataManager.appSettings;
 
+  /// Fixed for the whole run: built by [ContestManager.startContest].
+  final AccentPolicy _accentPolicy;
+
   Timer? _retryTimer;
 
   ContestStateChangeHandler({
@@ -61,6 +65,7 @@ class ContestStateChangeHandler {
     required ScoreManager scoreManager,
     required AnswerSource contestAnswerGenerator,
     void Function(String reason)? onAnswersExhausted,
+    required AccentPolicy accentPolicy,
   }) : _contestRunId = contestRunId,
        _contestTimer = contestTimer,
        _contestType = contestType,
@@ -68,7 +73,8 @@ class ContestStateChangeHandler {
        _stateMachine = stateMachine,
        _scoreManager = scoreManager,
        _answerGenerator = contestAnswerGenerator,
-       _onAnswersExhausted = onAnswersExhausted;
+       _onAnswersExhausted = onAnswersExhausted,
+       _accentPolicy = accentPolicy;
 
   void dispose() {
     _disposed = true;
@@ -189,11 +195,11 @@ class ContestStateChangeHandler {
         final dxccId = _dxccManager.findCallsignDxccId(
           toState.currentCallAnswer,
         );
-        final accent = obtainAccentByDxccId(dxccId);
+        final accent = _accentPolicy.resolve(isMe: false, dxccId: dxccId);
         final list = [
           if (toState.isPlayMyCall)
             await _audioLoader.loadAudio(
-              obtainAccentByDxccId(dxccId),
+              accent,
               CallsignPayload(
                 callsign: _stationCallsign,
                 phonicType: _appSettings.phonicType,
@@ -214,7 +220,7 @@ class ContestStateChangeHandler {
         );
 
         final pcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(false, dxccId),
+          _accentPolicy.resolve(isMe: false, dxccId: dxccId),
           CallsignPayload(
             callsign: toState.currentCallAnswer,
             phonicType: _appSettings.phonicType,
@@ -297,7 +303,10 @@ class ContestStateChangeHandler {
         // play nothing
         break;
       case PlayExchange():
-        final assetDir = obtainAssetDir(playType.isMe, dxccId);
+        final assetDir = _accentPolicy.resolve(
+          isMe: playType.isMe,
+          dxccId: dxccId,
+        );
         final rstAudioFileName = obtainRstAudioFileName(playType.isMe);
 
         final rstPcmData = await _audioLoader.loadAudio(
@@ -324,8 +333,12 @@ class ContestStateChangeHandler {
         );
         break;
       case PlayCallExchange():
+        final assetDir = _accentPolicy.resolve(
+          isMe: playType.isMe,
+          dxccId: dxccId,
+        );
         final callSignPcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          assetDir,
           CallsignPayload(
             callsign: playType.call,
             phonicType: _appSettings.phonicType,
@@ -333,7 +346,7 @@ class ContestStateChangeHandler {
         );
 
         final rstPcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          assetDir,
           CommonPayload(
             fileName: obtainRstAudioFileName(
               playType.isMe,
@@ -343,7 +356,7 @@ class ContestStateChangeHandler {
         );
 
         final exchangePcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          assetDir,
           CallsignPayload(
             callsign: _contestType.formatExchangeForAudio(
               playType.exchangeToPlay,
@@ -366,7 +379,7 @@ class ContestStateChangeHandler {
         break;
       case PlayCall():
         final pcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          _accentPolicy.resolve(isMe: playType.isMe, dxccId: dxccId),
           CallsignPayload(
             callsign: playType.callToPlay,
             phonicType: _appSettings.phonicType,
@@ -382,7 +395,7 @@ class ContestStateChangeHandler {
         final clips = await Future.wait(
           playType.calls.map(
             (callsign) => _audioLoader.loadAudio(
-              obtainAssetDir(false, dxccId),
+              _accentPolicy.resolve(isMe: false, dxccId: dxccId),
               CallsignPayload(
                 callsign: callsign,
                 phonicType: _appSettings.phonicType,
@@ -405,7 +418,7 @@ class ContestStateChangeHandler {
         );
         break;
       case PlaySearchAndPounce():
-        final assetDir = obtainAssetDir(false, dxccId);
+        final assetDir = _accentPolicy.resolve(isMe: false, dxccId: dxccId);
         final cq = await _audioLoader.loadAudio(
           myAudioAccentDir,
           CommonPayload(fileName: 'CQ.wav'),

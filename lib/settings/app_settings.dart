@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
@@ -70,6 +71,12 @@ class AppSettings {
 
   set phonicType(PhonicType value) =>
       _prefs.setInt(_settingPhonicType, value.index);
+
+  IncomingAccent get incomingAccent =>
+      IncomingAccent.fromId(_prefs.getString(_settingIncomingAccent));
+
+  set incomingAccent(IncomingAccent value) =>
+      _prefs.setString(_settingIncomingAccent, value.id);
 
   TrainingDifficulty get difficulty =>
       TrainingDifficulty.fromId(_prefs.getString(_settingDifficulty));
@@ -196,6 +203,7 @@ const _settingStationCallsign = 'setting_station_callsign';
 const _settingStationExchangePrefix = 'setting_station_exchange_';
 const _settingContestDuration = 'setting_contest_duration';
 const _settingPhonicType = 'setting_phonic_type';
+const _settingIncomingAccent = 'setting_incoming_accent';
 const _settingVerboseLogging = 'setting_verbose_logging';
 const _settingDifficulty = 'setting_difficulty';
 const _settingAudioVolume = 'setting_audio_volume';

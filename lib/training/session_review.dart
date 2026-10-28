@@ -14,6 +14,7 @@ class TrainingRunMetadata {
     required this.audioSeed,
     required this.startedAt,
     this.appVersion = '',
+    this.accentId = 'auto',
   });
 
   final String runId;
@@ -29,6 +30,9 @@ class TrainingRunMetadata {
   final int audioSeed;
   final String appVersion;
   final DateTime startedAt;
+
+  /// Incoming accent used by the run (`auto` when it followed the DXCC).
+  final String accentId;
 }
 
 /// One recorded answer in a run. The replay engine replays these recorded
@@ -158,6 +162,7 @@ class TrainingRunReview {
     'questionSeed': metadata.questionSeed,
     'audioSeed': metadata.audioSeed,
     'appVersion': metadata.appVersion,
+    'accentId': metadata.accentId,
     'startedAt': metadata.startedAt.toIso8601String(),
     'endedAt': endedAt.toIso8601String(),
     'qsoCount': qsoCount,
@@ -187,6 +192,7 @@ class TrainingRunReview {
         questionSeed: questionSeed,
         audioSeed: audioSeed,
         appVersion: json['appVersion'] as String? ?? '',
+        accentId: json['accentId'] as String? ?? 'auto',
         startedAt: DateTime.parse(json['startedAt'] as String),
       ),
       endedAt: DateTime.parse(json['endedAt'] as String),

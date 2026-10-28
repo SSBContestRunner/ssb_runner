@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -13,12 +14,14 @@ class _Options {
     required this.mode,
     required this.duration,
     required this.phonicType,
+    required this.incomingAccent,
     required this.difficulty,
     required this.volume,
   });
   final TrainingMode mode;
   final int duration;
   final PhonicType phonicType;
+  final IncomingAccent incomingAccent;
   final TrainingDifficulty difficulty;
   final double volume;
 }
@@ -30,13 +33,13 @@ class _OptionsCubit extends Cubit<_Options> {
           mode: TrainingMode.fromId(_settings.contestModeId),
           duration: _settings.contestDuration,
           phonicType: _settings.phonicType,
+          incomingAccent: _settings.incomingAccent,
           difficulty: _settings.difficulty,
           volume: _settings.audioVolume,
         ),
       ) {
     durationController = TextEditingController(text: state.duration.toString());
-    durationFocusNode = FocusNode()
-      ..addListener(_handleDurationFocusChange);
+    durationFocusNode = FocusNode()..addListener(_handleDurationFocusChange);
   }
 
   final AppSettings _settings;
@@ -100,6 +103,13 @@ class _OptionsCubit extends Cubit<_Options> {
     }
   }
 
+  void setIncomingAccent(IncomingAccent? value) {
+    if (value != null) {
+      _settings.incomingAccent = value;
+      _emit(incomingAccent: value);
+    }
+  }
+
   void setVolume(double value) {
     _settings.audioVolume = value;
     _emit(volume: value);
@@ -118,6 +128,7 @@ class _OptionsCubit extends Cubit<_Options> {
     TrainingMode? mode,
     int? duration,
     PhonicType? phonicType,
+    IncomingAccent? incomingAccent,
     TrainingDifficulty? difficulty,
     double? volume,
   }) => emit(
@@ -125,6 +136,7 @@ class _OptionsCubit extends Cubit<_Options> {
       mode: mode ?? state.mode,
       duration: duration ?? state.duration,
       phonicType: phonicType ?? state.phonicType,
+      incomingAccent: incomingAccent ?? state.incomingAccent,
       difficulty: difficulty ?? state.difficulty,
       volume: volume ?? state.volume,
     ),
@@ -168,9 +180,7 @@ class OptionsSetting extends StatelessWidget {
                       enabled: enabled,
                       controller: cubit.durationController,
                       focusNode: cubit.durationFocusNode,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       keyboardType: TextInputType.number,
                       onChanged: cubit.setDuration,
                       decoration: const InputDecoration(
@@ -210,6 +220,21 @@ class OptionsSetting extends StatelessWidget {
                 DropdownMenuEntry(value: PhonicType.mixed, label: 'Mixed'),
               ],
               onSelected: cubit.setPhonic,
+            ),
+            const SizedBox(height: 12),
+            _menu<IncomingAccent>(
+              enabled: enabled,
+              label: 'Incoming accent',
+              value: state.incomingAccent,
+              entries: IncomingAccent.values
+                  .map((it) => DropdownMenuEntry(value: it, label: it.label))
+                  .toList(),
+              onSelected: cubit.setIncomingAccent,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Auto follows each station's DXCC entity.",
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 4),
             Semantics(
@@ -454,7 +479,9 @@ class _PracticeSeedDialogState extends State<_PracticeSeedDialog> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Lock audio seed'),
-              subtitle: const Text('Reuse this audio environment every session'),
+              subtitle: const Text(
+                'Reuse this audio environment every session',
+              ),
               value: lockAudio,
               onChanged: (value) => setState(() => lockAudio = value),
             ),
@@ -522,8 +549,7 @@ class _SessionHistoryDialog extends StatelessWidget {
                         final messenger = ScaffoldMessenger.of(context);
                         final settings = context.read<AppSettings>();
                         settings
-                          ..pendingQuestionSeed =
-                              review.metadata.questionSeed
+                          ..pendingQuestionSeed = review.metadata.questionSeed
                           ..pendingAudioSeed = review.metadata.audioSeed
                           ..pendingReplayRunId = review.metadata.runId
                           ..contestId = review.metadata.contestId

@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
@@ -29,6 +30,7 @@ class ContestRunningManager {
   final AnswerSource? _answerSourceOverride;
   final void Function(ContestAnswer answer)? _onAnswerGenerated;
   final void Function(String reason)? _onAnswersExhausted;
+  final AccentPolicy _accentPolicy;
   late final SessionRandom _sessionRandom = SessionRandom(_seed);
   final int _seed;
 
@@ -66,6 +68,7 @@ class ContestRunningManager {
         scoreManager: scoreManager,
         contestAnswerGenerator: _answerGenerator,
         onAnswersExhausted: _onAnswersExhausted,
+        accentPolicy: _accentPolicy,
       );
 
   late final ContestOperationEventHandler contestOperationEventHandler =
@@ -98,6 +101,7 @@ class ContestRunningManager {
     required TrainingDifficulty difficulty,
     required int seed,
     AnswerSource? answerSource,
+    required AccentPolicy accentPolicy,
     void Function(ContestAnswer answer)? onAnswerGenerated,
     void Function(String reason)? onAnswersExhausted,
   }) : _contestType = contestType,
@@ -109,7 +113,8 @@ class ContestRunningManager {
        _seed = seed,
        _answerSourceOverride = answerSource,
        _onAnswerGenerated = onAnswerGenerated,
-       _onAnswersExhausted = onAnswersExhausted {
+       _onAnswersExhausted = onAnswersExhausted,
+       _accentPolicy = accentPolicy {
     _contestDataManager.audioLoader.setSessionRandom(_sessionRandom);
     _setupStateMachine();
     _setupKeyboardListener();
