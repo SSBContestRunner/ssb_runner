@@ -9,6 +9,7 @@ import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
@@ -194,6 +195,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _contestTypeCubit = context.read<_ContestTypeCubit>();
 
     final colorSchema = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     final bgColor = colorSchema.primaryContainer;
     _attachInputControl(context);
 
@@ -225,7 +227,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                     ],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
-                      labelText: 'Call',
+                      labelText: l10n.callLabel,
                     ),
                     onChanged: (value) {
                       context.read<QsoOperationAreaCubit>().onCallInput(value);
@@ -241,7 +243,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                     style: TextStyle(fontFamily: qsoFontFamily),
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
-                      labelText: 'RST',
+                      labelText: l10n.rstLabel,
                     ),
                   ),
                 ),
@@ -263,7 +265,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                         ],
                         decoration: InputDecoration(
                           border: OutlineInputBorder(),
-                          labelText: 'Exchange',
+                          labelText: l10n.exchangeFieldLabel,
                         ),
                         onChanged: (value) {
                           context.read<QsoOperationAreaCubit>().onExchangeInput(
@@ -343,7 +345,7 @@ class _FunctionKeysPad extends StatelessWidget {
           width: 56,
           height: 56,
           child: Tooltip(
-            message: 'Keyboard reference',
+            message: AppLocalizations.of(context).keyboardReference,
             child: IconButton.filledTonal(
               style: IconButton.styleFrom(
                 shape: RoundedRectangleBorder(
@@ -418,7 +420,7 @@ class _FunctionKeyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Send $text',
+      message: AppLocalizations.of(context).sendTooltip(text),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 4),

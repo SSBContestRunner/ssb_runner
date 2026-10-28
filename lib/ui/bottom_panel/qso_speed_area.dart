@@ -5,6 +5,8 @@ import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/domain_l10n.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:toastification/toastification.dart';
 
@@ -21,18 +23,16 @@ class QsoSpeedArea extends StatelessWidget {
   }
 }
 
-class _QsoRecordSpeedCubit extends Cubit<String> {
+class _QsoRecordSpeedCubit extends Cubit<double?> {
   final ContestTimer _contestTimer;
   final ContestManager _contestManager;
-
-  static const unit = 'QSOs/h';
 
   _QsoRecordSpeedCubit({
     required ContestTimer contestTimer,
     required ContestManager contestManager,
   }) : _contestTimer = contestTimer,
        _contestManager = contestManager,
-       super('--- $unit') {
+       super(null) {
     _contestTimer.elapseTimeStream.listen((elapseTime) {
       _updateQsoSpeed(elapseTime);
     });
@@ -42,14 +42,14 @@ class _QsoRecordSpeedCubit extends Cubit<String> {
     final totalSeconds = elapseTime.inSeconds;
 
     if (totalSeconds == 0) {
-      emit('--- $unit');
+      emit(null);
       return;
     }
 
     final qsoTimes = await _contestManager.recentCurrentRunQsoTimes();
     final qsoCount = qsoTimes.length;
     if (qsoCount == 0) {
-      emit('--- $unit');
+      emit(null);
       return;
     }
     // The first contacts use elapsed practice time. Once five intervals exist,
@@ -61,7 +61,7 @@ class _QsoRecordSpeedCubit extends Cubit<String> {
     final measuredQsos = qsoCount >= 6 ? 5 : qsoCount;
     final qsoSpeed = measuredQsos / measuredSeconds * 3600;
 
-    emit('${qsoSpeed.toStringAsFixed(1)} $unit');
+    emit(qsoSpeed);
   }
 }
 
@@ -69,6 +69,7 @@ class _QsoRecordSpeed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final surfaceVariant = theme.colorScheme.surfaceContainerHighest;
 
     return Container(
@@ -83,7 +84,10 @@ class _QsoRecordSpeed extends StatelessWidget {
           Positioned(
             top: 6,
             left: 16,
-            child: Text('QSO Records', style: theme.textTheme.titleMedium),
+            child: Text(
+              l10n.qsoRecordsTitle,
+              style: theme.textTheme.titleMedium,
+            ),
           ),
 
           Positioned(
@@ -98,8 +102,11 @@ class _QsoRecordSpeed extends StatelessWidget {
                     contestManager: context.read(),
                     contestTimer: context.read(),
                   ),
-                  child: BlocBuilder<_QsoRecordSpeedCubit, String>(
-                    builder: (context, speedText) {
+                  child: BlocBuilder<_QsoRecordSpeedCubit, double?>(
+                    builder: (context, speed) {
+                      final speedText = speed == null
+                          ? '--- ${l10n.qsoSpeedUnit}'
+                          : '${speed.toStringAsFixed(1)} ${l10n.qsoSpeedUnit}';
                       return Text(
                         speedText,
                         style: TextStyle(
@@ -137,8 +144,8 @@ class _RunBtnCubit extends Cubit<bool> {
     });
   }
 
-  void toggleContestRunning() {
-    final errorMessage = _checkSettingComplete();
+  void toggleContestRunning(AppLocalizations l10n) {
+    final errorMessage = _checkSettingComplete(l10n);
 
     if (errorMessage.isNotEmpty) {
       toastification.show(
@@ -158,13 +165,13 @@ class _RunBtnCubit extends Cubit<bool> {
     }
   }
 
-  String _checkSettingComplete() {
+  String _checkSettingComplete(AppLocalizations l10n) {
     if (_appSettings.stationCallsign.isEmpty) {
-      return 'Please set station callsign';
+      return l10n.callsignRequired;
     }
 
     if (_appSettings.contestDuration <= 0) {
-      return 'Duration must be set and greater than 0';
+      return l10n.durationRequired;
     }
 
     // Station exchange must be complete before a run starts (design 3.3/6.8).
@@ -180,7 +187,19 @@ class _RunBtnCubit extends Cubit<bool> {
       dxccManager: _dxccManager,
     );
     if (exchangeError != null) {
-      return exchangeError;
+      final label = l10n.stationFieldLabel(
+        exchangeError.field.id,
+        exchangeError.field.label,
+      );
+      return switch (exchangeError) {
+        StationExchangeMissing() => l10n.fieldRequired(label),
+        StationExchangeInvalid() => l10n.fieldInvalid(label),
+        StationExchangeOutOfRange(:final min, :final max) => l10n.fieldRange(
+          label,
+          min,
+          max,
+        ),
+      };
     }
 
     return '';
@@ -191,6 +210,7 @@ class _RunBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return BlocProvider(
       create: (context) => _RunBtnCubit(
@@ -225,10 +245,12 @@ class _RunBtn extends StatelessWidget {
                   return FilledButton(
                     style: buttonStyle,
                     onPressed: () {
-                      context.read<_RunBtnCubit>().toggleContestRunning();
+                      context.read<_RunBtnCubit>().toggleContestRunning(
+                        AppLocalizations.of(context),
+                      );
                     },
                     child: Text(
-                      isContestRunning ? 'STOP' : 'RUN',
+                      isContestRunning ? l10n.stopButton : l10n.runButton,
                       style: theme.primaryTextTheme.headlineSmall,
                     ),
                   );

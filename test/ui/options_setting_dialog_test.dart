@@ -18,6 +18,7 @@ import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_settings/main_settings.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
@@ -78,7 +79,9 @@ void main() {
     );
     expect(settings.incomingAccent, IncomingAccent.auto);
 
-    await tester.tap(find.text('Auto'));
+    // The language menu also has an "Auto" entry, so target the accent menu
+    // itself instead of searching for the text.
+    await tester.tap(find.byType(DropdownMenu<IncomingAccent>));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('UK').last);
@@ -101,6 +104,28 @@ void main() {
       find.byType(DropdownMenu<IncomingAccent>),
     );
     expect(menu.enabled, isFalse);
+  });
+
+  testWidgets('Language defaults to auto and the selection persists', (
+    tester,
+  ) async {
+    final prefs = await SharedPreferencesWithCache.create(
+      cacheOptions: const SharedPreferencesWithCacheOptions(),
+    );
+    final settings = AppSettings(prefs: prefs);
+    expect(settings.language, AppLanguage.auto);
+
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.byType(DropdownMenu<AppLanguage>));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('日本語').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(settings.language, AppLanguage.japanese);
+    expect(AppSettings(prefs: prefs).language, AppLanguage.japanese);
   });
 
   testWidgets('Backspace in Duration keeps focus on the Duration field', (
@@ -182,6 +207,8 @@ Future<void> _pumpHarness(
   await tester.pumpWidget(
     ToastificationWrapper(
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: RepositoryProvider<AppSettings>.value(
           value: settings,
           child: BlocProvider<MainSettingsCubit>.value(
@@ -194,7 +221,9 @@ Future<void> _pumpHarness(
               body: Column(
                 children: [
                   TextField(key: Key('callsign')),
-                  Expanded(child: OptionsSetting()),
+                  Expanded(
+                    child: SingleChildScrollView(child: OptionsSetting()),
+                  ),
                 ],
               ),
             ),

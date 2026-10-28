@@ -18,6 +18,7 @@ import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/bottom_panel/qso_operation_area.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
@@ -44,6 +45,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: MultiRepositoryProvider(
             providers: [
@@ -74,7 +77,9 @@ void main() {
       expect(find.text(label), findsOneWidget);
 
       final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
-      final neededHeight = paragraph.getMinIntrinsicHeight(paragraph.size.width);
+      final neededHeight = paragraph.getMinIntrinsicHeight(
+        paragraph.size.width,
+      );
       expect(
         paragraph.size.height,
         greaterThanOrEqualTo(neededHeight - 0.01),
@@ -83,26 +88,32 @@ void main() {
     }
   });
 
-  test('the operation area follows the contest lifecycle for mouse clicks', () async {
-    // Regression: mouse clicks on the on-screen F1-F8 buttons are forwarded to
-    // the active contest's operation handler. The cubit never attached to the
-    // running state, so the handler stayed null and every click was dropped
-    // while the keyboard shortcuts kept working.
-    final harness = await _createHarness();
-    final manager = _ContestManagerSpy(contestDataManager: harness.dataManager);
+  test(
+    'the operation area follows the contest lifecycle for mouse clicks',
+    () async {
+      // Regression: mouse clicks on the on-screen F1-F8 buttons are forwarded to
+      // the active contest's operation handler. The cubit never attached to the
+      // running state, so the handler stayed null and every click was dropped
+      // while the keyboard shortcuts kept working.
+      final harness = await _createHarness();
+      final manager = _ContestManagerSpy(
+        contestDataManager: harness.dataManager,
+      );
 
-    final cubit = QsoOperationAreaCubit(
-      contestManager: manager,
-      contestInputHandler: harness.inputHandler,
-    );
-    addTearDown(cubit.dispose);
+      final cubit = QsoOperationAreaCubit(
+        contestManager: manager,
+        contestInputHandler: harness.inputHandler,
+      );
+      addTearDown(cubit.dispose);
 
-    expect(
-      manager.hasRunningListener,
-      isTrue,
-      reason: 'without a subscription the clicked operation event has no handler',
-    );
-  });
+      expect(
+        manager.hasRunningListener,
+        isTrue,
+        reason:
+            'without a subscription the clicked operation event has no handler',
+      );
+    },
+  );
 }
 
 class _ContestManagerSpy extends ContestManager {

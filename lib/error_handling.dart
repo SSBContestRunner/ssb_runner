@@ -5,6 +5,7 @@ import 'package:catcher_2/model/platform_type.dart';
 import 'package:catcher_2/model/report.dart';
 import 'package:catcher_2/model/report_handler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/crash_issue_reporter.dart';
 import 'package:ssb_runner/ui/crash_report_page.dart';
@@ -81,12 +82,11 @@ void _showReportResult(CrashReportOutcome outcome, Uri? issueUrl) {
     return;
   }
 
+  final l10n = AppL10n.current;
   final failed = outcome == CrashReportOutcome.failed;
   final Widget? description;
   if (failed) {
-    description = const Text(
-      'Export logs from Settings and attach them manually.',
-    );
+    description = Text(l10n.crashReportManualLogs);
   } else if (issueUrl != null) {
     description = Text(issueUrl.toString());
   } else {
@@ -95,9 +95,9 @@ void _showReportResult(CrashReportOutcome outcome, Uri? issueUrl) {
 
   toastification.show(
     title: Text(switch (outcome) {
-      CrashReportOutcome.created => 'Crash report submitted',
-      CrashReportOutcome.duplicate => 'Crash report added to an existing issue',
-      CrashReportOutcome.failed => 'Crash report could not be sent',
+      CrashReportOutcome.created => l10n.crashReportSubmitted,
+      CrashReportOutcome.duplicate => l10n.crashReportDuplicate,
+      CrashReportOutcome.failed => l10n.crashReportFailed,
       CrashReportOutcome.disabled => '',
     }),
     description: description,

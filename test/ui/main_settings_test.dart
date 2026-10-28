@@ -10,6 +10,7 @@ import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages
@@ -86,6 +87,8 @@ Future<void> _pumpSettings(WidgetTester tester, AppSettings settings) async {
 
   await tester.pumpWidget(
     MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: MultiRepositoryProvider(
         providers: [
           RepositoryProvider<AppSettings>.value(value: settings),

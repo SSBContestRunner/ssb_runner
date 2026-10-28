@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
+import 'package:ssb_runner/l10n/domain_l10n.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/session_review.dart';
 import 'package:ssb_runner/training/training_profile.dart';
@@ -35,8 +37,9 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
     final review = _review;
     if (review == null) return const SizedBox.shrink();
     final color = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     return Semantics(
-      label: 'Training review',
+      label: l10n.trainingReviewSemantics,
       liveRegion: true,
       child: ColoredBox(
         color: color.scrim.withAlpha(150),
@@ -53,7 +56,7 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Session review',
+                      l10n.sessionReviewTitle,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     if (review.endReason == 'replay_completed')
@@ -66,32 +69,40 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
                       ),
                     const SizedBox(height: 8),
                     Text(
-                      '${review.metadata.contestName} · ${review.metadata.modeId} · ${review.metadata.difficultyId}',
+                      '${review.metadata.contestName} · '
+                      '${l10n.trainingModeLabelById(review.metadata.modeId)} · '
+                      '${l10n.trainingDifficultyLabelById(review.metadata.difficultyId)}',
                     ),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 24,
                       runSpacing: 12,
                       children: [
-                        _stat('QSOs', '${review.qsoCount}'),
+                        _stat(l10n.statQsos, '${review.qsoCount}'),
                         if (review.duplicateCount > 0)
-                          _stat('Duplicates', '${review.duplicateCount}'),
+                          _stat(
+                            l10n.statDuplicates,
+                            '${review.duplicateCount}',
+                          ),
                         _stat(
-                          'Accuracy',
+                          l10n.statAccuracy,
                           '${(review.accuracy * 100).toStringAsFixed(1)}%',
                         ),
                         _stat(
-                          'Rate',
+                          l10n.statRate,
                           '${review.qsosPerHour.toStringAsFixed(1)}/h',
                         ),
-                        _stat('Score', '${review.score}'),
-                        _stat('Call errors', '${review.callsignErrors}'),
-                        _stat('Exchange errors', '${review.exchangeErrors}'),
+                        _stat(l10n.scoreScore, '${review.score}'),
+                        _stat(l10n.statCallErrors, '${review.callsignErrors}'),
+                        _stat(
+                          l10n.statExchangeErrors,
+                          '${review.exchangeErrors}',
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Practice seed: ${review.metadata.questionSeed}',
+                      l10n.practiceSeedLine(review.metadata.questionSeed),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
@@ -101,12 +112,12 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
                         TextButton.icon(
                           onPressed: () => _replay(review),
                           icon: const Icon(Icons.replay),
-                          label: const Text('Replay this session'),
+                          label: Text(l10n.replayThisSession),
                         ),
                         const SizedBox(width: 8),
                         FilledButton(
                           onPressed: () => setState(() => _review = null),
-                          child: const Text('Close'),
+                          child: Text(l10n.close),
                         ),
                       ],
                     ),
@@ -121,6 +132,7 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
   }
 
   void _replay(TrainingRunReview review) {
+    final l10n = AppLocalizations.of(context);
     final settings = context.read<AppSettings>();
     settings
       ..pendingQuestionSeed = review.metadata.questionSeed
@@ -132,9 +144,7 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
     setState(() => _review = null);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          'Next session will replay practice seed ${review.metadata.questionSeed}.',
-        ),
+        content: Text(l10n.replaySeedSnack(review.metadata.questionSeed)),
       ),
     );
   }

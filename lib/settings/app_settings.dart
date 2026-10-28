@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
@@ -14,7 +15,30 @@ import 'package:ssb_runner/training/training_profile.dart';
 class AppSettings {
   final SharedPreferencesWithCache _prefs;
 
-  AppSettings({required SharedPreferencesWithCache prefs}) : _prefs = prefs;
+  /// Owned by [MainApp], which listens to it to rebuild [MaterialApp.locale].
+  /// AppSettings never disposes it.
+  final ValueNotifier<AppLanguage> languageNotifier;
+
+  AppSettings({
+    required SharedPreferencesWithCache prefs,
+    ValueNotifier<AppLanguage>? languageNotifier,
+  }) : _prefs = prefs,
+       languageNotifier =
+           languageNotifier ??
+           ValueNotifier(
+             AppLanguage.fromId(prefs.getString(_settingLanguage)),
+           ) {
+    this.languageNotifier.value = AppLanguage.fromId(
+      prefs.getString(_settingLanguage),
+    );
+  }
+
+  AppLanguage get language => languageNotifier.value;
+
+  set language(AppLanguage value) {
+    _prefs.setString(_settingLanguage, value.id);
+    languageNotifier.value = value;
+  }
 
   String get contestId =>
       _prefs.getString(_settingContestId) ?? ContestRegistry.all.first.id;
@@ -197,6 +221,7 @@ class AppSettings {
   }
 }
 
+const _settingLanguage = 'setting_language';
 const _settingContestId = 'setting_contest_id';
 const _settingContestMode = 'setting_contest_mode';
 const _settingStationCallsign = 'setting_station_callsign';
@@ -216,6 +241,21 @@ const _settingPendingAudioSeed = 'setting_pending_audio_seed';
 const _settingPendingReplayRunId = 'setting_pending_replay_run_id';
 const _settingLockQuestionSeed = 'setting_lock_question_seed';
 const _settingLockAudioSeed = 'setting_lock_audio_seed';
+
+enum AppLanguage {
+  auto('auto'),
+  english('en'),
+  simplifiedChinese('zh_Hans'),
+  traditionalChinese('zh_Hant'),
+  japanese('ja');
+
+  const AppLanguage(this.id);
+
+  final String id;
+
+  static AppLanguage fromId(String? id) =>
+      values.firstWhere((it) => it.id == id, orElse: () => auto);
+}
 
 enum OperationAction {
   cq('cq', 'CQ', 'F1'),

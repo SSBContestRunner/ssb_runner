@@ -1,0 +1,254 @@
+{
+  "@@locale": "en",
+  "close": "Close",
+  "cancel": "Cancel",
+  "save": "Save",
+  "startupFailedTitle": "SSB Runner failed to start",
+  "copyDiagnostics": "Copy diagnostics",
+  "exportLogs": "Export logs",
+  "diagnosticsCopied": "Diagnostics copied",
+  "exportedTo": "Exported to {path}",
+  "@exportedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "logExportFailed": "Log export failed",
+  "zipArchive": "Zip archive",
+  "crashTitle": "SSB Runner hit an unexpected error",
+  "crashDescription": "The current run may have been interrupted. Export the logs or copy the diagnostic summary so the problem can be investigated.",
+  "unknownError": "Unknown error",
+  "sendReport": "Send report",
+  "crashReportSubmitted": "Crash report submitted",
+  "crashReportDuplicate": "Crash report added to an existing issue",
+  "crashReportFailed": "Crash report could not be sent",
+  "crashReportManualLogs": "Export logs from Settings and attach them manually.",
+  "language": "Language",
+  "languageAuto": "Auto",
+  "languageEnglish": "English",
+  "languageSimplifiedChinese": "简体中文",
+  "languageTraditionalChinese": "繁體中文",
+  "languageJapanese": "日本語",
+  "settingsContest": "Contest",
+  "settingsStation": "Station",
+  "settingsOptions": "Options",
+  "settingsDiagnostics": "Diagnostics",
+  "contestNameLabel": "Name",
+  "contestExchangeFieldLabel": "Exchange",
+  "stationCallsignLabel": "Callsign",
+  "defaultFromCallsign": "Default from callsign",
+  "trainingModeFieldLabel": "Training mode",
+  "modeRun": "Run",
+  "modeSearchAndPounce": "S&P",
+  "modePileup": "Pile-up",
+  "durationLabel": "Duration",
+  "durationUnit": "min",
+  "practiceDurationSemantics": "Practice duration in minutes",
+  "maxDurationWarning": "Max duration is {minutes} minutes",
+  "@maxDurationWarning": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "difficultyFieldLabel": "Difficulty",
+  "difficultyBeginner": "Beginner",
+  "difficultyStandard": "Standard",
+  "difficultyAdvanced": "Advanced",
+  "phonicTypeFieldLabel": "Phonic type",
+  "phonicStandard": "Standard",
+  "phonicLocation": "Location",
+  "phonicMixed": "Mixed",
+  "incomingAccentFieldLabel": "Incoming accent",
+  "accentAuto": "Auto",
+  "accentUs": "US",
+  "accentUk": "UK",
+  "accentJapan": "Japan",
+  "accentRussia": "Russia",
+  "accentIndiaSea": "India / SEA",
+  "incomingAccentAutoHint": "Auto follows each station's DXCC entity.",
+  "volumeSemantics": "Incoming station audio volume",
+  "volumeValue": "{percent} percent",
+  "@volumeValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "volumeLabel": "Incoming audio {percent}%",
+  "@volumeLabel": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "customizeFunctionKeys": "Customize function keys",
+  "practiceSeed": "Practice seed",
+  "practiceSeedWithSummary": "Practice seed: {summary}",
+  "@practiceSeedWithSummary": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewPastSessions": "Review past sessions",
+  "verboseLogging": "Verbose logging",
+  "verboseLoggingSubtitle": "Record debug details for troubleshooting",
+  "functionKeysTitle": "Function keys",
+  "functionKeysUnique": "Each command needs a different function key.",
+  "questionSeedLabel": "Question seed",
+  "questionSeedHelper": "Callsigns, exchanges, pile-up, phonic",
+  "lockQuestionSeed": "Lock question seed",
+  "lockQuestionSeedSubtitle": "Reuse this seed for every session",
+  "audioSeedLabel": "Audio seed",
+  "audioSeedHelper": "Noise bed, in-signal noise, QSB phase",
+  "lockAudioSeed": "Lock audio seed",
+  "lockAudioSeedSubtitle": "Reuse this audio environment every session",
+  "copyQuestionSeed": "Copy question seed",
+  "pastSessionsTitle": "Past sessions",
+  "noCompletedSessions": "No completed sessions yet.",
+  "replaySeedSnack": "Next session will replay practice seed {seed}.",
+  "@replaySeedSnack": {
+    "placeholders": {
+      "seed": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionHistorySemantics": "{contest}, {accuracy} percent accuracy",
+  "@sessionHistorySemantics": {
+    "placeholders": {
+      "contest": {
+        "type": "String"
+      },
+      "accuracy": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionHistorySubtitle": "{qsoCount} QSOs · {accuracy}% · {rate}/h · seed {seed}",
+  "@sessionHistorySubtitle": {
+    "placeholders": {
+      "qsoCount": {
+        "type": "int"
+      },
+      "accuracy": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      },
+      "seed": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionHistoryScore": "{score} pts",
+  "@sessionHistoryScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "qsoRecordsTitle": "QSO Records",
+  "qsoSpeedUnit": "QSOs/h",
+  "runButton": "RUN",
+  "stopButton": "STOP",
+  "callsignRequired": "Please set station callsign",
+  "durationRequired": "Duration must be set and greater than 0",
+  "fieldRequired": "Please set {field}",
+  "@fieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "fieldInvalid": "Please enter a valid {field}",
+  "@fieldInvalid": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "fieldRange": "{field} must be between {min} and {max}",
+  "@fieldRange": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      },
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "keyboardReference": "Keyboard reference",
+  "keyTipsSemantics": "Keyboard reference dialog",
+  "keyTipNextInput": "move cursor to next input",
+  "keyTipPreviousInput": "move cursor to previous input",
+  "keyTipToggleCallExchange": "toggle between CALL and Exchange",
+  "keyTipSendCallExchange": "send his call and exchange (F2 + F5)",
+  "keyTipSubmit": "submit your record",
+  "callLabel": "Call",
+  "rstLabel": "RST",
+  "exchangeFieldLabel": "Exchange",
+  "sendTooltip": "Send {text}",
+  "@sendTooltip": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "scorePoint": "Point",
+  "scoreMult": "Mult",
+  "scoreScore": "Score",
+  "scoreRaw": "Raw",
+  "scoreVerified": "Verified",
+  "tableUtc": "UTC",
+  "tableCall": "Call",
+  "tableRst": "Rst",
+  "tableExchange": "Exchange",
+  "tableCorrections": "Corrections",
+  "sessionReviewTitle": "Session review",
+  "trainingReviewSemantics": "Training review",
+  "statQsos": "QSOs",
+  "statDuplicates": "Duplicates",
+  "statAccuracy": "Accuracy",
+  "statRate": "Rate",
+  "statCallErrors": "Call errors",
+  "statExchangeErrors": "Exchange errors",
+  "practiceSeedLine": "Practice seed: {seed}",
+  "@practiceSeedLine": {
+    "placeholders": {
+      "seed": {
+        "type": "int"
+      }
+    }
+  },
+  "replayThisSession": "Replay this session",
+  "contestExchangeCqWpx": "59 #",
+  "contestExchangeCqWw": "59 Zone",
+  "contestExchangeArrlDx": "59 State/Province (W/VE) / 59 Power (DX)",
+  "contestExchangeIaruHf": "59 ITU Zone",
+  "contestExchangeJidx": "59 Prefecture / CQ Zone",
+  "fieldCqZone": "CQ Zone",
+  "fieldItuZone": "ITU Zone",
+  "fieldStateProvince": "State/Province",
+  "fieldPower": "Power",
+  "fieldPrefecture": "Prefecture",
+  "helperStateProvince": "Two-letter state or province code",
+  "helperPower": "Transmitter output in watts",
+  "helperPrefecture": "Prefecture number for your call area"
+}
