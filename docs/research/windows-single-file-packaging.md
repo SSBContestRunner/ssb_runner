@@ -2,7 +2,7 @@
 
 > 调研时间：2026-10-29
 > 调研范围：仅 Windows x64 桌面端。目标是把当前“下载 zip → 解压 → 双击 ssb_runner.exe”的交付方式，评估升级为“一个文件交付”的可行性与技术路线。
-> 实施状态：**仅调研，未改动任何代码、CI 或打包配置**。
+> 实施状态：**P0（Inno Setup `-setup.exe`）已落地；其余方案仍为调研结论。**
 > 结论置信度：方案能力来自各工具官方文档与本地源码/产物实测；体积为估算值，最终以 Windows 实机打包结果为准。
 
 ---
@@ -95,11 +95,13 @@ PrivilegesRequired=none
 - `{autopf64}` 是 Inno 的“自动”常量：管理员模式下映射到 `Program Files`，非管理员模式映射到 `%LOCALAPPDATA%\Programs`。
 - fastforge 默认 `PrivilegesRequired=none`（Inno 的未文档化取值）：普通用户不弹 UAC，管理员用户仍会提权。**这会带来“同一版本装在不同位置”的不一致**，建议显式改成 `lowest` 做纯 per-user 安装。
 
-### 2.3 建议配置（未来落地时新增，本次不改）
+**VC++ 运行库（3 个 DLL）**：本项目 [windows/CMakeLists.txt](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/windows/CMakeLists.txt#L90-L100) 已把 `build_deps/windows/x64` 下的 `msvcp140.dll`、`vcruntime140.dll`、`vcruntime140_1.dll` 安装进 `Release/`。fastforge 的 exe maker 会递归复制整个 `Release/` 目录，Inno 模板用 `Source: "*"; Flags: recursesubdirs createallsubdirs` 全量打包，因此这 3 个 DLL 会与 `ssb_runner.exe` 一起安装到 `{app}`，行为与 zip 完全一致，不需要额外拷贝步骤。唯一注意点：若自定义 `script_template`，不要过滤掉 DLL 或去掉 `recursesubdirs`。
+
+### 2.3 配置（已落地：`windows/packaging/exe/make_config.yaml`）
 
 ```yaml
 # windows/packaging/exe/make_config.yaml
-app_id: 6F1C1B7E-0B2A-4F2E-9D4C-9C0A6E5B7D31   # 稳定 GUID（不要加花括号），升级必须保持不变
+app_id: 367C747B-BCE1-4BB0-B8DD-F402E9056B64   # 稳定 GUID（不要加花括号），升级必须保持不变
 display_name: SSB Runner
 executable_name: ssb_runner.exe
 publisher_name: SSB Contest Runner
@@ -141,18 +143,18 @@ setup_icon_file: windows/runner/resources/app_icon.ico
 - 相比之下，zip 解压出的每个文件都可能带 MOTW，用户更容易反复看到拦截提示。安装器在未签名场景下也是更好的体验。
 - 彻底解决仍需代码签名（见 §8）。
 
-### 2.6 CI 改造点（未来落地）
+### 2.6 CI 改造点（已落地）
 
 1. `setup` job 的 Windows matrix：`targets: 'zip,exe'`。
 2. `package-windows` 的 fastforge 命令：`--targets=zip,exe`。
-3. 确认 Inno Setup 可用：GitHub 官方 `windows-latest` / `windows-2025` 镜像通常预装 Inno Setup 6.6.x；仍建议在 job 里显式检查 `iscc`，不存在时 `choco install innosetup -y` 兜底。
-4. 新增一个 Windows 冒烟测试 job（可选但强烈建议）：
-   - 静默安装：`setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
-   - 断言 `%LOCALAPPDATA%\Programs\SSB Runner\ssb_runner.exe` 存在
-   - 启动程序并等待日志文件产生
-   - 静默卸载：`unins000.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
-   - 断言安装目录被删除、用户数据仍在
-5. `release` job 已按 `dist/**` 收集并展平，无需改动。
+3. 确认 Inno Setup 可用：GitHub 官方 `windows-latest` 镜像通常预装 Inno Setup 6.6.x；job 里仍显式检查 `ISCC.exe`，缺失时用 `winget install --id JRSoftware.InnoSetup` 兜底。
+4. `smoke-test-windows` job（`needs: package-windows`，`windows-latest`，脚本 `.github/scripts/smoke-test-windows.ps1`）：
+   - 静默安装：`setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=...`
+   - 断言安装目录（由 `ssb_runner.exe` 反查，不写死目录名）中主程序、引擎 DLL、`data/`、3 个 MSVC 运行库 DLL 齐全
+   - 断言开始菜单快捷方式存在
+   - 启动主程序，存活 15 秒即视为通过（捕获运行期缺 DLL / 启动崩溃；runner 无音频设备，SoLoud 初始化失败已被应用兜底）
+   - 静默卸载：`unins000.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`，轮询 60 秒直到安装目录消失，并断言快捷方式已删除
+5. `release` job 的 `needs` 已加入 `smoke-test-windows`，按 `dist/**` 收集并展平，无需其他改动。
 
 > 注意：Windows CI 仍需处理 `distribute_options.yaml` 里 `FLUTTER_ROOT` 的相对路径问题（现有 workflow 已用绝对路径重写解决），与新增 `exe` target 无冲突。
 
@@ -370,7 +372,7 @@ setup_icon_file: windows/runner/resources/app_icon.ico
 
 | 阶段 | 内容 | 预估改动 | 状态 |
 |---|---|---|---|
-| **P0** | 新增 Inno Setup `-setup.exe`，保留 zip；CI targets 改为 `zip,exe`；增加 Windows 静默安装冒烟测试 | `windows/packaging/exe/make_config.yaml` + CI 2 处 | 待实施 |
+| **P0** | 新增 Inno Setup `-setup.exe`，保留 zip；CI targets 改为 `zip,exe` | `windows/packaging/exe/make_config.yaml` + CI | 已实施；含 `smoke-test-windows` 静默安装/卸载冒烟测试 |
 | **P1** | Enigma Virtual Box 单 exe PoC（Windows VM），通过 §7.2 第 10–13 项后再决定是否发布 | 打包脚本 + CI job | 待验证 |
 | **P2** | 接入 SignPath，签名安装器；评估 MSIX + App Installer | CI secrets + MSIX 配置 | 待签名就绪 |
 | **P3** | winget / Scoop manifest；README 下载矩阵更新 | 仓库外 manifest + 文档 | 可选 |
