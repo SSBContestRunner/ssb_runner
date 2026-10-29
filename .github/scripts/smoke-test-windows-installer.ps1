@@ -56,7 +56,7 @@ $proc = Start-Process -FilePath $installer.FullName -Wait -PassThru -ArgumentLis
   '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$installLog"
 )
 if ($proc.ExitCode -ne 0) {
-  Write-Host "installer exited with $($proc.ExitCode); tail of $installLog:"
+  Write-Host "installer exited with $($proc.ExitCode); tail of ${installLog}:"
   if (Test-Path $installLog) { Get-Content $installLog -Tail 40 }
   Fail "installer failed (exit code $($proc.ExitCode))"
 }
