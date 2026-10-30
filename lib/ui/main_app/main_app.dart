@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -18,6 +19,7 @@ import 'package:ssb_runner/logging/logging_bootstrap.dart';
 import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/diagnostics_actions.dart';
+import 'package:ssb_runner/ui/main_app/exit_flow.dart';
 import 'package:ssb_runner/ui/main_app/home_page.dart';
 import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
@@ -38,17 +40,57 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
-    _listener = AppLifecycleListener(
-      onExitRequested: () async {
-        SoLoud.instance.deinit();
-        await flushLogs();
-        return AppExitResponse.exit;
-      },
-    );
+    _listener = AppLifecycleListener(onExitRequested: _handleExitRequest);
 
     // The window is hidden until the first frame is on screen, so it appears
     // straight into the loading view instead of as a blank window.
     WidgetsBinding.instance.addPostFrameCallback((_) => _revealWindow());
+  }
+
+  /// Last line of defence for "the window closed but the process stays".
+  ///
+  /// The Windows runner tears the FlutterEngine down synchronously inside
+  /// WM_DESTROY and only then posts WM_QUIT (windows/runner/win32_window.cpp).
+  /// If any teardown step blocks, the window is already gone but the message
+  /// loop never quits, leaving an idle process in Task Manager. The exit path
+  /// therefore has a hard bound: whatever the cleanup does, the process ends.
+  ///
+  /// The timer only fires when the bounded cleanup (3.5 s worst case) hangs,
+  /// because on the normal path the process is already gone by then.
+  Future<AppExitResponse> _handleExitRequest() async {
+    Timer(const Duration(seconds: 5), () => exit(0));
+
+    // CI only: keeps the request unanswered so the smoke test can prove that
+    // the fallback above ends the process on its own.
+    if (Platform.environment['SSB_RUNNER_TEST_EXIT_HANG'] == '1') {
+      await Completer<void>().future;
+    }
+
+    log.info('exit requested', tag: 'exit');
+
+    await runBoundedExitCleanup(
+      deinitAudio: _deinitAudio,
+      flushLogs: flushLogs,
+      onError: (step, error, stackTrace) => log.warn(
+        '$step failed',
+        tag: 'exit',
+        error: error,
+        stackTrace: stackTrace,
+      ),
+    );
+
+    return AppExitResponse.exit;
+  }
+
+  /// Releases the audio device off the UI isolate.
+  ///
+  /// `deinit()` is a synchronous native call, and SoLoud blocks on its own
+  /// init/deinit mutex while a device restart is in flight; running it here
+  /// would freeze the UI isolate and with it the fallback timer.
+  Future<void> _deinitAudio() async {
+    if (SoLoud.instance.isInitialized) {
+      await SoLoud.instance.deinitAsync();
+    }
   }
 
   Future<void> _revealWindow() async {

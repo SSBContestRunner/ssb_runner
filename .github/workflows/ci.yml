@@ -386,13 +386,40 @@ jobs:
       - name: Run Debian 12 smoke test
         run: bash .github/scripts/smoke-test-debian.sh
 
-  # A release only ships a complete set, so every package and the Debian smoke test must
-  # have succeeded. macOS needs no separate job: its universal slices are verified inside
+  # Closes the window with a real WM_CLOSE and asserts the process is gone afterwards. This
+  # is the regression guard for "the window disappeared but the process stayed in Task
+  # Manager" -- see docs/design/desktop_exit_design.md. Depends only on package-windows, so
+  # it runs exactly when the Windows artifact exists.
+  smoke-test-windows:
+    name: Smoke test (Windows)
+    needs: package-windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ssb-runner-windows
+          path: artifacts
+
+      - name: Run Windows smoke test
+        shell: pwsh
+        run: ./.github/scripts/smoke-test-windows.ps1
+
+  # A release only ships a complete set, so every package and both smoke tests must have
+  # succeeded. macOS needs no separate job: its universal slices are verified inside
   # package-macos on the arm64 runner. Tag pushes are the only way in, and those build all
   # three platforms.
   release:
     name: Draft GitHub Release
-    needs: [package-linux, package-windows, package-macos, smoke-test-debian]
+    needs:
+      - package-linux
+      - package-windows
+      - package-macos
+      - smoke-test-debian
+      - smoke-test-windows
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
