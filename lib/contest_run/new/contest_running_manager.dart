@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
@@ -40,6 +42,14 @@ class ContestRunningManager {
   late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
 
+  final _stateStreamController =
+      StreamController<SingleCallRunState>.broadcast();
+
+  /// Current phase, for the UI hint and the "give up this round" entry.
+  Stream<SingleCallRunState> get stateStream => _stateStreamController.stream;
+
+  SingleCallRunState get currentState => _stateMachine.currentState;
+
   late final ScoreManager scoreManager = ScoreManager(
     contestId: runId,
     stationCallsign: _contestDataManager.appSettings.stationCallsign,
@@ -78,6 +88,7 @@ class ContestRunningManager {
         contestType: _contestType,
         stateMachine: _stateMachine,
         inputHandler: _inputHandler,
+        onAbandonRound: _contestStateChangeHandler.abandonRound,
       );
 
   late final _keyEventManager = KeyEventHandler(
@@ -132,6 +143,7 @@ class ContestRunningManager {
       }
 
       final toState = transition.to;
+      _stateStreamController.add(toState);
       _contestStateChangeHandler.handleToState(
         toState,
         event: transition.event,
@@ -160,6 +172,7 @@ class ContestRunningManager {
         initialState: initialState,
         transitionListener: transitionListener,
       );
+      _stateStreamController.add(initialState);
       _contestStateChangeHandler.handleToState(initialState);
       return;
     }
@@ -175,6 +188,7 @@ class ContestRunningManager {
       transitionListener: transitionListener,
     );
 
+    _stateStreamController.add(initialState);
     _contestStateChangeHandler.handleToState(initialState);
   }
 

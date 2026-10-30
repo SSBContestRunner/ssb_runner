@@ -25,7 +25,7 @@ import 'package:ssb_runner/state_machine/state_machine.dart';
 
 import '../../dxcc/dxcc_manager.dart';
 
-const _timeoutDuration = Duration(seconds: 10);
+const _defaultTimeoutDuration = Duration(seconds: 10);
 
 class ContestStateChangeHandler {
   final String _contestRunId;
@@ -37,6 +37,7 @@ class ContestStateChangeHandler {
   final ScoreManager _scoreManager;
   final AnswerSource _answerGenerator;
   final void Function(String reason)? _onAnswersExhausted;
+  final Duration _retryTimeout;
   bool _disposed = false;
 
   late final AudioLoader _audioLoader = _contestDataManager.audioLoader;
@@ -54,6 +55,7 @@ class ContestStateChangeHandler {
   final AccentPolicy _accentPolicy;
 
   Timer? _retryTimer;
+  bool _isAbandoning = false;
 
   ContestStateChangeHandler({
     required String contestRunId,
@@ -66,7 +68,9 @@ class ContestStateChangeHandler {
     required AnswerSource contestAnswerGenerator,
     void Function(String reason)? onAnswersExhausted,
     required AccentPolicy accentPolicy,
-  }) : _contestRunId = contestRunId,
+    Duration retryTimeout = _defaultTimeoutDuration,
+  }) : _retryTimeout = retryTimeout,
+       _contestRunId = contestRunId,
        _contestTimer = contestTimer,
        _contestType = contestType,
        _contestDataManager = contestDataManager,
@@ -74,11 +78,14 @@ class ContestStateChangeHandler {
        _scoreManager = scoreManager,
        _answerGenerator = contestAnswerGenerator,
        _onAnswersExhausted = onAnswersExhausted,
-       _accentPolicy = accentPolicy;
+       _accentPolicy = accentPolicy {
+    _inputHandler.onInputChanged = _resetRetryTimer;
+  }
 
   void dispose() {
     _disposed = true;
     _retryTimer?.cancel();
+    _inputHandler.onInputChanged = null;
   }
 
   // region state change handler
@@ -87,7 +94,7 @@ class ContestStateChangeHandler {
     SingleCallRunEvent? event,
   }) async {
     if (_disposed) return;
-    _setupRetryTimer(toState);
+    _setupRetryTimer(toState, event);
 
     try {
       await _playAudioByStateChange(toState, event);
@@ -132,6 +139,51 @@ class ContestStateChangeHandler {
         break;
       default:
         break;
+    }
+  }
+
+  /// F1 in the middle of a QSO: drop the round without logging it, then start
+  /// a fresh question. The operator's input is cleared so nothing from the
+  /// abandoned round leaks into the next one.
+  Future<void> abandonRound() async {
+    if (_disposed || _isAbandoning) return;
+    _isAbandoning = true;
+
+    try {
+      final abandonedState = _stateMachine.currentState;
+      _retryTimer?.cancel();
+      _retryTimer = null;
+
+      // Let the CQ the operator just sent finish before announcing the new
+      // pile-up. If the round moved on meanwhile, the newer state wins.
+      await _waitAudioNotPlaying();
+      if (_disposed || !identical(_stateMachine.currentState, abandonedState)) {
+        return;
+      }
+
+      log.info(
+        'round abandoned',
+        tag: 'contest.state',
+        fields: <String, Object?>{
+          'runId': _contestRunId,
+          'reason': 'cq',
+          'from': '${abandonedState.runtimeType}',
+        },
+      );
+
+      _inputHandler.clear();
+      final contestAnswer = await _generateNextAnswer();
+      if (contestAnswer == null || _disposed) return;
+
+      _stateMachine.transition(
+        AbandonQso(
+          nextCallAnswer: contestAnswer.callSign,
+          nextExchangeAnswer: contestAnswer.exchange,
+          pileupCallsigns: contestAnswer.pileupCallsigns,
+        ),
+      );
+    } finally {
+      _isAbandoning = false;
     }
   }
 
@@ -212,7 +264,9 @@ class ContestStateChangeHandler {
         ];
 
         final pcmData = await concatUint8List(list);
-        _audioPlayer.addAudioData(pcmData);
+        // Replace whatever is playing so "press once = hear once": queuing
+        // would let a retry stack another clip behind the operator's CQ.
+        _audioPlayer.addAudioData(pcmData, isResetCurrentStream: true);
         break;
       case HeRepeatCorrectCallAnswer():
         final dxccId = _dxccManager.findCallsignDxccId(
@@ -438,25 +492,44 @@ class ContestStateChangeHandler {
     }
   }
 
-  void _setupRetryTimer(SingleCallRunState toState) {
+  void _setupRetryTimer(SingleCallRunState toState, SingleCallRunEvent? event) {
     _retryTimer?.cancel();
+    _retryTimer = null;
 
     switch (toState) {
       case WaitingSubmitCall():
+      case SpListeningCq():
+      case SpWaitingHisExchange():
+        _armRetryTimer();
+        break;
       case WaitingSubmitMyExchange():
       case HeAskForExchange():
       case HeRepeatCorrectCallAnswer():
-      case SpListeningCq():
-      case SpWaitingHisExchange():
-        _retryTimer = Timer(_timeoutDuration, () {
-          _stateMachine.transition(Retry());
-        });
+        // An in-flight QSO is replayed automatically once after the first
+        // silence. A Retry that already replayed must not arm the timer again,
+        // or the round would repeat itself every 10 s forever.
+        if (event is! Retry) {
+          _armRetryTimer();
+        }
         break;
       case QsoEnd():
       case ReportMyExchange():
       case SpQsoEnd():
         break;
     }
+  }
+
+  void _armRetryTimer() {
+    _retryTimer = Timer(_retryTimeout, () {
+      _stateMachine.transition(Retry());
+    });
+  }
+
+  /// Restarts the listening timeout for the current state. Typing must not be
+  /// interrupted by an automatic re-send.
+  void _resetRetryTimer() {
+    if (_disposed) return;
+    _setupRetryTimer(_stateMachine.currentState, null);
   }
 
   Future<void> _handleReportMyExchange(ReportMyExchange toState) async {
@@ -566,21 +639,8 @@ class ContestStateChangeHandler {
 
     if (_disposed) return;
     _inputHandler.clear();
-    final ContestAnswer contestAnswer;
-    try {
-      contestAnswer = _answerGenerator.generateAnswer();
-    } on AnswerSourceExhausted catch (end) {
-      // Finish the final sign-off before stopping audio and saving the review.
-      await _waitAudioNotPlaying();
-      if (_disposed) return;
-      log.info(
-        'Answer sequence completed',
-        tag: 'contest',
-        fields: {'runId': _contestRunId, 'reason': end.reason},
-      );
-      _onAnswersExhausted?.call(end.reason);
-      return;
-    }
+    final contestAnswer = await _generateNextAnswer();
+    if (contestAnswer == null) return;
     await _waitAudioNotPlaying();
     if (_disposed) return;
     _stateMachine.transition(
@@ -590,6 +650,25 @@ class ContestStateChangeHandler {
         pileupCallsigns: contestAnswer.pileupCallsigns,
       ),
     );
+  }
+
+  /// Produces the next question, or `null` once the answer sequence is
+  /// exhausted (in which case the run is finished and the review is shown).
+  Future<ContestAnswer?> _generateNextAnswer() async {
+    try {
+      return _answerGenerator.generateAnswer();
+    } on AnswerSourceExhausted catch (end) {
+      // Finish the final sign-off before stopping audio and saving the review.
+      await _waitAudioNotPlaying();
+      if (_disposed) return null;
+      log.info(
+        'Answer sequence completed',
+        tag: 'contest',
+        fields: {'runId': _contestRunId, 'reason': end.reason},
+      );
+      _onAnswersExhausted?.call(end.reason);
+      return null;
+    }
   }
 
   // endregion

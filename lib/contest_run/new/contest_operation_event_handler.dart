@@ -22,6 +22,7 @@ class ContestOperationEventHandler {
   final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
   final ContestInputHandler _inputHandler;
+  final Future<void> Function()? _onAbandonRound;
 
   String get _hisCall => _inputHandler.hisCall;
 
@@ -45,14 +46,17 @@ class ContestOperationEventHandler {
     required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
     stateMachine,
     required ContestInputHandler inputHandler,
+    Future<void> Function()? onAbandonRound,
   }) : _contestRunId = contestRunId,
        _contestDataManager = contestDataManager,
        _contestType = contestType,
        _stateMachine = stateMachine,
-       _inputHandler = inputHandler;
+       _inputHandler = inputHandler,
+       _onAbandonRound = onAbandonRound;
 
   // region operation event handler
   Future<void> handleOperationEvent(OperationEvent event) async {
+    log.debug('operation event', tag: 'contest', fields: {'event': event.name});
     await _playAudioByOperationEvent(event);
     await _handleOperationEventBusiness(event);
   }
@@ -177,6 +181,8 @@ class ContestOperationEventHandler {
   Future<void> _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
       case OperationEvent.cq:
+        await _handleCq();
+        break;
       case OperationEvent.agn:
         transition(Retry());
         break;
@@ -198,6 +204,25 @@ class ContestOperationEventHandler {
       default:
         break;
     }
+  }
+
+  /// States of a QSO that has started but not been committed yet. F1 there
+  /// means "give up this round", not "call CQ again".
+  bool get _isInFlightQso => switch (_stateMachine.currentState) {
+    HeRepeatCorrectCallAnswer() ||
+    HeAskForExchange() ||
+    WaitingSubmitMyExchange() ||
+    ReportMyExchange() => true,
+    _ => false,
+  };
+
+  Future<void> _handleCq() async {
+    if (_isInFlightQso) {
+      await _onAbandonRound?.call();
+      return;
+    }
+
+    transition(Retry());
   }
 
   Future<void> _handleSubmit({bool isOperateInput = true}) async {
@@ -229,6 +254,18 @@ class ContestOperationEventHandler {
           myExchange: await _myExchange(),
         ),
       );
+      return;
+    }
+
+    if (currentState is HeAskForExchange) {
+      // He asked for his serial: Enter sends what the operator copied. With
+      // nothing copied, replay the request instead of dropping the key press.
+      if (_exchange.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
+      transition(SubmitHisExchange(exchange: _exchange));
       return;
     }
 

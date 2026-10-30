@@ -9,13 +9,14 @@ import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 import '../../contest_type/contest_type.dart';
 
-class QsoOperationAreaCubit extends Cubit<int> {
+class QsoOperationAreaCubit extends Cubit<SingleCallRunState?> {
   final ContestInputHandler _inputHandler;
 
   final ContestManager _contestManager;
@@ -25,12 +26,13 @@ class QsoOperationAreaCubit extends Cubit<int> {
     required ContestInputHandler contestInputHandler,
   }) : _inputHandler = contestInputHandler,
        _contestManager = contestManager,
-       super(0) {
+       super(null) {
     attachOperationContestRunning();
   }
 
   StreamSubscription? _inputControlStreamSubscription;
   StreamSubscription? _contestOperationEventHandlerSubscription;
+  StreamSubscription<SingleCallRunState>? _contestStateSubscription;
   ContestOperationEventHandler? _contestOperationEventHandler;
 
   void attachInputControl(void Function(int) callback) {
@@ -49,14 +51,29 @@ class QsoOperationAreaCubit extends Cubit<int> {
     _contestOperationEventHandlerSubscription = _contestManager
         .isContestRunningStream
         .listen((isRunning) {
-          if (isRunning) {
-            _contestOperationEventHandler = _contestManager
-                .contestRunningManager
-                ?.contestOperationEventHandler;
+          _contestStateSubscription?.cancel();
+          _contestStateSubscription = null;
+
+          final runningManager = _contestManager.contestRunningManager;
+          if (isRunning && runningManager != null) {
+            _contestOperationEventHandler =
+                runningManager.contestOperationEventHandler;
+            // The stream only carries later transitions; seed the hint with the
+            // phase the round started in.
+            _emitState(runningManager.currentState);
+            _contestStateSubscription = runningManager.stateStream.listen(
+              _emitState,
+            );
           } else {
             _contestOperationEventHandler = null;
+            _emitState(null);
           }
         });
+  }
+
+  void _emitState(SingleCallRunState? state) {
+    if (isClosed) return;
+    emit(state);
   }
 
   void handleOperationEvent(OperationEvent event) {
@@ -78,6 +95,9 @@ class QsoOperationAreaCubit extends Cubit<int> {
     _contestOperationEventHandlerSubscription?.cancel();
     _contestOperationEventHandlerSubscription = null;
     _contestOperationEventHandler = null;
+
+    _contestStateSubscription?.cancel();
+    _contestStateSubscription = null;
   }
 }
 
@@ -99,13 +119,17 @@ class QsoOperationArea extends StatelessWidget {
               _ContestTypeCubit(contestManager: context.read()),
         ),
       ],
-      child: BlocBuilder<QsoOperationAreaCubit, int>(
-        buildWhen: (previous, current) => false,
-        builder: (context, _) {
+      child: BlocBuilder<QsoOperationAreaCubit, SingleCallRunState?>(
+        // The hint row only appears while a contest runs; adding/removing it
+        // is the only change that alters the layout.
+        buildWhen: (previous, current) =>
+            (previous == null) != (current == null),
+        builder: (context, state) {
           return Flex(
             direction: Axis.vertical,
             spacing: 15.0,
             children: [
+              if (state != null) const _PhaseHintBar(),
               _QsoInputArea(),
               Expanded(
                 flex: 1,
@@ -128,6 +152,78 @@ class QsoOperationArea extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Shows what the round is waiting for and which key moves it on, so a
+/// mid-QSO phase (e.g. "he wants his serial") is never a silent dead end.
+class _PhaseHintBar extends StatelessWidget {
+  const _PhaseHintBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<QsoOperationAreaCubit, SingleCallRunState?>(
+      builder: (context, state) {
+        return Row(
+          spacing: 8.0,
+          children: [
+            Expanded(
+              child: Text(
+                _phaseHint(state),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            if (_canAbandon(state))
+              TextButton(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () {
+                  // Same action as F1: on an in-flight QSO it gives up the
+                  // round, otherwise it calls CQ again.
+                  context.read<QsoOperationAreaCubit>().handleOperationEvent(
+                    OperationEvent.cq,
+                  );
+                },
+                child: const Text('Abandon (F1)'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+String _phaseHint(SingleCallRunState? state) {
+  return switch (state) {
+    null => '',
+    WaitingSubmitCall() => 'Listening — copy his call, then Enter',
+    HeRepeatCorrectCallAnswer() =>
+      'Call not copied — F5 to submit, F7 to repeat',
+    HeAskForExchange() =>
+      'He wants his serial — type it, Enter to send; F1 abandons this round',
+    WaitingSubmitMyExchange() =>
+      'Your report is sent — type his serial, then Enter',
+    ReportMyExchange() => 'Sending your report…',
+    QsoEnd() => 'QSO complete — starting the next one',
+    SpListeningCq() => 'Listening — Enter to pounce, F1 for another CQ',
+    SpWaitingHisExchange() => 'He answered — copy his serial, then Enter',
+    SpQsoEnd() => 'Signing off — the next CQ follows',
+  };
+}
+
+bool _canAbandon(SingleCallRunState? state) {
+  return switch (state) {
+    HeRepeatCorrectCallAnswer() ||
+    HeAskForExchange() ||
+    WaitingSubmitMyExchange() ||
+    ReportMyExchange() => true,
+    _ => false,
+  };
 }
 
 class _QsoInputArea extends StatefulWidget {
@@ -199,7 +295,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     final bgColor = colorSchema.primaryContainer;
     _attachInputControl(context);
 
-    return BlocBuilder<QsoOperationAreaCubit, int>(
+    return BlocBuilder<QsoOperationAreaCubit, SingleCallRunState?>(
       buildWhen: (previous, current) => false,
       builder: (context, _) {
         return Container(
