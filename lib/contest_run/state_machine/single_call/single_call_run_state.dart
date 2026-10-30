@@ -141,6 +141,7 @@ class HeRepeatCorrectCallAnswer extends SingleCallRunState {
     required this.currentCallAnswer,
     required this.currentExchangeAnswer,
     required this.submitCall,
+    this.pileupCallsigns = const [],
   }) {
     audioPlayType = PlayCall(callToPlay: currentCallAnswer);
   }
@@ -149,6 +150,10 @@ class HeRepeatCorrectCallAnswer extends SingleCallRunState {
   final String currentExchangeAnswer;
 
   final String submitCall;
+
+  /// Carried through so a failed re-submit can return to a pileup state
+  /// without losing the pileup.
+  final List<String> pileupCallsigns;
   late final AudioPlayType audioPlayType;
 }
 
