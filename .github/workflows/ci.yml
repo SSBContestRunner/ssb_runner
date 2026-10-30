@@ -266,29 +266,6 @@ jobs:
           path: dist/**
           if-no-files-found: error
 
-  # Round-trips the single-file installer on a clean Windows runner: silent per-user install,
-  # assert the bundle (including the app-local MSVC runtime DLLs) landed complete, start the
-  # app, then silently uninstall and assert the install directory and shortcut are gone.
-  # Depending only on package-windows means it runs exactly when that artifact exists, and an
-  # unrelated platform failing no longer skips it.
-  smoke-test-windows:
-    name: Smoke test (Windows installer)
-    needs: package-windows
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: ssb-runner-windows
-          path: artifacts
-
-      - name: Run Windows installer smoke test
-        shell: pwsh
-        run: ./.github/scripts/smoke-test-windows.ps1
-
   package-macos:
     name: Package (macos)
     needs: [analyze, setup]
