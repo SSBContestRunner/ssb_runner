@@ -98,6 +98,24 @@ if [[ "${1:-}" == "--in-container" ]]; then
   fi
   echo "launch smoke: app started and stayed up (rc=$rc)"
 
+  # (4) Closing the window must end the process (docs/design/desktop_exit_design.md). The
+  #     app closes its own window at SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER seconds through
+  #     window_manager (gtk_window_close), which is the same path as the window manager's
+  #     close button; the container has no window manager to send that request from outside.
+  #     124 here means the process outlived the whole run -- the "window gone, process stays"
+  #     regression this guards against.
+  set +e
+  SSB_RUNNER_DISABLE_AUDIO=1 SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER=12 \
+    timeout 40 xvfb-run -a "$exe" > /tmp/app-close.log 2>&1
+  rc=$?
+  set -e
+  if [[ $rc -eq 124 ]]; then
+    echo "::error::process still alive 40 s after launch (window close did not end it)"
+    sed -n '1,40p' /tmp/app-close.log
+    exit 1
+  fi
+  echo "close smoke: process exited after window close (rc=$rc)"
+
   exit 0
 fi
 

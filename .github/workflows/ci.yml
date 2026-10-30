@@ -362,9 +362,9 @@ jobs:
           path: dist/**
           if-no-files-found: error
 
-  # Installs the built .deb on a clean Debian 12 (our oldest supported target) and fails if
-  # it cannot install or its libraries cannot load -- the failure mode from issue #23, which
-  # previously only surfaced on a user's machine.
+  # Installs the built .deb on a clean Debian 12 (our oldest supported target), fails if it
+  # cannot install or its libraries cannot load (issue #23), then starts the app under Xvfb
+  # and closes its window to assert the process exits.
   #
   # Depending only on package-linux means it runs exactly when the Linux artifact exists, and
   # an unrelated platform failing no longer skips it. No `if` is needed: a skipped or failed
@@ -386,13 +386,61 @@ jobs:
       - name: Run Debian 12 smoke test
         run: bash .github/scripts/smoke-test-debian.sh
 
-  # A release only ships a complete set, so every package and the Debian smoke test must
-  # have succeeded. macOS needs no separate job: its universal slices are verified inside
-  # package-macos on the arm64 runner. Tag pushes are the only way in, and those build all
-  # three platforms.
+  # Closes the window with a real WM_CLOSE and asserts the process is gone afterwards. This
+  # is the regression guard for "the window disappeared but the process stayed in Task
+  # Manager" -- see docs/design/desktop_exit_design.md. Depends only on package-windows, so
+  # it runs exactly when the Windows artifact exists.
+  smoke-test-windows:
+    name: Smoke test (Windows)
+    needs: package-windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ssb-runner-windows
+          path: artifacts
+
+      - name: Run Windows smoke test
+        shell: pwsh
+        run: ./.github/scripts/smoke-test-windows.ps1
+
+  # Same regression guard as the Windows job, for the macOS runner's own teardown path: the
+  # app closes its window at SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER seconds (window_manager ->
+  # [NSWindow performClose], i.e. the red button) and the process must be gone afterwards.
+  # The close has to come from inside the app because a CI session cannot grant the
+  # Accessibility/automation permissions AppleScript would need.
+  smoke-test-macos:
+    name: Smoke test (macOS)
+    needs: package-macos
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ssb-runner-macos
+          path: artifacts
+
+      - name: Run macOS smoke test
+        run: bash .github/scripts/smoke-test-macos.sh
+
+  # A release only ships a complete set, so every package and all three smoke tests must
+  # have succeeded. Tag pushes are the only way in, and those build all three platforms.
   release:
     name: Draft GitHub Release
-    needs: [package-linux, package-windows, package-macos, smoke-test-debian]
+    needs:
+      - package-linux
+      - package-windows
+      - package-macos
+      - smoke-test-debian
+      - smoke-test-windows
+      - smoke-test-macos
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
