@@ -110,7 +110,7 @@ _listener = AppLifecycleListener(onExitRequested: _handleExitRequest);
 /// 因此退出流程必须有硬上限：无论清理是否完成，进程都必须结束。
 Future<AppExitResponse> _handleExitRequest() async {
   // UI isolate 必须保持可响应，否则这个兜底定时器也不会触发。
-  Timer(const Duration(seconds: 5), () => exit(0));
+  Timer(const Duration(seconds: 5), _forceExit);
 
   // 仅 CI 使用：模拟退出清理永久卡死，验证“进程绝不残留”的保底逻辑。
   if (Platform.environment['SSB_RUNNER_TEST_EXIT_HANG'] == '1') {
@@ -134,6 +134,15 @@ Future<void> _deinitAudio() async {
   if (SoLoud.instance.isInitialized) {
     await SoLoud.instance.deinitAsync();
   }
+}
+
+/// 保底：直接终止进程，不走 exit(0) 的 CRT/DLL 析构路径。
+void _forceExit() {
+  log.warn('exit fallback fired', tag: 'exit');
+  if (Process.killPid(pid)) {
+    return;
+  }
+  exit(0);
 }
 ```
 
@@ -172,8 +181,9 @@ Future<void> runBoundedExitCleanup({
 
 - 用 `deinitAsync()` 而不是 `deinit()`：原生拆解放到 worker isolate，UI isolate 始终可运行，保底定时器才有机会触发；
 - 每步 try/catch + `Future.timeout`：任何一步失败/卡死都不会阻断下一步，也不会阻断答复 `exit`；
-- `exit(0)` 保底只在异常路径触发（正常路径 3.5 s 内必然已经退出进程，定时器随进程一起消失）；
-- `deinitAsync` 超时后被放弃的 worker isolate 由 `exit(0)` 直接终止，不产生额外进程。
+- 保底只在异常路径触发（正常路径 3.5 s 内必然已经退出进程，定时器随进程一起消失）；
+- `deinitAsync` 超时后被放弃的 worker isolate 由保底强杀直接终止，不产生额外进程；
+- 保底不用 `exit(0)` 而是 `Process.killPid`（Windows 即 `TerminateProcess`）：首次 CI 实测发现注入卡死后 `exit(0)` 仍未退出——`exit()` 会执行 CRT/DLL 析构，而卡住的插件线程正在这些析构里，强杀跳过全部析构才能保证进程结束；保底触发时先写 `exit fallback fired`（warn 级立即落盘），便于冒烟失败时定位。
 
 ### 4.2 层 ②：Windows 冒烟 CI
 
@@ -296,7 +306,7 @@ CI job（并加入 `release.needs`，与 Debian 冒烟同级）：
 
 | 风险 | 对策 |
 | --- | --- |
-| `exit(0)` 跳过引擎/插件的收尾析构 | 在此之前已完成音频释放与日志落盘；进程退出本就要终止这些线程，可接受 |
+| 保底强杀跳过引擎/插件的收尾析构 | 在此之前已完成音频释放与日志落盘；进程退出本就要终止这些线程，可接受 |
 | 保底定时器误杀正常退出 | 5 s > 正常最坏 3.5 s；正常路径进程早已结束，定时器不会触发 |
 | 注入钩子进入生产包 | 仅在 `SSB_RUNNER_TEST_EXIT_HANG=1` 时生效，默认路径零开销；如需更严格可只在 CI 构建时启用 |
 | Windows 冒烟偶发（窗口句柄找不到） | 20 s 轮询 + `EnumWindows` 兜底；失败信息带 PID，便于判断是环境问题还是回归 |

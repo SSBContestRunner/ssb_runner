@@ -58,7 +58,7 @@ class _MainAppState extends State<MainApp> {
   /// The timer only fires when the bounded cleanup (3.5 s worst case) hangs,
   /// because on the normal path the process is already gone by then.
   Future<AppExitResponse> _handleExitRequest() async {
-    Timer(const Duration(seconds: 5), () => exit(0));
+    Timer(const Duration(seconds: 5), _forceExit);
 
     // CI only: keeps the request unanswered so the smoke test can prove that
     // the fallback above ends the process on its own.
@@ -80,6 +80,21 @@ class _MainAppState extends State<MainApp> {
     );
 
     return AppExitResponse.exit;
+  }
+
+  /// Ends the process when the bounded cleanup never answers.
+  ///
+  /// `exit(0)` is deliberately not the first attempt: it runs CRT and DLL
+  /// teardown handlers, and on Windows the engine is torn down while still
+  /// holding an unanswered exit request, so a plugin thread blocked there keeps
+  /// the process alive even though `exit()` was called (observed in CI). A
+  /// termination signal skips every teardown handler.
+  void _forceExit() {
+    log.warn('exit fallback fired', tag: 'exit');
+    if (Process.killPid(pid)) {
+      return;
+    }
+    exit(0);
   }
 
   /// Releases the audio device off the UI isolate.

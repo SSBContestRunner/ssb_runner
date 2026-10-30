@@ -114,7 +114,25 @@ function Assert-ExitLogged([string]$Name) {
       return
     }
   }
+  Show-AppLog
   Fail "$Name`: no 'exit requested' entry in latest.log ($($candidates -join ', '))"
+}
+
+# Prints the app's own log so a failure report says whether the exit handler ran,
+# whether the fallback fired, and what it did.
+function Show-AppLog {
+  $path = if (Test-Path $AppDataLog) { $AppDataLog } else { Join-Path $ExtractRoot 'log\latest.log' }
+  if (-not (Test-Path $path)) {
+    Write-Host "   (no log file at $path)"
+    return
+  }
+  Write-Host "   --- tail of $path ---"
+  try {
+    Get-Content -Path $path -Tail 40 | ForEach-Object { Write-Host "   $_" }
+  } catch {
+    Write-Host "   (log unreadable: $_)"
+  }
+  Write-Host '   --- end log ---'
 }
 
 # The assertion every scenario shares: after WM_CLOSE the process must disappear.
@@ -145,6 +163,7 @@ function Invoke-CloseScenario {
   [void][Win32]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
   if (-not $proc.WaitForExit($CloseWaitSeconds * 1000)) {
     Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    Show-AppLog
     Fail "$Name`: process $($proc.Id) still alive $CloseWaitSeconds s after WM_CLOSE (leftover process)"
   }
   Write-Host "   process exited, exit code=$($proc.ExitCode)"
