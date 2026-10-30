@@ -11,6 +11,7 @@ import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/common/setting_item.dart';
+import 'package:ssb_runner/ui/main_settings/contest_rules_dialog.dart';
 import 'package:ssb_runner/ui/main_settings/diagnostics_setting.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
 
@@ -62,6 +63,7 @@ class MainSettings extends StatelessWidget {
                   children: [
                     SettingItem(
                       title: l10n.settingsContest,
+                      titleTrailing: const _ContestRulesButton(),
                       content: _ContestSettings(),
                     ),
                     SettingItem(
@@ -99,6 +101,37 @@ class ContestSettingCubit extends Cubit<ContestDefinition> {
     _appSettings.contestId = contestId;
 
     emit(contest);
+  }
+}
+
+/// Info button in the Contest title row.
+class _ContestRulesButton extends StatelessWidget {
+  const _ContestRulesButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return IconButton.filledTonal(
+      key: const Key('contest-rules-button'),
+      tooltip: l10n.contestRulesTooltip,
+      iconSize: 18.0,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 32.0, height: 32.0),
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onPressed: () {
+        // Read at press time so the dialog reflects the contest selected when
+        // it opens, even if the row was built before the dropdown changed.
+        final contest = context.read<ContestSettingCubit>().state;
+        showDialog<void>(
+          context: context,
+          builder: (_) => ContestRulesDialog(contest: contest),
+        );
+      },
+      icon: const Icon(Icons.info_outlined),
+    );
   }
 }
 

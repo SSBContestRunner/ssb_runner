@@ -4,7 +4,16 @@ class SettingItem extends StatelessWidget {
   final String title;
   final Widget content;
 
-  const SettingItem({required this.title, required this.content, super.key});
+  /// Optional widget shown at the end of the title row, such as an info button.
+  /// When `null` the title row renders exactly like a plain text title.
+  final Widget? titleTrailing;
+
+  const SettingItem({
+    required this.title,
+    required this.content,
+    this.titleTrailing,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +38,12 @@ class SettingItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           spacing: 20.0,
           children: [
-            Text(title, style: titleTextStyle),
+            Row(
+              children: [
+                Expanded(child: Text(title, style: titleTextStyle)),
+                ?titleTrailing,
+              ],
+            ),
             content,
           ],
         ),

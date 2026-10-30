@@ -57,6 +57,105 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('the info button opens the rules for the current contest', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+
+    await _pumpSettings(tester, settings);
+    await _openRulesDialog(tester);
+
+    expect(find.text('CQ WPX rules'), findsOneWidget);
+    expect(find.text('You send: 59 + 3-digit serial number'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the rules dialog follows the contest selected in Settings', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+
+    await _pumpSettings(tester, settings);
+    // A full-page test cannot use find.byIcon: the bottom panel has its own
+    // info icon, so the rules button is located by key.
+    _contestCubit(tester).changeContest('CQ-WW-SSB');
+    await tester.pump();
+
+    await _openRulesDialog(tester);
+
+    expect(find.text('CQ WW rules'), findsOneWidget);
+    expect(find.text('You send: 59 + CQ zone'), findsOneWidget);
+    expect(find.text('You send: 59 + 3-digit serial number'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('closing the rules dialog removes it', (tester) async {
+    final settings = await _createSettings();
+
+    await _pumpSettings(tester, settings);
+    await _openRulesDialog(tester);
+
+    await tester.tap(find.text('Close'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('CQ WPX rules'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the rules button stays clickable while a contest is running', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+
+    await _pumpSettings(
+      tester,
+      settings,
+      contestManager: (contestDataManager) =>
+          _RunningContestManager(contestDataManager: contestDataManager),
+    );
+
+    // Settings are read-only during a run, but the rules stay available.
+    expect(
+      tester
+          .widget<DropdownMenu<String>>(find.byType(DropdownMenu<String>))
+          .enabled,
+      isFalse,
+    );
+    expect(tester.widget<TextField>(_exchangeField()).enabled, isFalse);
+
+    await _openRulesDialog(tester);
+
+    expect(find.text('CQ WPX rules'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+/// A ContestManager that reports an active run without starting one, so the
+/// settings panel enters its read-only state.
+class _RunningContestManager extends ContestManager {
+  _RunningContestManager({required super.contestDataManager});
+
+  @override
+  bool get isContestRunning => true;
+
+  @override
+  Stream<bool> get isContestRunningStream => const Stream<bool>.empty();
+}
+
+ContestSettingCubit _contestCubit(WidgetTester tester) =>
+    BlocProvider.of<ContestSettingCubit>(
+      tester.element(find.byType(DropdownMenu<String>)),
+    );
+
+/// Opens the rules dialog. The idle dropdown keeps a cursor animation running,
+/// so pumpAndSettle would time out; pump the dialog transition explicitly.
+Future<void> _openRulesDialog(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('contest-rules-button')));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 Finder _exchangeField() => find.byWidgetPredicate(
@@ -70,20 +169,25 @@ Future<AppSettings> _createSettings() async {
   return AppSettings(prefs: prefs);
 }
 
-Future<void> _pumpSettings(WidgetTester tester, AppSettings settings) async {
+Future<void> _pumpSettings(
+  WidgetTester tester,
+  AppSettings settings, {
+  ContestManager Function(ContestDataManager)? contestManager,
+}) async {
   final database = _createNeverOpenedDatabase();
   final dxccManager = DxccManager(database: database);
-  final contestManager = ContestManager(
-    contestDataManager: ContestDataManager(
-      audioLoader: AudioLoader(),
-      audioPlayer: AudioPlayer(),
-      appSettings: settings,
-      appDatabase: database,
-      callsignLoader: CallsignLoader(),
-      dxccManager: dxccManager,
-      inputHandler: ContestInputHandler(),
-    ),
+  final contestDataManager = ContestDataManager(
+    audioLoader: AudioLoader(),
+    audioPlayer: AudioPlayer(),
+    appSettings: settings,
+    appDatabase: database,
+    callsignLoader: CallsignLoader(),
+    dxccManager: dxccManager,
+    inputHandler: ContestInputHandler(),
   );
+  final manager =
+      contestManager?.call(contestDataManager) ??
+      ContestManager(contestDataManager: contestDataManager);
 
   await tester.pumpWidget(
     MaterialApp(
@@ -93,7 +197,7 @@ Future<void> _pumpSettings(WidgetTester tester, AppSettings settings) async {
         providers: [
           RepositoryProvider<AppSettings>.value(value: settings),
           RepositoryProvider<DxccManager>.value(value: dxccManager),
-          RepositoryProvider<ContestManager>.value(value: contestManager),
+          RepositoryProvider<ContestManager>.value(value: manager),
         ],
         child: const Scaffold(body: MainSettings()),
       ),

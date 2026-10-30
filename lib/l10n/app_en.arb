@@ -243,6 +243,20 @@
   "contestExchangeArrlDx": "59 State/Province (W/VE) / 59 Power (DX)",
   "contestExchangeIaruHf": "59 ITU Zone",
   "contestExchangeJidx": "59 Prefecture / CQ Zone",
+  "contestRulesTooltip": "Contest rules",
+  "contestRulesTitle": "{contest} rules",
+  "@contestRulesTitle": {
+    "placeholders": {
+      "contest": {
+        "type": "String"
+      }
+    }
+  },
+  "contestRulesCqWpx": "You send: 59 + 3-digit serial number\nThey send: callsign + serial number\nLog: callsign + serial number; both must be correct to score",
+  "contestRulesCqWw": "You send: 59 + CQ zone\nThey send: callsign + CQ zone\nLog: callsign + CQ zone",
+  "contestRulesArrlDx": "You send: W/VE - 59 + state/province; DX - 59 + power in watts\nThey send: matching their own role\nLog: callsign + state/province or power",
+  "contestRulesIaruHf": "You send: 59 + ITU zone\nThey send: callsign + ITU zone\nLog: callsign + ITU zone",
+  "contestRulesJidx": "You send: JA - 59 + prefecture number; non-JA - 59 + CQ zone\nThey send: matching their own role\nLog: callsign + prefecture or CQ zone",
   "fieldCqZone": "CQ Zone",
   "fieldItuZone": "ITU Zone",
   "fieldStateProvince": "State/Province",

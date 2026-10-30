@@ -69,4 +69,16 @@ extension DomainL10n on AppLocalizations {
         'JIDX-SSB' => contestExchangeJidx,
         _ => fallback,
       };
+
+  /// Multi-line rule summary for the Contest help dialog. Lines are separated
+  /// by `\n`; unknown ids fall back to the definition's English text.
+  String contestRulesSummary(String contestId, String fallback) =>
+      switch (contestId) {
+        'CQ-WPX' => contestRulesCqWpx,
+        'CQ-WW-SSB' => contestRulesCqWw,
+        'ARRL-DX' => contestRulesArrlDx,
+        'IARU-HF' => contestRulesIaruHf,
+        'JIDX-SSB' => contestRulesJidx,
+        _ => fallback,
+      };
 }
