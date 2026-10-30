@@ -216,7 +216,9 @@ class ContestOperationEventHandler {
     }
 
     if (currentState is SpWaitingHisExchange) {
-      if (_exchange.isEmpty) {
+      // His call is committed from the input, and SpQsoEnd handles nothing but
+      // its own next call; entering it without the call would park the run.
+      if (_hisCall.isEmpty || _exchange.isEmpty) {
         transition(Retry());
         return;
       }

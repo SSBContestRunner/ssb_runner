@@ -91,16 +91,25 @@ class ContestStateChangeHandler {
         await _handleReportMyExchange(toState);
         break;
       case QsoEnd():
+        // Commit from the state snapshot rather than the live input: this
+        // state's sign-off audio loads asynchronously, and the operator may
+        // still be editing the fields while it does.
         await _logQsoAndAdvance(
           correctCall: toState.currentCallAnswer,
           correctExchange: toState.currentExchangeAnswer,
+          submitCall: toState.correctedCall ?? toState.submitCall,
+          submitExchange: toState.submitExchange,
         );
         break;
       case SpQsoEnd():
         // The second Enter commits the QSO; his TU and the next CQ follow.
+        // SpQsoEnd carries no copy of the runner's call, so read it here; the
+        // submit handler already refuses to enter without it.
         await _logQsoAndAdvance(
           correctCall: toState.currentCallAnswer,
           correctExchange: toState.currentExchangeAnswer,
+          submitCall: _inputHandler.hisCall,
+          submitExchange: _inputHandler.exchange,
         );
         break;
       default:
@@ -456,40 +465,63 @@ class ContestStateChangeHandler {
 
   /// Commits the QSO and rolls into the next one. Run mode (`QsoEnd`) and S&P
   /// (`SpQsoEnd`) share this; only the sign-off audio differs.
+  ///
+  /// Committing is best effort, advancing is not: an empty copy, a failed
+  /// insert or a scoring error must never leave the machine parked in the
+  /// sign-off state, which handles nothing but `NextCall` and arms no retry
+  /// timer.
   Future<void> _logQsoAndAdvance({
     required String correctCall,
     required String correctExchange,
+    required String submitCall,
+    required String submitExchange,
   }) async {
-    final callsign = _inputHandler.hisCall;
-    final exchange = _inputHandler.exchange;
+    if (submitCall.isEmpty || submitExchange.isEmpty) {
+      log.warn(
+        'QSO skipped: his call or exchange is empty',
+        tag: 'contest.state',
+        fields: <String, Object?>{
+          'call': submitCall,
+          'exchange': submitExchange,
+        },
+      );
+    } else {
+      try {
+        final submitQso = await _appDatabase.qsoTable.insertReturningOrNull(
+          QsoTableCompanion.insert(
+            utcInSeconds: _contestTimer.elapseTime.inSeconds,
+            runId: _contestRunId,
+            stationCallsign: _stationCallsign,
+            callsign: submitCall,
+            callsignCorrect: correctCall,
+            exchange: _contestType.exchangeManager.processExchange(
+              submitExchange,
+            ),
+            exchangeCorrect: correctExchange,
+          ),
+        );
 
-    if (callsign.isEmpty || exchange.isEmpty) {
-      return;
+        if (submitQso == null) {
+          log.warn('QSO was not inserted', tag: 'contest.state');
+        } else {
+          final latestQsos =
+              await (_appDatabase.qsoTable.select()..where((qsoTable) {
+                    return qsoTable.runId.equals(_contestRunId);
+                  }))
+                  .get();
+
+          _scoreManager.addQso(latestQsos, submitQso);
+        }
+      } catch (error, stackTrace) {
+        log.error(
+          'failed to log the QSO, advancing anyway',
+          tag: 'contest.state',
+          fields: <String, Object?>{'call': submitCall},
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     }
-
-    final submitQso = await _appDatabase.qsoTable.insertReturningOrNull(
-      QsoTableCompanion.insert(
-        utcInSeconds: _contestTimer.elapseTime.inSeconds,
-        runId: _contestRunId,
-        stationCallsign: _stationCallsign,
-        callsign: callsign,
-        callsignCorrect: correctCall,
-        exchange: _contestType.exchangeManager.processExchange(exchange),
-        exchangeCorrect: correctExchange,
-      ),
-    );
-
-    if (submitQso == null) {
-      return;
-    }
-
-    final latestQsos =
-        await (_appDatabase.qsoTable.select()..where((qsoTable) {
-              return qsoTable.runId.equals(_contestRunId);
-            }))
-            .get();
-
-    _scoreManager.addQso(latestQsos, submitQso);
 
     final contestAnswer = _answerGenerator.generateAnswer();
 
