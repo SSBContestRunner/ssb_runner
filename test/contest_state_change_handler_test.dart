@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 // `Retry` also exists in test_api; hide it so the state machine's event wins.
 import 'package:flutter_test/flutter_test.dart' hide Retry;
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_engine.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
@@ -393,6 +394,7 @@ Future<_Rig> _rig({
     ),
     contestAnswerGenerator: answerSource ?? answers,
     onAnswersExhausted: onAnswersExhausted,
+    accentPolicy: const AccentPolicy(IncomingAccent.auto),
   );
 
   return _Rig(
