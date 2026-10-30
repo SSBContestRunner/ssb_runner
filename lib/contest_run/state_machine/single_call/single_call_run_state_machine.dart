@@ -31,13 +31,15 @@ initSingleCallRunStateMachine({
 
       definition.on(Retry, (state, event) {
         final stateVal = state as WaitingSubmitCall;
-        final currentCallAnswer = stateVal.currentCallAnswer;
-        final currentExchangeAnswer = stateVal.currentExchangeAnswer;
 
+        // Rebuild from the answer rather than copying `audioPlayType`: a
+        // mis-copied or invalid submission may have left a silent state behind,
+        // and copying it would leave every CQ/AGN/timeout retry silent too.
         return definition.transitionTo(
-          stateVal.copyWith(
-            currentCallAnswer: currentCallAnswer,
-            currentExchangeAnswer: currentExchangeAnswer,
+          WaitingSubmitCall(
+            currentCallAnswer: stateVal.currentCallAnswer,
+            currentExchangeAnswer: stateVal.currentExchangeAnswer,
+            pileupCallsigns: stateVal.pileupCallsigns,
           ),
         );
       });
@@ -82,17 +84,15 @@ initSingleCallRunStateMachine({
       });
 
       definition.on(SubmitCall, (state, event) {
-        state as WaitingSubmitCall;
-        event as SubmitCall;
-
-        final submitCall = event.call;
-        final currentCallAnswer = state.currentCallAnswer;
+        final stateVal = state as WaitingSubmitCall;
+        final submitCall = (event as SubmitCall).call;
+        final currentCallAnswer = stateVal.currentCallAnswer;
 
         if (submitCall == currentCallAnswer) {
           return definition.transitionTo(
             HeAskForExchange(
               currentCallAnswer: currentCallAnswer,
-              currentExchangeAnswer: state.currentExchangeAnswer,
+              currentExchangeAnswer: stateVal.currentExchangeAnswer,
               submitCall: submitCall,
               isPlayMyCall: false,
             ),
@@ -106,13 +106,23 @@ initSingleCallRunStateMachine({
           return definition.transitionTo(
             HeRepeatCorrectCallAnswer(
               currentCallAnswer: currentCallAnswer,
-              currentExchangeAnswer: state.currentExchangeAnswer,
+              currentExchangeAnswer: stateVal.currentExchangeAnswer,
               submitCall: submitCall,
+              pileupCallsigns: stateVal.pileupCallsigns,
             ),
           );
         }
 
-        return definition.transitionTo(state.copyWith(audioPlayType: NoPlay()));
+        // A wildly wrong copy keeps him calling: replay the pileup (or the
+        // single call) with the default audio for this answer instead of
+        // silencing the round.
+        return definition.transitionTo(
+          WaitingSubmitCall(
+            currentCallAnswer: currentCallAnswer,
+            currentExchangeAnswer: stateVal.currentExchangeAnswer,
+            pileupCallsigns: stateVal.pileupCallsigns,
+          ),
+        );
       });
     });
 
@@ -169,6 +179,7 @@ initSingleCallRunStateMachine({
               currentCallAnswer: stateVal.currentCallAnswer,
               currentExchangeAnswer: stateVal.currentExchangeAnswer,
               submitCall: submitCall,
+              pileupCallsigns: stateVal.pileupCallsigns,
             ),
           );
         }
@@ -177,7 +188,7 @@ initSingleCallRunStateMachine({
           WaitingSubmitCall(
             currentCallAnswer: stateVal.currentCallAnswer,
             currentExchangeAnswer: stateVal.currentExchangeAnswer,
-            audioPlayType: NoPlay(),
+            pileupCallsigns: stateVal.pileupCallsigns,
           ),
         );
       });
@@ -241,11 +252,12 @@ initSingleCallRunStateMachine({
       definition.on(CallsignInvalid, (state, event) {
         state as ReportMyExchange;
 
+        // The copy was rejected: go back to a listening state that replays the
+        // answer instead of one that can never make a sound again.
         return definition.transitionTo(
           WaitingSubmitCall(
             currentCallAnswer: state.currentCallAnswer,
             currentExchangeAnswer: state.currentExchangeAnswer,
-            audioPlayType: NoPlay(),
           ),
         );
       });

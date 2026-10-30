@@ -49,6 +49,41 @@ LazyDatabase _unusedExecutor() => LazyDatabase(
 );
 
 void main() {
+  test('every contest ignores duplicate calls even when exchanges differ', () {
+    final first = QsoTableData(
+      id: 1,
+      utcInSeconds: 31,
+      runId: 'run-1',
+      stationCallsign: 'BI1ABC',
+      callsign: 'JA1ABC',
+      callsignCorrect: 'JA1ABC',
+      exchange: '2500',
+      exchangeCorrect: '2500',
+    );
+    final duplicate = first.copyWith(
+      id: 2,
+      callsign: ' ja1abc ',
+      exchange: '7',
+      exchangeCorrect: '7',
+    );
+    for (final definition in ContestRegistry.all) {
+      final calculator = _type(definition.id).scoreCalculator;
+      final baseline = calculator.calculateScore([first]);
+      // Input order must not change which record is counted.
+      final actual = calculator.calculateScore([duplicate, first]);
+      expect(actual.count, baseline.count, reason: definition.id);
+      expect(actual.score, baseline.score, reason: definition.id);
+      expect(actual.multiple, baseline.multiple, reason: definition.id);
+      expect(
+        calculator.calculateScore([
+          first,
+          duplicate.copyWith(runId: 'run-2'),
+        ]).count,
+        2,
+        reason: 'Separate sessions are independent',
+      );
+    }
+  });
   test('registry exposes the five common SSB training templates', () {
     expect(
       ContestRegistry.all.map((item) => item.id),
@@ -169,9 +204,10 @@ void main() {
 
   test('IARU refines US callers to their call-area ITU zone', () {
     final us = _FakeDxccManager(dxccId: 291, ituZone: 8);
-    String zoneFor(String call) => _type('IARU-HF', dxccManager: us)
-        .exchangeManager
-        .generateExchange(SessionRandom(1), callerCallsign: call);
+    String zoneFor(String call) => _type(
+      'IARU-HF',
+      dxccManager: us,
+    ).exchangeManager.generateExchange(SessionRandom(1), callerCallsign: call);
     expect(zoneFor('W6ABC'), '6');
     expect(zoneFor('W5ABC'), '7');
     expect(zoneFor('W4ABC'), '8');
@@ -207,9 +243,10 @@ void main() {
 
   test('CQ WW refines US callers to their call-area CQ zone', () {
     final us = _FakeDxccManager(dxccId: 291, cqZone: 5);
-    String zoneFor(String call) => _type('CQ-WW-SSB', dxccManager: us)
-        .exchangeManager
-        .generateExchange(SessionRandom(1), callerCallsign: call);
+    String zoneFor(String call) => _type(
+      'CQ-WW-SSB',
+      dxccManager: us,
+    ).exchangeManager.generateExchange(SessionRandom(1), callerCallsign: call);
     expect(zoneFor('W6ABC'), '3');
     expect(zoneFor('W0ABC'), '4');
     expect(zoneFor('W4ABC'), '5');

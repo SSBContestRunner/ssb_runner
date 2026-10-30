@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/contest_run/qso_duplicates.dart';
 
 class TrainingRunMetadata {
   const TrainingRunMetadata({
@@ -97,6 +98,8 @@ class TrainingRunReview {
     required this.callsignErrors,
     required this.exchangeErrors,
     required this.score,
+    this.duplicateCount = 0,
+    this.endReason = 'stopped',
   });
 
   final TrainingRunMetadata metadata;
@@ -106,6 +109,8 @@ class TrainingRunReview {
   final int callsignErrors;
   final int exchangeErrors;
   final int score;
+  final int duplicateCount;
+  final String endReason;
 
   double get accuracy => qsoCount == 0 ? 0 : correctCount / qsoCount;
   Duration get duration => endedAt.difference(metadata.startedAt);
@@ -116,7 +121,10 @@ class TrainingRunReview {
     required TrainingRunMetadata metadata,
     required List<QsoTableData> qsos,
     required int score,
+    String endReason = 'stopped',
   }) {
+    final originalCount = qsos.length;
+    qsos = uniqueQsos(qsos);
     final correct = qsos
         .where(
           (qso) =>
@@ -136,6 +144,8 @@ class TrainingRunReview {
           .where((qso) => qso.exchange != qso.exchangeCorrect)
           .length,
       score: score,
+      duplicateCount: originalCount - qsos.length,
+      endReason: endReason,
     );
   }
 
@@ -155,6 +165,8 @@ class TrainingRunReview {
     'callsignErrors': callsignErrors,
     'exchangeErrors': exchangeErrors,
     'score': score,
+    'duplicateCount': duplicateCount,
+    'endReason': endReason,
   };
 
   String encode() => jsonEncode(toJson());
@@ -183,6 +195,8 @@ class TrainingRunReview {
       callsignErrors: json['callsignErrors'] as int,
       exchangeErrors: json['exchangeErrors'] as int,
       score: json['score'] as int,
+      duplicateCount: json['duplicateCount'] as int? ?? 0,
+      endReason: json['endReason'] as String? ?? 'stopped',
     );
   }
 }

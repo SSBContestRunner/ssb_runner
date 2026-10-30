@@ -94,6 +94,76 @@ void main() {
     expect(served, generated.map((answer) => answer.callSign).toList());
   });
 
+  test('replay ends at the recording boundary without restarting the seed', () {
+    final first = _generator(_loader(), 42).generateAnswer();
+    final replay = ReplayAnswerSource([first]);
+    expect(replay.generateAnswer(), same(first));
+    expect(replay.isExhausted, isTrue);
+    for (var i = 0; i < 2; i++) {
+      expect(
+        replay.generateAnswer,
+        throwsA(
+          isA<AnswerSourceExhausted>().having(
+            (end) => end.reason,
+            'reason',
+            'replay_completed',
+          ),
+        ),
+      );
+    }
+  });
+
+  test('historical duplicate answers remain exact during replay', () {
+    final first = _generator(_loader(), 42).generateAnswer();
+    final replay = ReplayAnswerSource([first, first]);
+    expect(replay.generateAnswer(), same(first));
+    expect(replay.generateAnswer(), same(first));
+    expect(replay.generateAnswer, throwsA(isA<AnswerSourceExhausted>()));
+  });
+
+  for (final mode in TrainingMode.values) {
+    test('${mode.id} draws normalized targets without replacement', () {
+      final loader = CallsignLoader()
+        ..callSigns.addAll(['4X6ZM', ' 4x6zm ', '', 'K1ABC', 'JA1XYZ']);
+      final source = ContestAnswerGenerator(
+        callsignLoader: loader,
+        contestType: _contestType(),
+        mode: mode,
+        difficulty: TrainingDifficulty.advanced,
+        random: SessionRandom(42),
+      );
+      final seen = <String>{};
+      for (var i = 0; i < 3; i++) {
+        final answer = source.generateAnswer();
+        expect(seen.intersection(answer.pileupCallsigns.toSet()), isEmpty);
+        expect(
+          answer.pileupCallsigns.toSet().length,
+          answer.pileupCallsigns.length,
+        );
+        expect(seen.add(answer.callSign), isTrue);
+      }
+      expect(seen, {'4X6ZM', 'K1ABC', 'JA1XYZ'});
+      expect(source.generateAnswer, throwsA(isA<AnswerSourceExhausted>()));
+    });
+  }
+
+  test('small and empty callsign pools terminate instead of looping', () {
+    for (final calls in <List<String>>[
+      [],
+      ['ONLY1'],
+      ['ONLY1', 'ONLY2'],
+    ]) {
+      final source = _generator(CallsignLoader()..callSigns.addAll(calls), 1);
+      for (var i = 0; i < calls.length; i++) {
+        expect(
+          source.generateAnswer().pileupCallsigns.length,
+          calls.length - i,
+        );
+      }
+      expect(source.generateAnswer, throwsA(isA<AnswerSourceExhausted>()));
+    }
+  });
+
   test('legacy review json without dual seeds still decodes', () {
     final legacy = jsonEncode({
       'runId': 'run-1',
@@ -136,7 +206,10 @@ ContestAnswerGenerator _generator(CallsignLoader loader, int seed) =>
 
 List<ContestAnswer> _generate(CallsignLoader loader, int seed) {
   final generator = _generator(loader, seed);
-  return [for (var index = 0; index < 8; index++) generator.generateAnswer()];
+  return [
+    for (var index = 0; index < loader.callSigns.length; index++)
+      generator.generateAnswer(),
+  ];
 }
 
 Uint8List _pcm() {

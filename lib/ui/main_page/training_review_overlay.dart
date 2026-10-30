@@ -56,6 +56,14 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
                       'Session review',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
+                    if (review.endReason == 'replay_completed')
+                      const Text(
+                        'Replay completed. All recorded answers have been replayed.',
+                      ),
+                    if (review.endReason == 'callsign_pool_exhausted')
+                      const Text(
+                        'Training completed. All available stations have been used.',
+                      ),
                     const SizedBox(height: 8),
                     Text(
                       '${review.metadata.contestName} · ${review.metadata.modeId} · ${review.metadata.difficultyId}',
@@ -66,6 +74,8 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
                       runSpacing: 12,
                       children: [
                         _stat('QSOs', '${review.qsoCount}'),
+                        if (review.duplicateCount > 0)
+                          _stat('Duplicates', '${review.duplicateCount}'),
                         _stat(
                           'Accuracy',
                           '${(review.accuracy * 100).toStringAsFixed(1)}%',

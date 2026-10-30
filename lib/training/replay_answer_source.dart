@@ -2,24 +2,19 @@ import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/training/session_review.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 
-/// Serves the exact answers recorded in a run's event log (record first,
-/// recompute as a fallback), so a historical session replays even after the
-/// generation algorithm changes (design §5.5).
+/// Serves recorded answers exactly, including historical duplicates. The end
+/// of the recording ends replay; reseeding here would restart at question one.
 class ReplayAnswerSource implements AnswerSource {
-  ReplayAnswerSource(this._answers, {AnswerSource? fallback})
-    : _fallback = fallback;
+  ReplayAnswerSource(List<ContestAnswer> answers)
+    : _answers = List.unmodifiable(answers);
 
   final List<ContestAnswer> _answers;
-  final AnswerSource? _fallback;
   int _index = 0;
 
   int get length => _answers.length;
   bool get isExhausted => _index >= _answers.length;
 
-  factory ReplayAnswerSource.fromEvents(
-    List<TrainingRunEvent> events, {
-    AnswerSource? fallback,
-  }) {
+  factory ReplayAnswerSource.fromEvents(List<TrainingRunEvent> events) {
     final answers = events
         .where((event) => event.type == 'answer')
         .map(
@@ -31,7 +26,7 @@ class ReplayAnswerSource implements AnswerSource {
           ),
         )
         .toList();
-    return ReplayAnswerSource(answers, fallback: fallback);
+    return ReplayAnswerSource(answers);
   }
 
   @override
@@ -39,11 +34,7 @@ class ReplayAnswerSource implements AnswerSource {
     if (_index < _answers.length) {
       return _answers[_index++];
     }
-    final fallback = _fallback;
-    if (fallback != null) {
-      return fallback.generateAnswer();
-    }
-    throw StateError('Replay log is exhausted and no fallback is available');
+    throw const AnswerSourceExhausted('replay_completed');
   }
 }
 

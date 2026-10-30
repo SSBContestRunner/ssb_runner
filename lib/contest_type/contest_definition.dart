@@ -1,4 +1,5 @@
 import 'package:ssb_runner/contest_run/data/score_data.dart';
+import 'package:ssb_runner/contest_run/qso_duplicates.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/cq_wpx/cq_wpx.dart';
 import 'package:ssb_runner/contest_type/exchange_manager.dart';
@@ -391,6 +392,7 @@ class _NumericScoreCalculator implements ScoreCalculator {
 
   @override
   ScoreData calculateScore(List<QsoTableData> qsos) {
+    qsos = uniqueQsos(qsos);
     final multipliers = <String>{};
     var points = 0;
     for (final qso in qsos) {
