@@ -191,11 +191,17 @@ class _PhaseHintBar extends StatelessWidget {
             ),
             if (_canAbandon(state))
               TextButton(
+                // Match the hint's line height: the button is the row's
+                // intrinsic-height driver whenever it is visible, so a taller
+                // label (the Material default labelLarge) would make the bar
+                // grow and shove the input fields and keypad down each time it
+                // appears.
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: Theme.of(context).textTheme.bodySmall,
                 ),
                 onPressed: () {
                   // Same action as F1: on an in-flight QSO it gives up the
