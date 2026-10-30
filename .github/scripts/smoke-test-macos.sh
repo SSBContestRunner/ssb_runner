@@ -49,12 +49,16 @@ trap 'hdiutil detach "$mount" -quiet || true' EXIT
 
 src_app=$(find "$mount" -maxdepth 1 -name '*.app' -print -quit)
 [[ -n "$src_app" ]] || fail "no .app on $dmg"
-ditto "$src_app" "$work/"
+# ditto merges a directory into an existing destination, so name the copy explicitly
+# instead of copying into $work/ (which would leave the bundle's contents at $work root).
+app="$work/$(basename "$src_app")"
+ditto "$src_app" "$app"
 hdiutil detach "$mount" -quiet
 trap - EXIT
 
-app=$(find "$work" -maxdepth 1 -name '*.app' -print -quit)
-exe_name=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
+plist="$app/Contents/Info.plist"
+[[ -f "$plist" ]] || fail "no Info.plist at $plist"
+exe_name=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$plist")
 exe="$app/Contents/MacOS/$exe_name"
 [[ -x "$exe" ]] || fail "no executable at $exe"
 echo "smoke-testing $exe"
