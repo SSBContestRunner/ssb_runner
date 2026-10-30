@@ -248,7 +248,7 @@ function Close-WindowAndWaitForExit($proc, [int]$Seconds = 10) {
 | 场景 | 做法 | 断言 |
 | --- | --- | --- |
 | 1. 正常关窗 | 启动 → 等 12 s（首帧已完成、`setOpacity(1)` 已恢复）→ WM_CLOSE | 10 s 内退出；日志含 `exit requested` |
-| 2. 清理卡死（保底） | 带 `SSB_RUNNER_TEST_EXIT_HANG=1` 启动 → WM_CLOSE | 10 s 内退出（5 s 保底 `exit(0)` 生效） |
+| 2. 清理卡死（保底） | 带 `SSB_RUNNER_TEST_EXIT_HANG=1` 启动 → WM_CLOSE | 10 s 内退出（5 s 保底强杀生效） |
 | 3. 启动中关窗 | 启动 → 出现窗口后立即 WM_CLOSE | 10 s 内退出 |
 
 CI job（并加入 `release.needs`，与 Debian 冒烟同级）：
@@ -273,12 +273,33 @@ CI job（并加入 `release.needs`，与 Debian 冒烟同级）：
 
 ```yaml
   release:
-    needs: [package-linux, package-windows, package-macos, smoke-test-debian, smoke-test-windows]
+    needs:
+      - package-linux
+      - package-windows
+      - package-macos
+      - smoke-test-debian
+      - smoke-test-windows
+      - smoke-test-macos
 ```
 
 **能力边界（必须写清）**：GitHub `windows-latest` 运行在 Session 0，无音频设备，`SoLoud.init` 会失败并被启动流程吞掉（因此还能顺带覆盖"音频未初始化时退出"）。CI 无法复现"音频线程导致原生析构卡死"的具体触发条件；场景 2 通过环境变量注入可确定的卡死，验证的是**保底防线**是否有效，而不是音频驱动本身。
 
-### 4.3 层 ③：Dart 单测
+### 4.3 macOS / Linux 关窗回归
+
+macOS 与容器内的 Linux 都无法从外部发关窗请求（macOS 需要辅助功能/自动化授权，Debian 容器没有窗口管理器），因此改由 App 自己关窗：测试钩子 `SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER=<秒>` 到点调用 `windowManager.close()`——macOS 是 `[NSWindow performClose]`、Linux 是 `gtk_window_close`，都和点关闭按钮同一条原生路径。
+
+- 新增 `.github/scripts/smoke-test-macos.sh`：挂载 dmg → 拷贝 .app → 两个场景 → 断言 40 s 内进程消失；新增 `smoke-test-macos` job 并加入 `release.needs`；
+- `smoke-test-debian.sh` 增加第 (4) 步：带关窗钩子起 App，`timeout 40` 返回 124（仍在运行）即失败。
+
+| 场景 | 做法 | 断言 |
+| --- | --- | --- |
+| macOS 正常关窗 | 12 s 自动关窗 | 40 s 内退出，退出码 0 |
+| macOS 清理卡死 | 12 s 关窗 + `SSB_RUNNER_TEST_EXIT_HANG=1` | 40 s 内退出（5 s 保底强杀，退出码 143） |
+| Debian 正常关窗 | `xvfb-run` 下 12 s 自动关窗 | `timeout` 未返回 124 |
+
+**能力边界**：CI 的 macOS runner 与 Debian 容器都没有可用音频设备，两处都用 `SSB_RUNNER_DISABLE_AUDIO=1` 跳过音频初始化；"音频播放中关窗"仍需真机验收。
+
+### 4.4 层 ③：Dart 单测
 
 新增 `test/ui/main_app/exit_flow_test.dart`，针对 `runBoundedExitCleanup`：
 
@@ -295,11 +316,13 @@ CI job（并加入 `release.needs`，与 Debian 冒烟同级）：
 
 | 文件 | 变更 |
 | --- | --- |
-| `lib/ui/main_app/main_app.dart` | 退出处理改为 `_handleExitRequest`（保底定时器、测试钩子、`deinitAsync`、有界清理）；补 `dart:async` import |
+| `lib/ui/main_app/main_app.dart` | 退出处理改为 `_handleExitRequest`（保底强杀、`deinitAsync`、有界清理）；新增 CI 钩子 `_scheduleTestWindowClose`（`SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER`）；补 `dart:async` import |
 | `lib/ui/main_app/exit_flow.dart` | 新增 `runBoundedExitCleanup`（可测接缝） |
 | `test/ui/main_app/exit_flow_test.dart` | 新增 4 个超时/异常用例 |
 | `.github/scripts/smoke-test-windows.ps1` | 新增：zip 解压 + 三场景关窗断言 |
-| `.github/workflows/ci.yml` | 新增 `smoke-test-windows` job；`release.needs` 增加该 job |
+| `.github/scripts/smoke-test-macos.sh` | 新增：dmg 挂载 + 两场景关窗断言 |
+| `.github/scripts/smoke-test-debian.sh` | 增加第 (4) 步：Xvfb 下关窗后进程必须退出 |
+| `.github/workflows/ci.yml` | 新增 `smoke-test-windows` / `smoke-test-macos` job；`release.needs` 增加两者 |
 | `docs/design/desktop_exit_design.md` | 本文档 |
 
 ## 6. 风险与对策

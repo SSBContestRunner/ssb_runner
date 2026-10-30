@@ -45,6 +45,39 @@ class _MainAppState extends State<MainApp> {
     // The window is hidden until the first frame is on screen, so it appears
     // straight into the loading view instead of as a blank window.
     WidgetsBinding.instance.addPostFrameCallback((_) => _revealWindow());
+
+    _scheduleTestWindowClose();
+  }
+
+  /// CI only: closes the window the way a user does, so the macOS and Linux
+  /// smoke tests can assert that closing it ends the process.
+  ///
+  /// Neither platform can be closed from the outside in a CI session: macOS
+  /// would need Accessibility/automation permissions, and the Linux container
+  /// has no window manager to deliver a close request. window_manager's
+  /// `close()` is `[NSWindow performClose]` / `gtk_window_close`, i.e. the same
+  /// native path as clicking the close button.
+  void _scheduleTestWindowClose() {
+    final seconds = int.tryParse(
+      Platform.environment['SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER'] ?? '',
+    );
+    if (seconds == null) {
+      return;
+    }
+
+    Timer(Duration(seconds: seconds), () async {
+      log.warn('closing window by test hook', tag: 'exit');
+      try {
+        await windowManager.close();
+      } catch (error, stackTrace) {
+        log.warn(
+          'test window close failed',
+          tag: 'exit',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    });
   }
 
   /// Last line of defence for "the window closed but the process stays".
