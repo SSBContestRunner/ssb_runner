@@ -52,3 +52,6 @@ app.*.map.json
 
 # Fastforge dist
 /dist/
+
+# Test coverage output
+/coverage/
