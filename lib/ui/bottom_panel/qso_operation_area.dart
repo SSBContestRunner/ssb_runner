@@ -12,6 +12,7 @@ import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart'
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/training/training_profile.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 import '../../contest_type/contest_type.dart';
@@ -34,6 +35,12 @@ class QsoOperationAreaCubit extends Cubit<SingleCallRunState?> {
   StreamSubscription? _contestOperationEventHandlerSubscription;
   StreamSubscription<SingleCallRunState>? _contestStateSubscription;
   ContestOperationEventHandler? _contestOperationEventHandler;
+
+  /// Phase guidance is a Beginner-only crutch: at higher difficulties the
+  /// operator has to read the band and the state machine themselves.
+  bool _showPhaseHint = false;
+
+  bool get showPhaseHint => _showPhaseHint;
 
   void attachInputControl(void Function(int) callback) {
     if (_inputControlStreamSubscription != null) {
@@ -58,6 +65,8 @@ class QsoOperationAreaCubit extends Cubit<SingleCallRunState?> {
           if (isRunning && runningManager != null) {
             _contestOperationEventHandler =
                 runningManager.contestOperationEventHandler;
+            _showPhaseHint =
+                runningManager.difficulty == TrainingDifficulty.beginner;
             // The stream only carries later transitions; seed the hint with the
             // phase the round started in.
             _emitState(runningManager.currentState);
@@ -66,6 +75,7 @@ class QsoOperationAreaCubit extends Cubit<SingleCallRunState?> {
             );
           } else {
             _contestOperationEventHandler = null;
+            _showPhaseHint = false;
             _emitState(null);
           }
         });
@@ -120,16 +130,19 @@ class QsoOperationArea extends StatelessWidget {
         ),
       ],
       child: BlocBuilder<QsoOperationAreaCubit, SingleCallRunState?>(
-        // The hint row only appears while a contest runs; adding/removing it
-        // is the only change that alters the layout.
+        // The hint row only appears while a Beginner contest runs; adding/
+        // removing it is the only change that alters the layout.
         buildWhen: (previous, current) =>
             (previous == null) != (current == null),
         builder: (context, state) {
+          final showHint =
+              state != null &&
+              context.read<QsoOperationAreaCubit>().showPhaseHint;
           return Flex(
             direction: Axis.vertical,
             spacing: 15.0,
             children: [
-              if (state != null) const _PhaseHintBar(),
+              if (showHint) const _PhaseHintBar(),
               _QsoInputArea(),
               Expanded(
                 flex: 1,
@@ -154,8 +167,10 @@ class QsoOperationArea extends StatelessWidget {
   }
 }
 
-/// Shows what the round is waiting for and which key moves it on, so a
-/// mid-QSO phase (e.g. "he wants his serial") is never a silent dead end.
+/// Beginner-only hint: shows what the round is waiting for and which key moves
+/// it on, so a mid-QSO phase (e.g. "he wants his serial") is never a silent
+/// dead end. Higher difficulties keep this out of the UI; the transition
+/// logging still records the same phase changes.
 class _PhaseHintBar extends StatelessWidget {
   const _PhaseHintBar();
 

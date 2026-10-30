@@ -50,6 +50,10 @@ class ContestRunningManager {
 
   SingleCallRunState get currentState => _stateMachine.currentState;
 
+  /// Difficulty this run was launched with. The UI uses it to decide how much
+  /// guidance to show, so a later settings change cannot switch it mid-run.
+  TrainingDifficulty get difficulty => _difficulty;
+
   late final ScoreManager scoreManager = ScoreManager(
     contestId: runId,
     stationCallsign: _contestDataManager.appSettings.stationCallsign,
