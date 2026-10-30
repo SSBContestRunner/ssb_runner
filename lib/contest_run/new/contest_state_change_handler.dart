@@ -12,6 +12,7 @@ import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
+import 'package:ssb_runner/contest_run/qso_duplicates.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
@@ -34,6 +35,8 @@ class ContestStateChangeHandler {
   _stateMachine;
   final ScoreManager _scoreManager;
   final AnswerSource _answerGenerator;
+  final void Function(String reason)? _onAnswersExhausted;
+  bool _disposed = false;
 
   late final AudioLoader _audioLoader = _contestDataManager.audioLoader;
   late final AudioPlayer _audioPlayer = _contestDataManager.audioPlayer;
@@ -57,19 +60,27 @@ class ContestStateChangeHandler {
     stateMachine,
     required ScoreManager scoreManager,
     required AnswerSource contestAnswerGenerator,
+    void Function(String reason)? onAnswersExhausted,
   }) : _contestRunId = contestRunId,
        _contestTimer = contestTimer,
        _contestType = contestType,
        _contestDataManager = contestDataManager,
        _stateMachine = stateMachine,
        _scoreManager = scoreManager,
-       _answerGenerator = contestAnswerGenerator;
+       _answerGenerator = contestAnswerGenerator,
+       _onAnswersExhausted = onAnswersExhausted;
+
+  void dispose() {
+    _disposed = true;
+    _retryTimer?.cancel();
+  }
 
   // region state change handler
   Future<void> handleToState(
     SingleCallRunState toState, {
     SingleCallRunEvent? event,
   }) async {
+    if (_disposed) return;
     _setupRetryTimer(toState);
 
     try {
@@ -86,6 +97,7 @@ class ContestStateChangeHandler {
       );
     }
 
+    if (_disposed) return;
     switch (toState) {
       case ReportMyExchange():
         await _handleReportMyExchange(toState);
@@ -440,11 +452,12 @@ class ContestStateChangeHandler {
 
     final currentState = _stateMachine.currentState;
     log.debug('currentState: $currentState', tag: 'contest');
-    if (_stateMachine.currentState is! ReportMyExchange) {
+    if (_disposed || !identical(_stateMachine.currentState, toState)) {
       return;
     }
 
     await Future.delayed(Duration(milliseconds: 500));
+    if (_disposed || !identical(_stateMachine.currentState, toState)) return;
 
     final answer = toState.currentCallAnswer;
     final submit = toState.submitCall;
@@ -458,7 +471,7 @@ class ContestStateChangeHandler {
   }
 
   Future<void> _waitAudioNotPlaying() async {
-    while (_audioPlayer.isPlaying()) {
+    while (!_disposed && _audioPlayer.isPlaying()) {
       await Future.delayed(Duration(milliseconds: 100));
     }
   }
@@ -510,6 +523,21 @@ class ContestStateChangeHandler {
                   }))
                   .get();
 
+          final duplicate = isDuplicateQso(latestQsos, submitQso);
+          log.info(
+            'QSO logged',
+            tag: 'contest.qso',
+            fields: {
+              'runId': _contestRunId,
+              'qsoId': submitQso.id,
+              'elapsedSeconds': submitQso.utcInSeconds,
+              'call': submitCall,
+              'exchange': submitQso.exchange,
+              'correctCall': correctCall,
+              'correctExchange': correctExchange,
+              'duplicate': duplicate,
+            },
+          );
           _scoreManager.addQso(latestQsos, submitQso);
         }
       } catch (error, stackTrace) {
@@ -523,11 +551,25 @@ class ContestStateChangeHandler {
       }
     }
 
-    final contestAnswer = _answerGenerator.generateAnswer();
-
+    if (_disposed) return;
     _inputHandler.clear();
-
+    final ContestAnswer contestAnswer;
+    try {
+      contestAnswer = _answerGenerator.generateAnswer();
+    } on AnswerSourceExhausted catch (end) {
+      // Finish the final sign-off before stopping audio and saving the review.
+      await _waitAudioNotPlaying();
+      if (_disposed) return;
+      log.info(
+        'Answer sequence completed',
+        tag: 'contest',
+        fields: {'runId': _contestRunId, 'reason': end.reason},
+      );
+      _onAnswersExhausted?.call(end.reason);
+      return;
+    }
     await _waitAudioNotPlaying();
+    if (_disposed) return;
     _stateMachine.transition(
       NextCall(
         callAnswer: contestAnswer.callSign,

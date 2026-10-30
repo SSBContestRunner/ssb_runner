@@ -3,17 +3,18 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
+import 'package:ssb_runner/common/normalize_callsign.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_running_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
+import 'package:ssb_runner/contest_run/qso_duplicates.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
-import 'package:ssb_runner/training/session_random.dart';
 import 'package:ssb_runner/training/session_review.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 import 'package:uuid/uuid.dart';
@@ -26,7 +27,7 @@ class ContestManager {
 
   late final ContestTimer contestTimer = ContestTimer(
     onContestEnd: () {
-      stopContest();
+      stopContest(reason: 'duration_elapsed');
     },
   );
 
@@ -64,8 +65,22 @@ class ContestManager {
   TrainingRunMetadata? _activeRun;
   ContestType? _activeContestType;
   final List<TrainingRunEvent> _eventLog = [];
+  String _answerSourceName = 'live';
 
   void _recordAnswer(ContestAnswer answer) {
+    log.info(
+      'Answer served',
+      tag: 'contest.answer',
+      fields: {
+        'runId': _activeRun?.runId,
+        'questionIndex': _eventLog.length + 1,
+        'answerSource': _answerSourceName,
+        'elapsedMs': contestTimer.elapseTime.inMilliseconds,
+        'call': answer.callSign,
+        'exchange': answer.exchange,
+        'pileupCallsigns': answer.pileupCallsigns,
+      },
+    );
     _eventLog.add(
       TrainingRunEvent(
         elapsedMs: contestTimer.elapseTime.inMilliseconds,
@@ -144,20 +159,45 @@ class ContestManager {
     );
     _activeContestType = contestType;
 
-    // Record first, recompute as a fallback: if the log runs out mid-replay,
-    // continue from the question seed instead of crashing (design §5.5).
-    final AnswerSource? replaySource = replayEvents.isEmpty
-        ? null
-        : ReplayAnswerSource.fromEvents(
-            replayEvents,
-            fallback: ContestAnswerGenerator(
-              callsignLoader: _contestDataManager.callsignLoader,
-              contestType: contestType,
-              mode: mode,
-              difficulty: difficulty,
-              random: SessionRandom(questionSeed),
-            ),
-          );
+    final recording = ReplayAnswerSource.fromEvents(replayEvents);
+    final replaySource = recording.length == 0 ? null : recording;
+    _answerSourceName = replaySource != null
+        ? 'recorded-replay'
+        : replayRunId != null
+        ? 'seed-replay'
+        : 'live';
+    if (replayRunId != null && replaySource == null) {
+      log.warn(
+        'No recorded answers available; starting practice from seed',
+        tag: 'contest',
+        fields: {'runId': runId, 'replayRunId': replayRunId},
+      );
+    }
+    if (replaySource == null &&
+        !_contestDataManager.callsignLoader.callSigns.any(
+          (call) => normalizeCallsign(call).isNotEmpty,
+        )) {
+      log.warn(
+        'Cannot start training with an empty callsign pool',
+        tag: 'contest',
+      );
+      return;
+    }
+    log.info(
+      'Training started',
+      tag: 'contest',
+      fields: {
+        'runId': runId,
+        'contestId': definition.id,
+        'mode': mode.id,
+        'difficulty': difficulty.id,
+        'questionSeed': questionSeed,
+        'audioSeed': audioSeed,
+        'replayRunId': replayRunId,
+        'answerSource': _answerSourceName,
+        'recordedAnswerCount': recording.length,
+      },
+    );
 
     _audioPlayer.setTrainingProfile(
       AudioTrainingProfile.fromDifficulty(
@@ -213,16 +253,27 @@ class ContestManager {
       seed: seed,
       answerSource: answerSource,
       onAnswerGenerated: _recordAnswer,
+      onAnswersExhausted: (reason) => stopContest(reason: reason),
     );
   }
 
-  void stopContest() {
+  void stopContest({String reason = 'stopped'}) {
     if (!_isContestRunning) {
       return;
     }
 
     final run = _activeRun;
     final contestType = _activeContestType;
+    log.info(
+      'Training stopped',
+      tag: 'contest',
+      fields: {
+        'runId': run?.runId,
+        'elapsedMs': contestTimer.elapseTime.inMilliseconds,
+        'answerCount': _eventLog.length,
+        'reason': reason,
+      },
+    );
 
     contestTimer.stop();
     contestRunningManager?.stop();
@@ -234,7 +285,7 @@ class ContestManager {
     _isContestRunningStreamController.sink.add(false);
 
     if (run != null && contestType != null) {
-      _saveReview(run, contestType);
+      _saveReview(run, contestType, endReason: reason);
       _persistEventLog(run.runId);
       _eventLog.clear();
     }
@@ -289,8 +340,9 @@ class ContestManager {
 
   Future<void> _saveReview(
     TrainingRunMetadata run,
-    ContestType contestType,
-  ) async {
+    ContestType contestType, {
+    required String endReason,
+  }) async {
     final qsos =
         await (_appDatabase.qsoTable.select()
               ..where((row) => row.runId.equals(run.runId)))
@@ -299,20 +351,18 @@ class ContestManager {
       metadata: run,
       qsos: qsos,
       score: contestType.scoreCalculator.calculateScore(qsos).score,
+      endReason: endReason,
     );
     _contestDataManager.appSettings.saveSessionReview(review);
     _reviewStreamController.add(review);
   }
 
   Future<int> countCurrentRunQso() async {
-    return await _appDatabase.qsoTable
-            .count(
-              where: (row) {
-                return row.runId.equals(_currentContestRunId);
-              },
-            )
-            .getSingleOrNull() ??
-        0;
+    final qsos =
+        await (_appDatabase.qsoTable.select()
+              ..where((row) => row.runId.equals(_currentContestRunId)))
+            .get();
+    return uniqueQsos(qsos).length;
   }
 
   Future<List<int>> recentCurrentRunQsoTimes({int limit = 6}) async {
@@ -321,7 +371,7 @@ class ContestManager {
               ..where((row) => row.runId.equals(_currentContestRunId))
               ..orderBy([(row) => OrderingTerm.asc(row.utcInSeconds)]))
             .get();
-    return qsos
+    return uniqueQsos(qsos)
         .map((qso) => qso.utcInSeconds)
         .toList()
         .reversed

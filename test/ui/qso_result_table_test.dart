@@ -1,9 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_row.dart';
 
 void main() {
+  test('duplicate records stay visible with DUPE and exchange corrections', () {
+    final first = QsoTableData(
+      id: 1,
+      utcInSeconds: 31,
+      runId: 'run-1',
+      stationCallsign: 'BG7TVF',
+      callsign: '4X6ZM',
+      callsignCorrect: '4X6ZM',
+      exchange: '2500',
+      exchangeCorrect: '2500',
+    );
+    final duplicate = first.copyWith(id: 2, utcInSeconds: 73, exchange: '2501');
+    final rows = qsoResultsFromRecords([duplicate, first]);
+    expect(rows, hasLength(2));
+    expect(rows[0].call.data, '4X6ZM');
+    expect(rows[0].utc, '00:01:13');
+    expect(rows[0].corrections, 'DUPE 2500');
+    expect(rows[1].corrections, isEmpty);
+  });
   testWidgets('a long cell ellipsises instead of overflowing the row', (
     tester,
   ) async {

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -13,6 +15,7 @@ import 'package:ssb_runner/contest_run/data/score_data.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_state_change_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
@@ -28,6 +31,7 @@ import 'package:ssb_runner/contest_type/score_calculator.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages
@@ -36,6 +40,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 import 'package:ssb_runner/training/session_random.dart';
+import 'package:ssb_runner/training/replay_answer_source.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 
 void main() {
@@ -48,7 +53,123 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
+  for (final replay in [false, true]) {
+    test('完整会话：${replay ? "复盘记录" : "题池"}耗尽后停止并保存诊断与复盘', () async {
+      final directory = await Directory.systemTemp.createTemp('ssb_run_test');
+      final logger = AppLogger.fileBacked(
+        directory: directory.path,
+        header: '# test',
+      );
+      await logger.ready;
+      installLogger(logger);
+      final rig = await _rig(initialState: _qsoEnd());
+      final data = rig.dataManager;
+      data.callsignLoader.callSigns.add('4X6ZM');
+      data.appSettings
+        ..contestId = 'CQ-WPX'
+        ..contestModeId = TrainingMode.searchAndPounce.id
+        ..difficulty = TrainingDifficulty.beginner
+        ..pendingQuestionSeed = 42
+        ..pendingAudioSeed = 43;
+      if (replay) {
+        // There are additional unused live stations, but a recorded replay
+        // must end instead of switching to a live generator at this boundary.
+        data.callsignLoader.callSigns.add('K1ABC');
+        data.appSettings.pendingReplayRunId = 'recorded-run';
+        await rig.database
+            .into(rig.database.eventLogTable)
+            .insert(
+              EventLogTableCompanion.insert(
+                runId: 'recorded-run',
+                elapsedMs: 0,
+                eventType: 'answer',
+                createdAtUtc: 0,
+                payload: jsonEncode({
+                  'type': 'answer',
+                  'callsign': '4X6ZM',
+                  'exchange': '2500',
+                  'pileupCallsigns': ['4X6ZM'],
+                  'modeId': TrainingMode.searchAndPounce.id,
+                }),
+              ),
+            );
+      }
+      final manager = ContestManager(contestDataManager: data);
+      addTearDown(() async {
+        manager.stopContest();
+        await rig.dispose();
+        await logger.flush();
+        installLogger(AppLogger.consoleOnly());
+        await directory.delete(recursive: true);
+      });
+      final reviewFuture = manager.reviewStream.first;
+      await manager.startContest();
+      expect(manager.isContestRunning, isTrue);
+      final operations =
+          manager.contestRunningManager!.contestOperationEventHandler;
+      data.inputHandler.onCallEdit('4X6ZM');
+      await operations.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+      data.inputHandler.onExchangeEdit('2500');
+      await operations.handleOperationEvent(OperationEvent.submit);
+      final review = await reviewFuture.timeout(const Duration(seconds: 5));
+      expect(manager.isContestRunning, isFalse);
+      expect(data.audioPlayer.isStarted, isFalse);
+      expect(review.qsoCount, 1);
+      expect(
+        review.endReason,
+        replay ? 'replay_completed' : 'callsign_pool_exhausted',
+      );
+      expect(await manager.countCurrentRunQso(), 1);
+      final events = await (rig.database.select(
+        rig.database.eventLogTable,
+      )..where((row) => row.runId.equals(review.metadata.runId))).get();
+      expect(events, hasLength(1));
+      await logger.flush();
+      final logs = await File('${directory.path}/latest.log').readAsString();
+      for (final field in [
+        'runId="${review.metadata.runId}"',
+        'questionSeed=42',
+        'audioSeed=43',
+        'questionIndex=1',
+        'call="4X6ZM"',
+        'duplicate=false',
+        'reason="${review.endReason}"',
+        'answerSource="${replay ? "recorded-replay" : "live"}"',
+      ]) {
+        expect(logs, contains(field));
+      }
+      if (replay) expect(logs, contains('replayRunId="recorded-run"'));
+      expect(logs, isNot(contains('questionIndex=2')));
+    });
+  }
+
   group('QsoEnd 提交与推进', () {
+    for (final searchAndPounce in [false, true]) {
+      test('最后一题落库后结束 ${searchAndPounce ? "S&P" : "Run"} 复盘', () async {
+        String? endReason;
+        final rig = await _rig(
+          initialState: searchAndPounce ? _spListeningCq() : _qsoEnd(),
+          searchAndPounce: searchAndPounce,
+          answerSource: ReplayAnswerSource([]),
+          onAnswersExhausted: (reason) => endReason = reason,
+        );
+        if (searchAndPounce) {
+          _advanceToSpQsoEnd(rig.machine);
+          rig.input.onCallEdit('A1AAA');
+          rig.input.onExchangeEdit('007');
+        }
+        await rig.handler.handleToState(rig.machine.currentState);
+        expect(endReason, 'replay_completed');
+        expect(
+          await rig.database.select(rig.database.qsoTable).get(),
+          hasLength(1),
+        );
+        expect(rig.input.hisCall, isEmpty);
+        expect(rig.answers.calls, 0);
+        await rig.dispose();
+      });
+    }
     test('完整抄收：落库一次并推进到下一题', () async {
       final rig = await _rig(initialState: _qsoEnd());
 
@@ -225,6 +346,8 @@ Future<_Rig> _rig({
   bool searchAndPounce = false,
   AudioLoader? audioLoader,
   AppDatabase? database,
+  AnswerSource? answerSource,
+  void Function(String reason)? onAnswersExhausted,
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
   final input = ContestInputHandler();
@@ -268,10 +391,12 @@ Future<_Rig> _rig({
       stationCallsign: 'A1AAA',
       scoreCalculator: _FixedScoreCalculator(),
     ),
-    contestAnswerGenerator: answers,
+    contestAnswerGenerator: answerSource ?? answers,
+    onAnswersExhausted: onAnswersExhausted,
   );
 
   return _Rig(
+    dataManager: dataManager,
     database: db,
     input: input,
     answers: answers,
@@ -304,6 +429,7 @@ List<ContestAnswer> _answers() => [
 
 class _Rig {
   _Rig({
+    required this.dataManager,
     required this.database,
     required this.input,
     required this.answers,
@@ -313,6 +439,7 @@ class _Rig {
   });
 
   final AppDatabase database;
+  final ContestDataManager dataManager;
   final ContestInputHandler input;
   final _FixedAnswerSource answers;
   final StateMachine<SingleCallRunState, SingleCallRunEvent, Null> machine;
@@ -320,6 +447,7 @@ class _Rig {
   final ContestOperationEventHandler operationHandler;
 
   Future<void> dispose() async {
+    handler.dispose();
     try {
       await database.close();
     } catch (_) {

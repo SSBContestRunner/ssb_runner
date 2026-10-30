@@ -28,6 +28,7 @@ class ContestRunningManager {
   final TrainingDifficulty _difficulty;
   final AnswerSource? _answerSourceOverride;
   final void Function(ContestAnswer answer)? _onAnswerGenerated;
+  final void Function(String reason)? _onAnswersExhausted;
   late final SessionRandom _sessionRandom = SessionRandom(_seed);
   final int _seed;
 
@@ -64,6 +65,7 @@ class ContestRunningManager {
         stateMachine: _stateMachine,
         scoreManager: scoreManager,
         contestAnswerGenerator: _answerGenerator,
+        onAnswersExhausted: _onAnswersExhausted,
       );
 
   late final ContestOperationEventHandler contestOperationEventHandler =
@@ -97,6 +99,7 @@ class ContestRunningManager {
     required int seed,
     AnswerSource? answerSource,
     void Function(ContestAnswer answer)? onAnswerGenerated,
+    void Function(String reason)? onAnswersExhausted,
   }) : _contestType = contestType,
        _contestTimer = contestTimer,
        _contestDataManager = contestDataManager,
@@ -105,13 +108,14 @@ class ContestRunningManager {
        _difficulty = difficulty,
        _seed = seed,
        _answerSourceOverride = answerSource,
-       _onAnswerGenerated = onAnswerGenerated {
+       _onAnswerGenerated = onAnswerGenerated,
+       _onAnswersExhausted = onAnswersExhausted {
     _contestDataManager.audioLoader.setSessionRandom(_sessionRandom);
     _setupStateMachine();
     _setupKeyboardListener();
   }
 
-  void _setupStateMachine() async {
+  void _setupStateMachine() {
     final contestAnswer = _answerGenerator.generateAnswer();
 
     void transitionListener(
@@ -183,6 +187,7 @@ class ContestRunningManager {
   }
 
   void stop() {
+    _contestStateChangeHandler.dispose();
     _contestDataManager.audioLoader.setSessionRandom(null);
     _stateMachine.dispose();
     ServicesBinding.instance.keyboard.removeHandler(_keyEventCallback);

@@ -94,5 +94,18 @@ void main() {
     final decoded = TrainingRunReview.decode(review.encode()).metadata;
     expect(decoded.questionSeed, 99);
     expect(decoded.audioSeed, 100);
+    final withDuplicate = TrainingRunReview.fromQsos(
+      metadata: metadata,
+      qsos: [
+        ...qsos,
+        qsos.first.copyWith(id: 3, exchange: '999'),
+      ],
+      score: 42,
+    );
+    expect(withDuplicate.qsoCount, 2);
+    expect(withDuplicate.correctCount, 1);
+    expect(withDuplicate.duplicateCount, 1);
+    expect(withDuplicate.exchangeErrors, 1);
+    expect(TrainingRunReview.decode(withDuplicate.encode()).duplicateCount, 1);
   });
 }
