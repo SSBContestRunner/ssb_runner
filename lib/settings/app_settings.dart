@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
@@ -20,17 +20,30 @@ class AppSettings {
   /// AppSettings never disposes it.
   final ValueNotifier<AppLanguage> languageNotifier;
 
+  /// Owned by [MainApp], which listens to it to rebuild the theme mode.
+  /// AppSettings never disposes it.
+  final ValueNotifier<ThemeMode> themeModeNotifier;
+
+  /// Bumped when the F1–F12 bindings change so the console and the keyboard
+  /// reference refresh while they stay open.
+  final ValueNotifier<int> functionKeysRevision = ValueNotifier(0);
+
   AppSettings({
     required SharedPreferencesWithCache prefs,
     ValueNotifier<AppLanguage>? languageNotifier,
+    ValueNotifier<ThemeMode>? themeModeNotifier,
   }) : _prefs = prefs,
        languageNotifier =
            languageNotifier ??
-           ValueNotifier(
-             AppLanguage.fromId(prefs.getString(_settingLanguage)),
-           ) {
+           ValueNotifier(AppLanguage.fromId(prefs.getString(_settingLanguage))),
+       themeModeNotifier =
+           themeModeNotifier ??
+           ValueNotifier(_themeModeFromId(prefs.getString(_settingThemeMode))) {
     this.languageNotifier.value = AppLanguage.fromId(
       prefs.getString(_settingLanguage),
+    );
+    this.themeModeNotifier.value = _themeModeFromId(
+      prefs.getString(_settingThemeMode),
     );
   }
 
@@ -39,6 +52,13 @@ class AppSettings {
   set language(AppLanguage value) {
     _prefs.setString(_settingLanguage, value.id);
     languageNotifier.value = value;
+  }
+
+  ThemeMode get themeMode => themeModeNotifier.value;
+
+  set themeMode(ThemeMode value) {
+    _prefs.setString(_settingThemeMode, value.name);
+    themeModeNotifier.value = value;
   }
 
   String get contestId =>
@@ -147,6 +167,7 @@ class AppSettings {
           binding.action?.id ?? _spareValue,
         ),
     ]);
+    functionKeysRevision.value++;
   }
 
   void _persistFunctionKeyBindings(List<FunctionKeyBinding> bindings) {
@@ -315,6 +336,7 @@ class AppSettings {
 }
 
 const _settingLanguage = 'setting_language';
+const _settingThemeMode = 'setting_theme_mode';
 const _settingContestId = 'setting_contest_id';
 const _settingContestMode = 'setting_contest_mode';
 const _settingStationCallsign = 'setting_station_callsign';
@@ -338,6 +360,16 @@ const _settingPendingAudioSeed = 'setting_pending_audio_seed';
 const _settingPendingReplayRunId = 'setting_pending_replay_run_id';
 const _settingLockQuestionSeed = 'setting_lock_question_seed';
 const _settingLockAudioSeed = 'setting_lock_audio_seed';
+
+/// Light is the historical look, so an absent value keeps the previous theme.
+ThemeMode _themeModeFromId(String? id) {
+  for (final mode in ThemeMode.values) {
+    if (mode.name == id) {
+      return mode;
+    }
+  }
+  return ThemeMode.light;
+}
 
 enum AppLanguage {
   auto('auto'),

@@ -8,8 +8,6 @@ import 'package:ssb_runner/logging/logging_bootstrap.dart';
 import 'package:ssb_runner/ui/main_app/main_app.dart';
 import 'package:window_manager/window_manager.dart';
 
-const seedColor = Color(0xFF0059BA);
-
 void main() {
   runZonedGuarded(
     () async {

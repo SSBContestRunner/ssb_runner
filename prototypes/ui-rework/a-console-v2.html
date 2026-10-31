@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>原型 A · Console（晴空配色）— SSB Runner</title>
+    <link rel="stylesheet" href="assets/proto.css" />
+    <link rel="stylesheet" href="assets/palette-v2.css" />
+    <script src="assets/proto.js" defer></script>
+  </head>
+  <body data-console data-running="true" data-elapsed="754" data-duration="3600" data-run-control="stop">
+    <div class="app is-running">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"><span class="icon" data-icon="radio"></span></div>
+          <div class="brand-copy">
+            <div class="brand-name">SSB Runner</div>
+            <div class="brand-sub">SSB 比赛训练器</div>
+          </div>
+        </div>
+        <div class="top-divider" aria-hidden="true"></div>
+        <div class="contest-title">
+          <div class="title">CQ WPX</div>
+          <div class="meta">
+            <span>主叫</span><span aria-hidden="true">·</span>
+            <span data-difficulty-label>入门</span><span aria-hidden="true">·</span>
+            <span class="mono">BG5DRB</span>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" type="button" data-open="#keyref-overlay" aria-label="键盘速查" title="键盘速查">
+            <span class="icon" data-icon="keyboard"></span>
+          </button>
+          <button class="icon-btn" type="button" data-theme-toggle aria-label="切换主题" title="切换主题">
+            <span class="icon" data-icon="dark_mode"></span>
+          </button>
+          <button class="icon-btn tonal" type="button" data-open="#settings-overlay" aria-label="打开设置" title="设置">
+            <span class="icon" data-icon="settings"></span>
+          </button>
+        </div>
+      </header>
+
+      <main class="page">
+        <div class="console-grid">
+          <div class="console-main">
+            <section class="card log-card" aria-labelledby="log-title">
+              <div class="card-head">
+                <div class="head-copy">
+                  <h2 id="log-title">QSO 记录</h2>
+                  <div class="sub">按 UTC 顺序自动记录</div>
+                </div>
+                <div class="head-actions">
+                  <span class="chip tonal static">128 条</span>
+                  <span class="chip error static">
+                    <span class="icon" data-icon="error"></span>2 处更正
+                  </span>
+                </div>
+              </div>
+              <div class="log-scroll" tabindex="0" aria-label="QSO 记录列表">
+                <div class="log-table console-log">
+                  <div class="log-header" aria-hidden="true">
+                    <span>UTC</span>
+                    <span>呼号</span>
+                    <span>RST</span>
+                    <span>交换信息</span>
+                    <span>更正</span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:01</span><span class="call">K7AB</span><span class="rst">59</span><span class="exch">1</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:02</span><span class="call">DL6KVA</span><span class="rst">59</span><span class="exch">2</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:03</span><span class="call">JA1HRZ</span><span class="rst">59</span><span class="exch">3</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:03</span><span class="call">G4XYZ</span><span class="rst">59</span><span class="exch">4</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:04</span><span class="call">W6RQ</span><span class="rst">59</span><span class="exch">5</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:05</span><span class="call">UA9MA</span><span class="rst">59</span><span class="exch">6</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:06</span><span class="call">VK2GR</span><span class="rst">59</span><span class="exch">7</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:07</span><span class="call">F5IN</span><span class="rst">59</span><span class="exch is-wrong">9</span>
+                    <span class="corr"><span class="corr-fix">8</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:08</span><span class="call">VE7CC</span><span class="rst">59</span><span class="exch">9</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:08</span><span class="call">PY2NY</span><span class="rst">59</span><span class="exch">10</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:09</span><span class="call">KH6LC</span><span class="rst">59</span><span class="exch">11</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                  <div class="log-row">
+                    <span class="utc">12:10</span><span class="call is-wrong">OH2BK</span><span class="rst">59</span><span class="exch">12</span>
+                    <span class="corr"><span class="corr-fix">OH2BH</span></span>
+                  </div>
+                  <div class="log-row latest">
+                    <span class="utc">12:11</span><span class="call">TI5/N3KS</span><span class="rst">59</span><span class="exch">13</span>
+                    <span class="corr"><span class="corr-empty">—</span></span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="qso-console" aria-label="当前 QSO 操作台">
+              <div class="phase-line" data-phase-hint>
+                <span class="phase-icon" aria-hidden="true"><span class="icon" data-icon="mic"></span></span>
+                <div class="phase-copy">
+                  <span class="phase-title">正在收报</span>
+                  <span class="phase-hint">他发来序号 14，确认后按 Enter 提交</span>
+                </div>
+                <span class="phase-enter"><kbd>Enter</kbd> 提交</span>
+              </div>
+              <div class="qso-fields">
+                <label class="qso-field">
+                  <span class="qso-label">呼号</span>
+                  <span class="qso-value"><input value="S51A" spellcheck="false" autocomplete="off" aria-label="对方呼号" /></span>
+                  <span class="field-badge">自动大写</span>
+                </label>
+                <label class="qso-field readonly">
+                  <span class="qso-label">RST</span>
+                  <span class="qso-value"><input value="59" readonly aria-label="RST，自动填写" /></span>
+                  <span class="trailing" style="position: absolute; right: 12px; bottom: 9px">自动</span>
+                </label>
+                <label class="qso-field active">
+                  <span class="qso-label">交换信息</span>
+                  <span class="qso-value"><input value="14" spellcheck="false" autocomplete="off" aria-label="对方交换信息" /></span>
+                </label>
+              </div>
+              <div class="action-row" aria-label="发送动作">
+                <button class="action-btn" type="button" data-action="CQ" data-key="F1" data-action-label="CQ">
+                  <kbd>F1</kbd>CQ
+                </button>
+                <button class="action-btn" type="button" data-action="EXCH" data-key="F2" data-action-label="EXCH">
+                  <kbd>F2</kbd>EXCH
+                </button>
+                <button class="action-btn" type="button" data-action="TU" data-key="F3" data-action-label="TU">
+                  <kbd>F3</kbd>TU
+                </button>
+                <button class="action-btn" type="button" data-action="myCall" data-key="F4" data-action-label="&lt;my&gt;">
+                  <kbd>F4</kbd>&lt;my&gt;
+                </button>
+                <button class="action-btn" type="button" data-action="hisCall" data-key="F5" data-action-label="&lt;his&gt;">
+                  <kbd>F5</kbd>&lt;his&gt;
+                </button>
+                <button class="action-btn" type="button" data-action="before" data-key="F6" data-action-label="B4">
+                  <kbd>F6</kbd>B4
+                </button>
+                <button class="action-btn" type="button" data-action="again" data-key="F7" data-action-label="AGN">
+                  <kbd>F7</kbd>AGN
+                </button>
+                <button class="action-btn" type="button" data-action="noCopy" data-key="F8" data-action-label="NIL">
+                  <kbd>F8</kbd>NIL
+                </button>
+                <button class="action-btn" type="button" data-action="wipe" data-key="F12" data-action-label="Wipe">
+                  <kbd>F12</kbd>Wipe
+                </button>
+                <span class="action-spacer" aria-hidden="true"></span>
+                <button class="icon-btn sm" type="button" data-open="#keyref-overlay" aria-label="键盘速查与功能键设置" title="键盘速查">
+                  <span class="icon sm" data-icon="keyboard"></span>
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <aside class="console-side" aria-label="本次练习">
+            <section class="card session-card" aria-labelledby="session-title">
+              <div class="card-head">
+                <div class="head-copy">
+                  <h2 id="session-title">本次练习</h2>
+                  <div class="sub">CQ WPX · 60 分钟</div>
+                </div>
+                <div class="head-actions">
+                  <span class="status running" data-run-status role="status">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span data-run-status-text>进行中</span>
+                  </span>
+                </div>
+              </div>
+              <div class="session-body">
+                <div class="timer-block">
+                  <div class="timer-value" data-timer aria-label="已用时间">00:12:34</div>
+                  <div class="timer-meta">
+                    已用 <span data-elapsed-short>12:34</span><br />
+                    剩余 <span data-remaining>47:26</span>
+                  </div>
+                </div>
+                <div class="progress" role="progressbar" aria-label="练习进度" aria-valuemin="0" aria-valuemax="60" aria-valuenow="12">
+                  <span data-progress></span>
+                </div>
+                <div class="progress-meta"><span>0 分钟</span><span>60 分钟</span></div>
+
+                <div class="score-block">
+                  <div class="score-label"><span class="icon xs" data-icon="trophy"></span>已验证总分</div>
+                  <div class="score-value">56,160<span class="unit">分</span></div>
+                  <div class="score-aux">
+                    <span>原始 58,416</span>
+                    <span class="raw">2 处更正 · 系数 ×24</span>
+                  </div>
+                </div>
+
+                <div class="stat-grid">
+                  <div class="stat-cell">
+                    <div class="label">QSO</div>
+                    <div class="value">128</div>
+                  </div>
+                  <div class="stat-cell">
+                    <div class="label">系数</div>
+                    <div class="value">24</div>
+                  </div>
+                  <div class="stat-cell">
+                    <div class="label">速率</div>
+                    <div class="value">68.4<small>/h</small></div>
+                  </div>
+                </div>
+
+                <div class="session-foot">
+                  <button class="btn btn-filled run-btn" type="button" data-run-toggle aria-pressed="true">
+                    <span class="run-copy run-only"><span class="icon" data-icon="play_arrow"></span>开始训练</span>
+                    <span class="run-copy stop-only"><span class="icon" data-icon="stop"></span>停止训练</span>
+                  </button>
+                  <div class="session-note" data-run-note>计时中 · 随时可停止</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card rules-card" aria-labelledby="rules-title">
+              <div class="rules-head">
+                <span class="icon sm muted" data-icon="info"></span>
+                <span class="title" id="rules-title">比赛规则</span>
+                <button class="btn btn-text btn-sm" style="margin-left: auto" type="button" data-toast="打开 CQ WPX 完整规则（原型示意）">查看</button>
+              </div>
+              <div class="rules-line"><span class="who">你发送</span><span class="what">59 + 序号</span></div>
+              <div class="rules-line"><span class="who">对方发送</span><span class="what">呼号 + 序号</span></div>
+              <div class="rules-line"><span class="who">计分</span><span class="what">呼号与序号都正确才得分</span></div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <!-- Settings side sheet -->
+    <div class="overlay" id="settings-overlay" data-overlay aria-hidden="true">
+      <div class="scrim" data-close></div>
+      <aside class="side-sheet" data-tab-scope role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="sheet-head">
+          <div class="copy">
+            <div class="overline">SSB Runner</div>
+            <h2 id="settings-title">设置</h2>
+          </div>
+          <button class="icon-btn" type="button" data-close aria-label="关闭设置"><span class="icon" data-icon="close"></span></button>
+        </div>
+
+        <div class="tabs" role="tablist" data-tabs aria-label="设置分类">
+          <button class="tab" type="button" role="tab" data-tab="contest-station" aria-controls="panel-contest-station" aria-selected="true">比赛与电台</button>
+          <button class="tab" type="button" role="tab" data-tab="training" aria-controls="panel-training" aria-selected="false">训练</button>
+          <button class="tab" type="button" role="tab" data-tab="audio" aria-controls="panel-audio" aria-selected="false">音频</button>
+          <button class="tab" type="button" role="tab" data-tab="system" aria-controls="panel-system" aria-selected="false">系统</button>
+        </div>
+
+        <div class="sheet-body">
+          <section class="panel" role="tabpanel" id="panel-contest-station" data-tab-panel="contest-station">
+            <div class="field filled">
+              <label class="field-label" for="contest-name">比赛名称</label>
+              <select class="control" id="contest-name">
+                <option>CQ WPX</option>
+                <option>CQ WW</option>
+                <option>ARRL DX</option>
+                <option>IARU HF</option>
+                <option>JIDX</option>
+              </select>
+              <span class="icon sm select-icon" data-icon="expand_more"></span>
+            </div>
+            <div class="field filled" data-readonly>
+              <label class="field-label" for="contest-exchange">比赛交换格式</label>
+              <input class="control mono" id="contest-exchange" value="59 + 序号" readonly />
+            </div>
+            <div class="list-group">
+              <button class="list-row" type="button" data-toast="打开 CQ WPX 比赛规则（原型示意）">
+                <span class="row-icon"><span class="icon" data-icon="flag"></span></span>
+                <span class="row-copy">
+                  <span class="row-title">比赛规则</span>
+                  <span class="row-sub">你发送 59 + 序号，对方发送呼号 + 序号</span>
+                </span>
+                <span class="icon chev" data-icon="chevron_right"></span>
+              </button>
+            </div>
+            <div class="divider"></div>
+            <div class="panel-title" style="margin: 0">我的电台</div>
+            <div class="field filled">
+              <label class="field-label" for="station-call">呼号</label>
+              <input class="control mono" id="station-call" value="BG5DRB" spellcheck="false" />
+            </div>
+            <div class="field filled" data-readonly>
+              <label class="field-label" for="station-exchange">发送交换信息</label>
+              <input class="control mono" id="station-exchange" value="59 + 序号" readonly />
+              <div class="helper">序号从 1 开始，每完成一次通联自动加 1；无需配置，按实际数字显示、不补零。</div>
+            </div>
+            <div class="panel-note">
+              <span class="icon" data-icon="info"></span>
+              <span>比赛与电台联动：切换比赛后，发送交换信息会按新规则更新。比赛进行中无法修改设置。</span>
+            </div>
+          </section>
+
+          <section class="panel hidden" role="tabpanel" id="panel-training" data-tab-panel="training">
+            <div>
+              <div class="panel-title" style="margin: 0 0 8px">训练模式</div>
+              <div class="seg" role="group" aria-label="训练模式">
+                <button type="button" class="selected" aria-pressed="true">主叫</button>
+                <button type="button" aria-pressed="false">搜索应答</button>
+                <button type="button" aria-pressed="false">叠呼</button>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field filled">
+                <label class="field-label" for="training-duration">时长</label>
+                <input class="control mono" id="training-duration" value="60" inputmode="numeric" />
+                <div class="helper">分钟</div>
+              </div>
+              <div class="field filled">
+                <label class="field-label" for="training-difficulty">难度</label>
+                <select class="control" id="training-difficulty" data-phase-hint-source>
+                  <option value="beginner">入门</option>
+                  <option value="standard">标准</option>
+                  <option value="advanced">进阶</option>
+                </select>
+                <span class="icon sm select-icon" data-icon="expand_more"></span>
+              </div>
+            </div>
+            <div class="list-group">
+              <button class="list-row" type="button" data-toast="打开练习种子设置（原型示意）">
+                <span class="row-icon"><span class="icon" data-icon="casino"></span></span>
+                <span class="row-copy">
+                  <span class="row-title">练习种子</span>
+                  <span class="row-sub">随机种子 20261031 · 未锁定</span>
+                </span>
+                <span class="icon chev" data-icon="chevron_right"></span>
+              </button>
+            </div>
+            <div class="panel-note">
+              <span class="icon" data-icon="info"></span>
+              <span>入门难度会显示当前轮次提示；标准与进阶整行隐藏，不为提示保留空白。</span>
+            </div>
+          </section>
+
+          <section class="panel hidden" role="tabpanel" id="panel-audio" data-tab-panel="audio">
+            <div>
+              <div class="panel-title" style="margin: 0 0 6px">来台音量 · <span data-volume-output>80%</span></div>
+              <div class="slider-row">
+                <span class="icon" data-icon="volume_up"></span>
+                <input class="slider" type="range" min="0.2" max="1.2" step="0.1" value="0.8" aria-label="来台音量" />
+              </div>
+            </div>
+            <div class="field filled">
+              <label class="field-label" for="accent">来台口音</label>
+              <select class="control" id="accent">
+                <option>自动</option>
+                <option>美国</option>
+                <option>英国</option>
+                <option>日本</option>
+                <option>俄罗斯</option>
+                <option>印度 / 东南亚</option>
+              </select>
+              <span class="icon sm select-icon" data-icon="expand_more"></span>
+              <div class="helper">自动：按来台的 DXCC 实体选择口音</div>
+            </div>
+            <div class="field filled">
+              <label class="field-label" for="phonic">音标类型</label>
+              <select class="control" id="phonic">
+                <option>标准</option>
+                <option>地名</option>
+                <option>混合</option>
+              </select>
+              <span class="icon sm select-icon" data-icon="expand_more"></span>
+            </div>
+            <div class="panel-note">
+              <span class="icon" data-icon="graphic_eq"></span>
+              <span>音频设置会在下一轮生效，不影响当前正在播放的语音。</span>
+            </div>
+          </section>
+
+          <section class="panel hidden" role="tabpanel" id="panel-system" data-tab-panel="system">
+            <div class="field filled">
+              <label class="field-label" for="language">语言</label>
+              <select class="control" id="language">
+                <option>简体中文</option>
+                <option>English</option>
+                <option>繁體中文</option>
+                <option>日本語</option>
+                <option>跟随系统</option>
+              </select>
+              <span class="icon sm select-icon" data-icon="expand_more"></span>
+            </div>
+            <div class="list-group">
+              <button class="list-row" type="button" data-open="#keyref-overlay">
+                <span class="row-icon"><span class="icon" data-icon="keyboard"></span></span>
+                <span class="row-copy">
+                  <span class="row-title">功能键</span>
+                  <span class="row-sub">查看键位 · 自定义 F1–F12</span>
+                </span>
+                <span class="icon chev" data-icon="chevron_right"></span>
+              </button>
+              <button class="list-row" type="button" data-toast="打开历史练习列表（原型示意）">
+                <span class="row-icon"><span class="icon" data-icon="history"></span></span>
+                <span class="row-copy">
+                  <span class="row-title">历史练习</span>
+                  <span class="row-sub">复盘、重放以及导入练习种子</span>
+                </span>
+                <span class="icon chev" data-icon="chevron_right"></span>
+              </button>
+            </div>
+            <div class="divider"></div>
+            <div class="switch-row">
+              <div class="row-copy">
+                <div class="row-title">详细日志</div>
+                <div class="row-sub">记录调试详情以便排查问题</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" aria-label="详细日志" />
+                <span class="track"></span><span class="thumb"></span>
+              </label>
+            </div>
+            <div class="sheet-actions">
+              <button class="btn btn-outlined" type="button" data-toast="诊断摘要已复制（原型示意）" data-toast-icon="content_copy">
+                <span class="icon" data-icon="content_copy"></span>复制诊断
+              </button>
+              <button class="btn btn-outlined" type="button" data-toast="正在导出日志包（原型示意）" data-toast-icon="download">
+                <span class="icon" data-icon="download"></span>导出日志
+              </button>
+            </div>
+            <div class="panel-note">
+              <span class="icon" data-icon="check_circle"></span>
+              <span>所有更改即时保存，无需额外确认。</span>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>
