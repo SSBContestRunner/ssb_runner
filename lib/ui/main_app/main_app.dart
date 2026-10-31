@@ -13,6 +13,9 @@ import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/db/database_bootstrap.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/app_l10n.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
+import 'package:ssb_runner/l10n/locale_resolution.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/boot_trace.dart';
 import 'package:ssb_runner/logging/logging_bootstrap.dart';
@@ -36,6 +39,9 @@ class MainApp extends StatefulWidget {
 
 class _MainAppState extends State<MainApp> {
   late final AppLifecycleListener _listener;
+
+  /// Owned here so the MaterialApp can rebuild when the language changes.
+  final ValueNotifier<AppLanguage> _language = ValueNotifier(AppLanguage.auto);
 
   @override
   void initState() {
@@ -176,64 +182,79 @@ class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
     return ToastificationWrapper(
-      child: MaterialApp(
-        navigatorKey: Catcher2.navigatorKey,
-        title: 'SSB Runner',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: seedColor,
-            primary: seedColor,
-          ),
-        ),
-        home: MultiRepositoryProvider(
-          providers: [
-            RepositoryProvider(create: (context) => AppDatabase()),
-            RepositoryProvider(create: (context) => AudioLoader()),
-            RepositoryProvider(create: (context) => AudioPlayer()),
-            RepositoryProvider(create: (context) => CallsignLoader()),
-            RepositoryProvider(
-              create: (context) => DxccManager(database: context.read()),
-            ),
-          ],
-          child: BlocProvider(
-            create: (context) => _MainAppCubit()
-              ..load(
-                dxccManager: context.read(),
-                callsignLoader: context.read(),
+      child: ValueListenableBuilder<AppLanguage>(
+        valueListenable: _language,
+        builder: (context, language, _) {
+          return MaterialApp(
+            navigatorKey: Catcher2.navigatorKey,
+            title: 'SSB Runner',
+            locale: appLanguageLocale(language),
+            localeListResolutionCallback: resolveAppLocale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) {
+              AppL10n.update(AppLocalizations.of(context));
+              return child ?? const SizedBox.shrink();
+            },
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: seedColor,
+                primary: seedColor,
               ),
-            child: BlocListener<_MainAppCubit, _AppState>(
-              listenWhen: (previous, current) =>
-                  current is _Ready && current.deps.warning != null,
-              listener: (context, state) {
-                final warning = (state as _Ready).deps.warning;
-                if (warning == null) {
-                  return;
-                }
+            ),
+            home: MultiRepositoryProvider(
+              providers: [
+                RepositoryProvider(create: (context) => AppDatabase()),
+                RepositoryProvider(create: (context) => AudioLoader()),
+                RepositoryProvider(create: (context) => AudioPlayer()),
+                RepositoryProvider(create: (context) => CallsignLoader()),
+                RepositoryProvider(
+                  create: (context) => DxccManager(database: context.read()),
+                ),
+              ],
+              child: BlocProvider(
+                create: (context) => _MainAppCubit(language: _language)
+                  ..load(
+                    dxccManager: context.read(),
+                    callsignLoader: context.read(),
+                  ),
+                child: BlocListener<_MainAppCubit, _AppState>(
+                  listenWhen: (previous, current) =>
+                      current is _Ready && current.deps.warning != null,
+                  listener: (context, state) {
+                    final warning = (state as _Ready).deps.warning;
+                    if (warning == null) {
+                      return;
+                    }
 
-                // The overlay may not be mounted yet when startup finishes
-                // before the first frame.
-                WidgetsBinding.instance.addPostFrameCallback(
-                  (_) => _showStartupWarning(warning),
-                );
-              },
-              child: BlocBuilder<_MainAppCubit, _AppState>(
-                builder: (context, state) {
-                  switch (state) {
-                    case _Loading():
-                      return Container(
-                        color: ColorScheme.of(context).surface,
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
-                    case _Ready(:final deps):
-                      return HomePage(prefs: deps.prefs);
-                    case _Failed(:final message):
-                      return _StartupFailure(message: message);
-                  }
-                },
+                    // The overlay may not be mounted yet when startup finishes
+                    // before the first frame.
+                    WidgetsBinding.instance.addPostFrameCallback(
+                      (_) => _showStartupWarning(warning),
+                    );
+                  },
+                  child: BlocBuilder<_MainAppCubit, _AppState>(
+                    builder: (context, state) {
+                      switch (state) {
+                        case _Loading():
+                          return Container(
+                            color: ColorScheme.of(context).surface,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        case _Ready(:final deps):
+                          return HomePage(settings: deps.settings);
+                        case _Failed(:final message):
+                          return _StartupFailure(message: message);
+                      }
+                    },
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -241,17 +262,18 @@ class _MainAppState extends State<MainApp> {
   @override
   void dispose() {
     _listener.dispose();
+    _language.dispose();
     super.dispose();
   }
 }
 
 class _AppDeps {
-  final SharedPreferencesWithCache prefs;
+  final AppSettings settings;
 
   /// Non-fatal problem to surface once the main page is up.
   final String? warning;
 
-  _AppDeps({required this.prefs, this.warning});
+  _AppDeps({required this.settings, this.warning});
 }
 
 sealed class _AppState {
@@ -275,7 +297,11 @@ class _Failed extends _AppState {
 }
 
 class _MainAppCubit extends Cubit<_AppState> {
-  _MainAppCubit() : super(const _Loading());
+  final ValueNotifier<AppLanguage> _language;
+
+  _MainAppCubit({required ValueNotifier<AppLanguage> language})
+    : _language = language,
+      super(const _Loading());
 
   Future<void> load({
     required DxccManager dxccManager,
@@ -295,8 +321,10 @@ class _MainAppCubit extends Cubit<_AppState> {
         ),
       );
 
+      final settings = AppSettings(prefs: prefs, languageNotifier: _language);
+
       // Apply the persisted verbosity choice as early as possible.
-      log.setVerbose(AppSettings(prefs: prefs).verboseLogging);
+      log.setVerbose(settings.verboseLogging);
 
       await boot.step(
         'worker_manager_init',
@@ -325,7 +353,7 @@ class _MainAppCubit extends Cubit<_AppState> {
       emit(
         _Ready(
           _AppDeps(
-            prefs: prefs,
+            settings: settings,
             warning: warnings.isEmpty ? null : warnings.join('\n'),
           ),
         ),
@@ -396,6 +424,7 @@ class _StartupFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: Center(
         child: Padding(
@@ -405,7 +434,7 @@ class _StartupFailure extends StatelessWidget {
             children: [
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 16),
-              const Text('SSB Runner failed to start'),
+              Text(l10n.startupFailedTitle),
               const SizedBox(height: 8),
               SelectableText(
                 message,
@@ -418,11 +447,11 @@ class _StartupFailure extends StatelessWidget {
                 children: [
                   OutlinedButton(
                     onPressed: () => copyDiagnosticSummary(context),
-                    child: const Text('Copy diagnostics'),
+                    child: Text(l10n.copyDiagnostics),
                   ),
                   FilledButton(
                     onPressed: () => exportDiagnosticArchive(context),
-                    child: const Text('Export logs'),
+                    child: Text(l10n.exportLogs),
                   ),
                 ],
               ),

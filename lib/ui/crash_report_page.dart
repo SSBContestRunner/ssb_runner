@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:catcher_2/catcher_2.dart';
 import 'package:catcher_2/model/platform_type.dart';
 import 'package:flutter/material.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/ui/diagnostics_actions.dart';
 
 /// Release report mode that shows a full error page with recovery actions
@@ -77,6 +78,7 @@ class CrashReportPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     final error = report.error ?? report.errorDetails?.exception;
 
     return Scaffold(
@@ -92,15 +94,13 @@ class CrashReportPage extends StatelessWidget {
                   const Icon(Icons.error_outline, size: 48),
                   const SizedBox(height: 16),
                   Text(
-                    'SSB Runner hit an unexpected error',
+                    l10n.crashTitle,
                     style: textTheme.titleLarge,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'The current run may have been interrupted. Export the logs '
-                    'or copy the diagnostic summary so the problem can be '
-                    'investigated.',
+                    l10n.crashDescription,
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium,
                   ),
@@ -115,7 +115,7 @@ class CrashReportPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: SelectableText(
-                      error?.toString() ?? 'Unknown error',
+                      error?.toString() ?? l10n.unknownError,
                       style: textTheme.bodySmall,
                     ),
                   ),
@@ -129,21 +129,21 @@ class CrashReportPage extends StatelessWidget {
                         FilledButton.icon(
                           onPressed: () => _sendReport(context),
                           icon: const Icon(Icons.upload_file),
-                          label: const Text('Send report'),
+                          label: Text(l10n.sendReport),
                         ),
                       FilledButton.tonalIcon(
                         onPressed: () => exportDiagnosticArchive(context),
                         icon: const Icon(Icons.download),
-                        label: const Text('Export logs'),
+                        label: Text(l10n.exportLogs),
                       ),
                       OutlinedButton.icon(
                         onPressed: () => copyDiagnosticSummary(context),
                         icon: const Icon(Icons.copy),
-                        label: const Text('Copy diagnostics'),
+                        label: Text(l10n.copyDiagnostics),
                       ),
                       TextButton(
                         onPressed: () => _close(context),
-                        child: const Text('Close'),
+                        child: Text(l10n.close),
                       ),
                     ],
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 class KeyTips extends StatelessWidget {
@@ -8,16 +9,18 @@ class KeyTips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Semantics(
-      label: 'Keyboard reference dialog',
+      label: l10n.keyTipsSemantics,
       container: true,
       child: Container(
         color: colorScheme.scrim.withAlpha(125),
         child: Center(
           child: SizedBox(
             width: 480,
-            height: 320,
+            // Seven key rows (Tab … Enter, F12, Esc) need the extra height.
+            height: 470,
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
@@ -30,7 +33,7 @@ class KeyTips extends StatelessWidget {
                   spacing: 8,
                   children: [
                     Expanded(
-                      child: Padding(
+                      child: SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
                         child: Flex(
                           direction: Axis.horizontal,
@@ -42,11 +45,14 @@ class KeyTips extends StatelessWidget {
                               spacing: 16,
                               children: _keys(),
                             ),
-                            // Descriptions
-                            Flex(
-                              direction: Axis.vertical,
-                              spacing: 30,
-                              children: _descriptions(),
+                            // Descriptions share the remaining width so long
+                            // hints wrap instead of overflowing the dialog.
+                            Expanded(
+                              child: Flex(
+                                direction: Axis.vertical,
+                                spacing: 30,
+                                children: _descriptions(l10n),
+                              ),
                             ),
                           ],
                         ),
@@ -61,7 +67,7 @@ class KeyTips extends StatelessWidget {
                             onPressed: () {
                               context.read<MainPageCubit>().hideKeyTips();
                             },
-                            child: Text('Close'),
+                            child: Text(l10n.close),
                           ),
                         ],
                       ),
@@ -91,17 +97,21 @@ class KeyTips extends StatelessWidget {
       _KeyboardKey(keyText: 'Space'),
       _KeyboardKey(keyText: ';'),
       _KeyboardKey(keyText: 'Enter'),
+      _KeyboardKey(keyText: 'F12'),
+      _KeyboardKey(keyText: 'Esc'),
     ];
   }
 
-  List<Widget> _descriptions() {
+  List<Widget> _descriptions(AppLocalizations l10n) {
     final textStyle = TextStyle(fontSize: 14);
     return [
-      Text('move cursor to next input', style: textStyle),
-      Text('move cursor to previous input', style: textStyle),
-      Text('toggle between CALL and Exchange', style: textStyle),
-      Text('send his call and exchange (F2 + F5)', style: textStyle),
-      Text('submit your record', style: textStyle),
+      Text(l10n.keyTipNextInput, style: textStyle),
+      Text(l10n.keyTipPreviousInput, style: textStyle),
+      Text(l10n.keyTipToggleCallExchange, style: textStyle),
+      Text(l10n.keyTipSendCallExchange, style: textStyle),
+      Text(l10n.keyTipSubmit, style: textStyle),
+      Text(l10n.keyTipClearInput, style: textStyle),
+      Text(l10n.keyTipStopSending, style: textStyle),
     ];
   }
 }

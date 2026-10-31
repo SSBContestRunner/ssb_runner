@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list.dart';
 
 class QsoRecordTable extends StatelessWidget {
@@ -7,6 +8,7 @@ class QsoRecordTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
+    final l10n = AppLocalizations.of(context);
     final textStyle = TextTheme.of(
       context,
     ).bodyMedium?.copyWith(color: colorScheme.primary);
@@ -24,11 +26,13 @@ class QsoRecordTable extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  Expanded(child: _headerCell('UTC', textStyle)),
-                  Expanded(child: _headerCell('Call', textStyle)),
-                  Expanded(child: _headerCell('Rst', textStyle)),
-                  Expanded(child: _headerCell('Exchange', textStyle)),
-                  Expanded(child: _headerCell('Corrections', textStyle)),
+                  Expanded(child: _headerCell(l10n.tableUtc, textStyle)),
+                  Expanded(child: _headerCell(l10n.tableCall, textStyle)),
+                  Expanded(child: _headerCell(l10n.tableRst, textStyle)),
+                  Expanded(child: _headerCell(l10n.tableExchange, textStyle)),
+                  Expanded(
+                    child: _headerCell(l10n.tableCorrections, textStyle),
+                  ),
                 ],
               ),
             ),

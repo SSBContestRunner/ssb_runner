@@ -98,6 +98,14 @@ void main() {
     expect(ContestRegistry.all, hasLength(5));
   });
 
+  test('every definition provides a rules summary fallback', () {
+    for (final definition in ContestRegistry.all) {
+      expect(definition.rulesSummary, isNotEmpty, reason: definition.id);
+      // The dialog renders one line per exchange step.
+      expect(definition.rulesSummary.split('\n'), hasLength(3));
+    }
+  });
+
   test('byId falls back to CQ-WPX for unknown ids', () {
     expect(ContestRegistry.byId('missing').id, 'CQ-WPX');
     expect(ContestRegistry.byId(null).id, 'CQ-WPX');

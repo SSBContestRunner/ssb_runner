@@ -164,6 +164,116 @@ void main() {
     }
   });
 
+  group('F1 归还被放弃的台', () {
+    test('池非空时旧目标留在 PILE-UP 中但不是主音', () {
+      final source = _generator(_loader(), 7);
+      final abandoned = source.generateAnswer();
+
+      final next = source.generateAnswer(requeueCallsign: abandoned.callSign);
+
+      expect(next.callSign, isNot(abandoned.callSign));
+      expect(next.pileupCallsigns.first, next.callSign);
+      expect(
+        next.pileupCallsigns.indexOf(abandoned.callSign),
+        greaterThanOrEqualTo(1),
+      );
+      expect(next.pileupCallsigns.toSet().length, next.pileupCallsigns.length);
+    });
+
+    test('归还后可在后续轮次重新成为主目标', () {
+      final source = _generator(
+        CallsignLoader()..callSigns.addAll(['ONLY1', 'ONLY2']),
+        7,
+      );
+      final abandoned = source.generateAnswer();
+
+      final second = source.generateAnswer(requeueCallsign: abandoned.callSign);
+      expect(second.callSign, 'ONLY2');
+      expect(second.pileupCallsigns, ['ONLY2', 'ONLY1']);
+
+      // The pool now holds only the requeued station again.
+      final third = source.generateAnswer();
+      expect(third.callSign, 'ONLY1');
+      expect(source.generateAnswer, throwsA(isA<AnswerSourceExhausted>()));
+    });
+
+    test('池耗尽时归还者降级为主音，而不是结束序列', () {
+      final source = _generator(CallsignLoader()..callSigns.add('ONLY1'), 7);
+      final abandoned = source.generateAnswer();
+
+      final next = source.generateAnswer(requeueCallsign: abandoned.callSign);
+
+      expect(next.callSign, 'ONLY1');
+      expect(next.pileupCallsigns, ['ONLY1']);
+      // Without a requeue the pool is still exhausted.
+      expect(source.generateAnswer, throwsA(isA<AnswerSourceExhausted>()));
+    });
+
+    test('Run 模式下归还只回池，不进入本轮混音列表', () {
+      final source = ContestAnswerGenerator(
+        callsignLoader: _loader(),
+        contestType: _contestType(),
+        mode: TrainingMode.run,
+        difficulty: TrainingDifficulty.advanced,
+        random: SessionRandom(7),
+      );
+      final abandoned = source.generateAnswer();
+
+      final next = source.generateAnswer(requeueCallsign: abandoned.callSign);
+      expect(next.callSign, isNot(abandoned.callSign));
+      expect(next.pileupCallsigns, [next.callSign]);
+
+      final later = [
+        for (var i = 0; i < 4; i++) source.generateAnswer().callSign,
+      ];
+      expect(later, contains(abandoned.callSign));
+      expect(later.toSet(), hasLength(4));
+      expect(source.generateAnswer, throwsA(isA<AnswerSourceExhausted>()));
+    });
+
+    test('连续放弃：每次只归还当前目标，列表无重复', () {
+      final source = _generator(_loader(), 7);
+      final first = source.generateAnswer();
+      final second = source.generateAnswer(requeueCallsign: first.callSign);
+
+      final third = source.generateAnswer(requeueCallsign: second.callSign);
+
+      expect(third.callSign, isNot(second.callSign));
+      expect(third.pileupCallsigns.first, third.callSign);
+      expect(third.pileupCallsigns.skip(1), contains(second.callSign));
+      expect(
+        third.pileupCallsigns.toSet().length,
+        third.pileupCallsigns.length,
+      );
+    });
+
+    test('归还呼号先归一化再比较与回池', () {
+      final source = _generator(_loader(), 7);
+      final abandoned = source.generateAnswer();
+
+      final next = source.generateAnswer(
+        requeueCallsign: ' ${abandoned.callSign.toLowerCase()} ',
+      );
+
+      expect(next.pileupCallsigns.skip(1), contains(abandoned.callSign));
+    });
+
+    test('回放忽略归还参数，按录制内容原样播放', () {
+      final recorded = ContestAnswer(
+        callSign: 'A1AAA',
+        exchange: '12',
+        pileupCallsigns: const ['A1AAA', 'B2BBB'],
+        mode: TrainingMode.pileup,
+      );
+      final source = ReplayAnswerSource([recorded]);
+
+      final served = source.generateAnswer(requeueCallsign: 'ZZ9ZZZ');
+
+      expect(served.callSign, 'A1AAA');
+      expect(served.pileupCallsigns, ['A1AAA', 'B2BBB']);
+    });
+  });
+
   test('legacy review json without dual seeds still decodes', () {
     final legacy = jsonEncode({
       'runId': 'run-1',

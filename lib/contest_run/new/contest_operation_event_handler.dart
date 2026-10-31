@@ -22,6 +22,7 @@ class ContestOperationEventHandler {
   final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
   final ContestInputHandler _inputHandler;
+  final Future<void> Function()? _onAbandonRound;
 
   String get _hisCall => _inputHandler.hisCall;
 
@@ -45,14 +46,17 @@ class ContestOperationEventHandler {
     required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
     stateMachine,
     required ContestInputHandler inputHandler,
+    Future<void> Function()? onAbandonRound,
   }) : _contestRunId = contestRunId,
        _contestDataManager = contestDataManager,
        _contestType = contestType,
        _stateMachine = stateMachine,
-       _inputHandler = inputHandler;
+       _inputHandler = inputHandler,
+       _onAbandonRound = onAbandonRound;
 
   // region operation event handler
   Future<void> handleOperationEvent(OperationEvent event) async {
+    log.debug('operation event', tag: 'contest', fields: {'event': event.name});
     await _playAudioByOperationEvent(event);
     await _handleOperationEventBusiness(event);
   }
@@ -120,6 +124,7 @@ class ContestOperationEventHandler {
         break;
       case OperationEvent.submit:
       case OperationEvent.cancel:
+      case OperationEvent.wipe:
         break;
     }
 
@@ -177,6 +182,8 @@ class ContestOperationEventHandler {
   Future<void> _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
       case OperationEvent.cq:
+        await _handleCq();
+        break;
       case OperationEvent.agn:
         transition(Retry());
         break;
@@ -195,9 +202,33 @@ class ContestOperationEventHandler {
       case OperationEvent.exch:
         _handleExchEvent();
         break;
+      case OperationEvent.wipe:
+        // Wipe only clears the operator's input: no state change, no audio,
+        // no database write and no operation log.
+        _inputHandler.clear();
+        break;
       default:
         break;
     }
+  }
+
+  /// States of a QSO that has started but not been committed yet. F1 there
+  /// means "give up this round", not "call CQ again".
+  bool get _isInFlightQso => switch (_stateMachine.currentState) {
+    HeRepeatCorrectCallAnswer() ||
+    HeAskForExchange() ||
+    WaitingSubmitMyExchange() ||
+    ReportMyExchange() => true,
+    _ => false,
+  };
+
+  Future<void> _handleCq() async {
+    if (_isInFlightQso) {
+      await _onAbandonRound?.call();
+      return;
+    }
+
+    transition(Retry());
   }
 
   Future<void> _handleSubmit({bool isOperateInput = true}) async {
@@ -229,6 +260,18 @@ class ContestOperationEventHandler {
           myExchange: await _myExchange(),
         ),
       );
+      return;
+    }
+
+    if (currentState is HeAskForExchange) {
+      // He asked for his serial: Enter sends what the operator copied. With
+      // nothing copied, replay the request instead of dropping the key press.
+      if (_exchange.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
+      transition(SubmitHisExchange(exchange: _exchange));
       return;
     }
 
@@ -275,6 +318,18 @@ class ContestOperationEventHandler {
     _audioPlayer.resetStream();
   }
 
+  /// F5 (`<his>`) sends the callsign the operator copied. What that means for
+  /// the round depends on where it stands, so the states are spelled out
+  /// instead of inferred:
+  ///
+  /// - still waiting for the callsign (or he is repeating it): the copy is
+  ///   submitted, as before;
+  /// - the callsign is already agreed and he owes us the exchange: he repeats
+  ///   his serial, exactly like F7 (AGN). Run and S&P both work this way.
+  ///
+  /// States outside the matrix (sign-off, report being sent) get nothing on
+  /// purpose: they have no `Retry` handler, so a blanket retry would only spam
+  /// the state log with dropped-event warnings.
   Future<void> _handleHisCall() async {
     await _waitAudioNotPlaying();
 
@@ -282,15 +337,18 @@ class ContestOperationEventHandler {
       return;
     }
 
-    if (_stateMachine.currentState is WaitingSubmitCall ||
-        _stateMachine.currentState is HeRepeatCorrectCallAnswer) {
-      _stateMachine.transition(SubmitCall(call: _hisCall));
-      return;
-    }
-
-    if (_stateMachine.currentState is HeAskForExchange) {
-      transition(Retry());
-      return;
+    switch (_stateMachine.currentState) {
+      case WaitingSubmitCall():
+      case HeRepeatCorrectCallAnswer():
+        _stateMachine.transition(SubmitCall(call: _hisCall));
+        break;
+      case HeAskForExchange():
+      case WaitingSubmitMyExchange():
+      case SpWaitingHisExchange():
+        transition(Retry());
+        break;
+      default:
+        break;
     }
   }
 

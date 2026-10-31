@@ -30,7 +30,9 @@ class ReplayAnswerSource implements AnswerSource {
   }
 
   @override
-  ContestAnswer generateAnswer() {
+  ContestAnswer generateAnswer({String? requeueCallsign}) {
+    // The recording already reflects the requeue: the abandoned station was
+    // part of the pileup list when the answer was served live.
     if (_index < _answers.length) {
       return _answers[_index++];
     }
@@ -47,8 +49,8 @@ class RecordingAnswerSource implements AnswerSource {
   final void Function(ContestAnswer answer)? _onAnswer;
 
   @override
-  ContestAnswer generateAnswer() {
-    final answer = _inner.generateAnswer();
+  ContestAnswer generateAnswer({String? requeueCallsign}) {
+    final answer = _inner.generateAnswer(requeueCallsign: requeueCallsign);
     _onAnswer?.call(answer);
     return answer;
   }

@@ -1,10 +1,10 @@
 import 'package:catcher_2/handlers/console_handler.dart';
-import 'package:catcher_2/mode/dialog_report_mode.dart';
 import 'package:catcher_2/model/catcher_2_options.dart';
-import 'package:catcher_2/model/platform_type.dart';
 import 'package:catcher_2/model/report.dart';
 import 'package:catcher_2/model/report_handler.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/crash_issue_reporter.dart';
 import 'package:ssb_runner/ui/crash_report_page.dart';
@@ -12,27 +12,22 @@ import 'package:toastification/toastification.dart';
 
 /// Builds the Catcher2 configurations used for debug and release builds.
 ///
-/// Reports are written to the shared log file so unhandled exceptions and
-/// ordinary progress records end up interleaved in a single timeline. Debug
-/// builds log through [_LoggingReportHandler] and show a dialog; release
-/// builds log as soon as the error page opens and additionally file accepted
-/// reports as GitHub issues through [CrashIssueReporter].
+/// Both builds show the same full-screen [CrashReportPage] and log the report
+/// to the shared log file as soon as the page opens, so unhandled exceptions
+/// and ordinary progress records end up interleaved in a single timeline.
+/// Only release builds can file the accepted report as a GitHub issue through
+/// [CrashIssueReporter], and only when a build token is configured.
 Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
-  final logHandler = _LoggingReportHandler();
   final issueReporter = CrashIssueReporter(onResult: _showReportResult);
 
-  final debugOptions = Catcher2Options(DialogReportMode(), <ReportHandler>[
-    ConsoleHandler(),
-    logHandler,
-  ]);
+  final debugOptions = _buildOptions(
+    canSendReport: false,
+    handlers: <ReportHandler>[ConsoleHandler()],
+  );
 
-  final releaseOptions = Catcher2Options(
-    CrashReportMode(
-      canSendReport: crashIssueReportingEnabled,
-      onReport: _logCrashReport,
-    ),
-    <ReportHandler>[issueReporter],
-    handlerTimeout: 30000,
+  final releaseOptions = _buildOptions(
+    canSendReport: crashIssueReportingEnabled,
+    handlers: <ReportHandler>[issueReporter],
   );
 
   log.info('error handling ready', tag: 'crash');
@@ -40,26 +35,22 @@ Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
   return (debugOptions, releaseOptions);
 }
 
-class _LoggingReportHandler extends ReportHandler {
-  @override
-  List<PlatformType> getSupportedPlatforms() => PlatformType.values;
-
-  /// Persist the error even when the user dismisses the report page. Logging
-  /// must not depend on the crash being submitted.
-  @override
-  bool shouldHandleWhenRejected() => true;
-
-  @override
-  Future<bool> handle(Report report, BuildContext? context) async {
-    _logCrashReport(report);
-    return true;
-  }
+Catcher2Options _buildOptions({
+  required bool canSendReport,
+  required List<ReportHandler> handlers,
+}) {
+  return Catcher2Options(
+    CrashReportMode(canSendReport: canSendReport, onReport: _logCrashReport),
+    handlers,
+    handlerTimeout: 30000,
+  );
 }
 
 /// Writes the report into the shared log so the crash survives dismissal and
 /// is included in copied/exported diagnostics.
 void _logCrashReport(Report report) {
   final stackTrace = report.stackTrace;
+  final details = report.errorDetails;
 
   log.error(
     'Unhandled error',
@@ -69,6 +60,12 @@ void _logCrashReport(Report report) {
       'platform': '${report.platformType}',
       'device': safeDeviceParameters(report.deviceParameters),
       'application': report.applicationParameters,
+      // Layout errors (e.g. RenderFlex overflow) carry no stack trace; the
+      // widget/file that caused them only lives in the details diagnostics
+      // (debugCreator). Without it a report cannot be traced to the widget
+      // that overflowed. Debug only: the creator chain is unavailable in
+      // release anyway and its dump would bloat the report.
+      if (kDebugMode && details != null) 'error_details': details.toString(),
     },
     error: report.error,
     stackTrace: stackTrace is StackTrace ? stackTrace : null,
@@ -81,12 +78,11 @@ void _showReportResult(CrashReportOutcome outcome, Uri? issueUrl) {
     return;
   }
 
+  final l10n = AppL10n.current;
   final failed = outcome == CrashReportOutcome.failed;
   final Widget? description;
   if (failed) {
-    description = const Text(
-      'Export logs from Settings and attach them manually.',
-    );
+    description = Text(l10n.crashReportManualLogs);
   } else if (issueUrl != null) {
     description = Text(issueUrl.toString());
   } else {
@@ -95,9 +91,9 @@ void _showReportResult(CrashReportOutcome outcome, Uri? issueUrl) {
 
   toastification.show(
     title: Text(switch (outcome) {
-      CrashReportOutcome.created => 'Crash report submitted',
-      CrashReportOutcome.duplicate => 'Crash report added to an existing issue',
-      CrashReportOutcome.failed => 'Crash report could not be sent',
+      CrashReportOutcome.created => l10n.crashReportSubmitted,
+      CrashReportOutcome.duplicate => l10n.crashReportDuplicate,
+      CrashReportOutcome.failed => l10n.crashReportFailed,
       CrashReportOutcome.disabled => '',
     }),
     description: description,

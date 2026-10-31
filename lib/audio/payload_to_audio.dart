@@ -1,12 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/wav_to_pcm.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
-
-String obtainAssetDir(bool isMe, int dxccId) {
-  return isMe ? myAudioAccentDir : obtainAccentByDxccId(dxccId);
-}
 
 String obtainRstAudioFileName(bool isMe, {bool isCallsignCorrect = true}) {
   if (isMe) {
