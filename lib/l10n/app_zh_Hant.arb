@@ -174,7 +174,7 @@
   "settingsTabSystem": "系統",
   "settingsContestSection": "比賽",
   "myStation": "我的電台",
-  "stationExchangeReadonlyHint": "依比賽規則自動產生。",
+  "stationSerialAutoHint": "序號按 QSO 數量自動產生，無需設定。",
   "settingsRunningLock": "比賽進行中無法修改設定，請先停止本次練習。",
   "settingsFunctionKeysRowSubtitle": "查看鍵位 · 自訂 F1–F12",
   "settingsHistoryRowSubtitle": "復盤、重播以及匯入練習種子",
