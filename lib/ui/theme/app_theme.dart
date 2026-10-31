@@ -149,14 +149,15 @@ extension AppSemanticColorsContext on BuildContext {
       Theme.of(this).extension<AppSemanticColors>()!;
 }
 
-/// Iosevka is the primary Latin/digit face; CJK and missing glyphs fall back
-/// to the platform's sans-serif stack.
+/// Iosevka is the primary Latin/digit face. Chinese text uses the bundled
+/// Noto Sans SC subset so glyphs look the same on every platform; the system
+/// CJK families only cover characters outside that subset.
 const appFontFallback = <String>[
-  'Hiragino Sans',
+  cjkFontFamily,
   'PingFang SC',
-  'Noto Sans CJK JP',
+  'Hiragino Sans GB',
   'Noto Sans CJK SC',
-  'Noto Sans SC',
+  'Noto Sans CJK JP',
   'Source Han Sans SC',
   'Microsoft YaHei',
   'WenQuanYi Micro Hei',

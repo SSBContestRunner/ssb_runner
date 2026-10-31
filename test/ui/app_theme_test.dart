@@ -60,8 +60,8 @@ void main() {
     expect(style.fontFeatures, contains(const FontFeature.tabularFigures()));
     expect(theme.textTheme.bodyMedium?.fontFamily, 'Iosevka');
     expect(
-      theme.textTheme.bodyMedium?.fontFamilyFallback,
-      contains('PingFang SC'),
+      theme.textTheme.bodyMedium?.fontFamilyFallback?.first,
+      'Noto Sans SC',
     );
   });
 }
