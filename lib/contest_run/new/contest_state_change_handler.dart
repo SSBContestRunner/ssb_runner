@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/mix_pileup.dart';
@@ -24,7 +25,7 @@ import 'package:ssb_runner/state_machine/state_machine.dart';
 
 import '../../dxcc/dxcc_manager.dart';
 
-const _timeoutDuration = Duration(seconds: 10);
+const _defaultTimeoutDuration = Duration(seconds: 10);
 
 class ContestStateChangeHandler {
   final String _contestRunId;
@@ -36,6 +37,7 @@ class ContestStateChangeHandler {
   final ScoreManager _scoreManager;
   final AnswerSource _answerGenerator;
   final void Function(String reason)? _onAnswersExhausted;
+  final Duration _retryTimeout;
   bool _disposed = false;
 
   late final AudioLoader _audioLoader = _contestDataManager.audioLoader;
@@ -49,7 +51,11 @@ class ContestStateChangeHandler {
   late final DxccManager _dxccManager = _contestDataManager.dxccManager;
   late final AppSettings _appSettings = _contestDataManager.appSettings;
 
+  /// Fixed for the whole run: built by [ContestManager.startContest].
+  final AccentPolicy _accentPolicy;
+
   Timer? _retryTimer;
+  bool _isAbandoning = false;
 
   ContestStateChangeHandler({
     required String contestRunId,
@@ -61,18 +67,25 @@ class ContestStateChangeHandler {
     required ScoreManager scoreManager,
     required AnswerSource contestAnswerGenerator,
     void Function(String reason)? onAnswersExhausted,
-  }) : _contestRunId = contestRunId,
+    required AccentPolicy accentPolicy,
+    Duration retryTimeout = _defaultTimeoutDuration,
+  }) : _retryTimeout = retryTimeout,
+       _contestRunId = contestRunId,
        _contestTimer = contestTimer,
        _contestType = contestType,
        _contestDataManager = contestDataManager,
        _stateMachine = stateMachine,
        _scoreManager = scoreManager,
        _answerGenerator = contestAnswerGenerator,
-       _onAnswersExhausted = onAnswersExhausted;
+       _onAnswersExhausted = onAnswersExhausted,
+       _accentPolicy = accentPolicy {
+    _inputHandler.onInputChanged = _resetRetryTimer;
+  }
 
   void dispose() {
     _disposed = true;
     _retryTimer?.cancel();
+    _inputHandler.onInputChanged = null;
   }
 
   // region state change handler
@@ -81,7 +94,7 @@ class ContestStateChangeHandler {
     SingleCallRunEvent? event,
   }) async {
     if (_disposed) return;
-    _setupRetryTimer(toState);
+    _setupRetryTimer(toState, event);
 
     try {
       await _playAudioByStateChange(toState, event);
@@ -128,6 +141,64 @@ class ContestStateChangeHandler {
         break;
     }
   }
+
+  /// F1 in the middle of a QSO: drop the round without logging it, then start
+  /// a fresh question. The abandoned station goes back into the pool and, in
+  /// pile-up mode, stays audible as an interferer. The operator's input is left
+  /// untouched — F12 is the explicit "clear input" key.
+  Future<void> abandonRound() async {
+    if (_disposed || _isAbandoning) return;
+    _isAbandoning = true;
+
+    try {
+      final abandonedState = _stateMachine.currentState;
+      _retryTimer?.cancel();
+      _retryTimer = null;
+
+      // Let the CQ the operator just sent finish before announcing the new
+      // pile-up. If the round moved on meanwhile, the newer state wins.
+      await _waitAudioNotPlaying();
+      if (_disposed || !identical(_stateMachine.currentState, abandonedState)) {
+        return;
+      }
+
+      final requeuedCallsign = _abandonedCallsign(abandonedState);
+      log.info(
+        'round abandoned',
+        tag: 'contest.state',
+        fields: <String, Object?>{
+          'runId': _contestRunId,
+          'reason': 'cq',
+          'from': '${abandonedState.runtimeType}',
+          'requeuedCallsign': requeuedCallsign,
+        },
+      );
+
+      final contestAnswer = await _generateNextAnswer(
+        requeueCallsign: requeuedCallsign,
+      );
+      if (contestAnswer == null || _disposed) return;
+
+      _stateMachine.transition(
+        AbandonQso(
+          nextCallAnswer: contestAnswer.callSign,
+          nextExchangeAnswer: contestAnswer.exchange,
+          pileupCallsigns: contestAnswer.pileupCallsigns,
+        ),
+      );
+    } finally {
+      _isAbandoning = false;
+    }
+  }
+
+  /// The station being worked on in an in-flight QSO, or null outside one.
+  String? _abandonedCallsign(SingleCallRunState state) => switch (state) {
+    HeRepeatCorrectCallAnswer s => s.currentCallAnswer,
+    HeAskForExchange s => s.currentCallAnswer,
+    WaitingSubmitMyExchange s => s.currentCallAnswer,
+    ReportMyExchange s => s.currentCallAnswer,
+    _ => null,
+  };
 
   Future<void> _playAudioByStateChange(
     SingleCallRunState toState,
@@ -189,11 +260,11 @@ class ContestStateChangeHandler {
         final dxccId = _dxccManager.findCallsignDxccId(
           toState.currentCallAnswer,
         );
-        final accent = obtainAccentByDxccId(dxccId);
+        final accent = _accentPolicy.resolve(isMe: false, dxccId: dxccId);
         final list = [
           if (toState.isPlayMyCall)
             await _audioLoader.loadAudio(
-              obtainAccentByDxccId(dxccId),
+              accent,
               CallsignPayload(
                 callsign: _stationCallsign,
                 phonicType: _appSettings.phonicType,
@@ -206,7 +277,9 @@ class ContestStateChangeHandler {
         ];
 
         final pcmData = await concatUint8List(list);
-        _audioPlayer.addAudioData(pcmData);
+        // Replace whatever is playing so "press once = hear once": queuing
+        // would let a retry stack another clip behind the operator's CQ.
+        _audioPlayer.addAudioData(pcmData, isResetCurrentStream: true);
         break;
       case HeRepeatCorrectCallAnswer():
         final dxccId = _dxccManager.findCallsignDxccId(
@@ -214,7 +287,7 @@ class ContestStateChangeHandler {
         );
 
         final pcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(false, dxccId),
+          _accentPolicy.resolve(isMe: false, dxccId: dxccId),
           CallsignPayload(
             callsign: toState.currentCallAnswer,
             phonicType: _appSettings.phonicType,
@@ -297,7 +370,10 @@ class ContestStateChangeHandler {
         // play nothing
         break;
       case PlayExchange():
-        final assetDir = obtainAssetDir(playType.isMe, dxccId);
+        final assetDir = _accentPolicy.resolve(
+          isMe: playType.isMe,
+          dxccId: dxccId,
+        );
         final rstAudioFileName = obtainRstAudioFileName(playType.isMe);
 
         final rstPcmData = await _audioLoader.loadAudio(
@@ -324,8 +400,12 @@ class ContestStateChangeHandler {
         );
         break;
       case PlayCallExchange():
+        final assetDir = _accentPolicy.resolve(
+          isMe: playType.isMe,
+          dxccId: dxccId,
+        );
         final callSignPcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          assetDir,
           CallsignPayload(
             callsign: playType.call,
             phonicType: _appSettings.phonicType,
@@ -333,7 +413,7 @@ class ContestStateChangeHandler {
         );
 
         final rstPcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          assetDir,
           CommonPayload(
             fileName: obtainRstAudioFileName(
               playType.isMe,
@@ -343,7 +423,7 @@ class ContestStateChangeHandler {
         );
 
         final exchangePcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          assetDir,
           CallsignPayload(
             callsign: _contestType.formatExchangeForAudio(
               playType.exchangeToPlay,
@@ -366,7 +446,7 @@ class ContestStateChangeHandler {
         break;
       case PlayCall():
         final pcmData = await _audioLoader.loadAudio(
-          obtainAssetDir(playType.isMe, dxccId),
+          _accentPolicy.resolve(isMe: playType.isMe, dxccId: dxccId),
           CallsignPayload(
             callsign: playType.callToPlay,
             phonicType: _appSettings.phonicType,
@@ -382,7 +462,7 @@ class ContestStateChangeHandler {
         final clips = await Future.wait(
           playType.calls.map(
             (callsign) => _audioLoader.loadAudio(
-              obtainAssetDir(false, dxccId),
+              _accentPolicy.resolve(isMe: false, dxccId: dxccId),
               CallsignPayload(
                 callsign: callsign,
                 phonicType: _appSettings.phonicType,
@@ -405,7 +485,7 @@ class ContestStateChangeHandler {
         );
         break;
       case PlaySearchAndPounce():
-        final assetDir = obtainAssetDir(false, dxccId);
+        final assetDir = _accentPolicy.resolve(isMe: false, dxccId: dxccId);
         final cq = await _audioLoader.loadAudio(
           myAudioAccentDir,
           CommonPayload(fileName: 'CQ.wav'),
@@ -425,25 +505,44 @@ class ContestStateChangeHandler {
     }
   }
 
-  void _setupRetryTimer(SingleCallRunState toState) {
+  void _setupRetryTimer(SingleCallRunState toState, SingleCallRunEvent? event) {
     _retryTimer?.cancel();
+    _retryTimer = null;
 
     switch (toState) {
       case WaitingSubmitCall():
+      case SpListeningCq():
+      case SpWaitingHisExchange():
+        _armRetryTimer();
+        break;
       case WaitingSubmitMyExchange():
       case HeAskForExchange():
       case HeRepeatCorrectCallAnswer():
-      case SpListeningCq():
-      case SpWaitingHisExchange():
-        _retryTimer = Timer(_timeoutDuration, () {
-          _stateMachine.transition(Retry());
-        });
+        // An in-flight QSO is replayed automatically once after the first
+        // silence. A Retry that already replayed must not arm the timer again,
+        // or the round would repeat itself every 10 s forever.
+        if (event is! Retry) {
+          _armRetryTimer();
+        }
         break;
       case QsoEnd():
       case ReportMyExchange():
       case SpQsoEnd():
         break;
     }
+  }
+
+  void _armRetryTimer() {
+    _retryTimer = Timer(_retryTimeout, () {
+      _stateMachine.transition(Retry());
+    });
+  }
+
+  /// Restarts the listening timeout for the current state. Typing must not be
+  /// interrupted by an automatic re-send.
+  void _resetRetryTimer() {
+    if (_disposed) return;
+    _setupRetryTimer(_stateMachine.currentState, null);
   }
 
   Future<void> _handleReportMyExchange(ReportMyExchange toState) async {
@@ -553,21 +652,8 @@ class ContestStateChangeHandler {
 
     if (_disposed) return;
     _inputHandler.clear();
-    final ContestAnswer contestAnswer;
-    try {
-      contestAnswer = _answerGenerator.generateAnswer();
-    } on AnswerSourceExhausted catch (end) {
-      // Finish the final sign-off before stopping audio and saving the review.
-      await _waitAudioNotPlaying();
-      if (_disposed) return;
-      log.info(
-        'Answer sequence completed',
-        tag: 'contest',
-        fields: {'runId': _contestRunId, 'reason': end.reason},
-      );
-      _onAnswersExhausted?.call(end.reason);
-      return;
-    }
+    final contestAnswer = await _generateNextAnswer();
+    if (contestAnswer == null) return;
     await _waitAudioNotPlaying();
     if (_disposed) return;
     _stateMachine.transition(
@@ -577,6 +663,26 @@ class ContestStateChangeHandler {
         pileupCallsigns: contestAnswer.pileupCallsigns,
       ),
     );
+  }
+
+  /// Produces the next question, or `null` once the answer sequence is
+  /// exhausted (in which case the run is finished and the review is shown).
+  /// [requeueCallsign] is passed only from the abandon path.
+  Future<ContestAnswer?> _generateNextAnswer({String? requeueCallsign}) async {
+    try {
+      return _answerGenerator.generateAnswer(requeueCallsign: requeueCallsign);
+    } on AnswerSourceExhausted catch (end) {
+      // Finish the final sign-off before stopping audio and saving the review.
+      await _waitAudioNotPlaying();
+      if (_disposed) return null;
+      log.info(
+        'Answer sequence completed',
+        tag: 'contest',
+        fields: {'runId': _contestRunId, 'reason': end.reason},
+      );
+      _onAnswersExhausted?.call(end.reason);
+      return null;
+    }
   }
 
   // endregion

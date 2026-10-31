@@ -19,6 +19,11 @@ abstract class ContestDefinition {
   String get exchangeLabel;
   String get scoringNotice;
 
+  /// English fallback for the "Contest rules" help dialog, used when the
+  /// localized copy is missing. Keep it in sync with [myExchangePlan] and the
+  /// `contestRules*` ARB entries.
+  String get rulesSummary;
+
   /// Declares which station-configured fields the operator's exchange needs,
   /// resolved for the given station callsign (ARRL/JIDX switch on DXCC).
   MyExchangePlan myExchangePlan({
@@ -68,6 +73,11 @@ class CqWpxDefinition extends ContestDefinition {
   String get exchangeLabel => '59 #';
   @override
   String get scoringNotice => 'Single-band training score; prefix multipliers.';
+  @override
+  String get rulesSummary =>
+      'You send: 59 + 3-digit serial number\n'
+      'They send: callsign + serial number\n'
+      'Log: callsign + serial number; both must be correct to score';
 
   @override
   MyExchangePlan myExchangePlan({
@@ -102,6 +112,11 @@ class CqWwSsbDefinition extends _NumericContestDefinition {
   @override
   String get scoringNotice =>
       'Single-band training score; DXCC and zone multipliers.';
+  @override
+  String get rulesSummary =>
+      'You send: 59 + CQ zone\n'
+      'They send: callsign + CQ zone\n'
+      'Log: callsign + CQ zone';
 
   @override
   MyExchangePlan myExchangePlan({
@@ -139,6 +154,11 @@ class ArrlDxDefinition extends _NumericContestDefinition {
   @override
   String get scoringNotice =>
       'Training profile; validate station category before official scoring.';
+  @override
+  String get rulesSummary =>
+      'You send: W/VE - 59 + state/province; DX - 59 + power in watts\n'
+      'They send: matching their own role\n'
+      'Log: callsign + state/province or power';
 
   @override
   MyExchangePlan myExchangePlan({
@@ -197,6 +217,11 @@ class IaruHfDefinition extends _NumericContestDefinition {
   @override
   String get scoringNotice =>
       'Single-band training score; country and zone multipliers.';
+  @override
+  String get rulesSummary =>
+      'You send: 59 + ITU zone\n'
+      'They send: callsign + ITU zone\n'
+      'Log: callsign + ITU zone';
 
   @override
   MyExchangePlan myExchangePlan({
@@ -240,6 +265,11 @@ class JidxSsbDefinition extends _NumericContestDefinition {
   @override
   String get scoringNotice =>
       'Training profile; Japanese-prefecture exchange practice.';
+  @override
+  String get rulesSummary =>
+      'You send: JA - 59 + prefecture number; non-JA - 59 + CQ zone\n'
+      'They send: matching their own role\n'
+      'Log: callsign + prefecture or CQ zone';
 
   @override
   MyExchangePlan myExchangePlan({

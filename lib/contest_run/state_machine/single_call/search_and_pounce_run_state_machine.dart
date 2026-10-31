@@ -87,10 +87,18 @@ initSearchAndPounceRunStateMachine({
     });
 
     builder.onTransition((transition) {
-      log.info(
-        'onTransition: from=${transition.from} to=${(transition is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) ? transition.to : null} event=${transition.event}',
-        tag: 'contest.state',
-      );
+      if (transition
+          is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) {
+        log.info(
+          'onTransition: from=${transition.from.runtimeType} to=${transition.to.runtimeType} event=${transition.event.runtimeType}',
+          tag: 'contest.state',
+        );
+      } else {
+        log.warn(
+          'dropped: no handler for ${transition.event.runtimeType} in ${transition.from.runtimeType}',
+          tag: 'contest.state',
+        );
+      }
       transitionListener(transition);
     });
   });

@@ -45,8 +45,11 @@ and Web scaffolds are not release targets.
 #### Artifacts
 
 - **Windows** (x64)
+  - `.exe` — single-file installer; installs per-user without an admin prompt to
+    `%LOCALAPPDATA%\Programs\SSB Runner`, with Start menu and uninstall entries.
+    The MSVC runtime DLLs are bundled.
   - `.zip` — portable; unzip and run `ssb_runner.exe`. The MSVC runtime DLLs are
-    bundled, so no installer — and no separate VC++ Redistributable — is needed.
+    bundled, so no separate VC++ Redistributable is needed.
 - **macOS** (universal; runs natively on both Apple Silicon and Intel Macs)
   - `.dmg` — drag **SSB Runner.app** into *Applications*.
   - Intel support is best-effort: the bundle is checked to contain an x86_64 slice, but

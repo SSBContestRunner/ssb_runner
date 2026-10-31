@@ -7,8 +7,11 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/domain_l10n.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/common/setting_item.dart';
+import 'package:ssb_runner/ui/main_settings/contest_rules_dialog.dart';
 import 'package:ssb_runner/ui/main_settings/diagnostics_setting.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
 
@@ -29,6 +32,7 @@ class MainSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       width: 370,
       child: MultiBlocProvider(
@@ -57,11 +61,21 @@ class MainSettings extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   spacing: 12.0,
                   children: [
-                    SettingItem(title: 'Contest', content: _ContestSettings()),
-                    SettingItem(title: 'Station', content: _StationSettings()),
-                    SettingItem(title: 'Options', content: OptionsSetting()),
                     SettingItem(
-                      title: 'Diagnostics',
+                      title: l10n.settingsContest,
+                      titleTrailing: const _ContestRulesButton(),
+                      content: _ContestSettings(),
+                    ),
+                    SettingItem(
+                      title: l10n.settingsStation,
+                      content: _StationSettings(),
+                    ),
+                    SettingItem(
+                      title: l10n.settingsOptions,
+                      content: OptionsSetting(),
+                    ),
+                    SettingItem(
+                      title: l10n.settingsDiagnostics,
                       content: DiagnosticsSetting(),
                     ),
                   ],
@@ -90,6 +104,37 @@ class ContestSettingCubit extends Cubit<ContestDefinition> {
   }
 }
 
+/// Info button in the Contest title row.
+class _ContestRulesButton extends StatelessWidget {
+  const _ContestRulesButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return IconButton.filledTonal(
+      key: const Key('contest-rules-button'),
+      tooltip: l10n.contestRulesTooltip,
+      iconSize: 18.0,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 32.0, height: 32.0),
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onPressed: () {
+        // Read at press time so the dialog reflects the contest selected when
+        // it opens, even if the row was built before the dropdown changed.
+        final contest = context.read<ContestSettingCubit>().state;
+        showDialog<void>(
+          context: context,
+          builder: (_) => ContestRulesDialog(contest: contest),
+        );
+      },
+      icon: const Icon(Icons.info_outlined),
+    );
+  }
+}
+
 class _ContestSettings extends StatefulWidget {
   @override
   State<StatefulWidget> createState() {
@@ -101,20 +146,37 @@ class _ContestSettingsState extends State<_ContestSettings> {
   final _contestNameController = TextEditingController();
   final _contestExchangeController = TextEditingController();
 
+  ContestDefinition? _syncedContest;
+  AppLocalizations? _syncedL10n;
+
   @override
-  void initState() {
-    super.initState();
-    final contest = context.read<ContestSettingCubit>().state;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncControllers(
+      context.read<ContestSettingCubit>().state,
+      AppLocalizations.of(context),
+    );
+  }
+
+  void _syncControllers(ContestDefinition contest, AppLocalizations l10n) {
+    if (identical(contest, _syncedContest) && identical(l10n, _syncedL10n)) {
+      return;
+    }
+    _syncedContest = contest;
+    _syncedL10n = l10n;
     _contestNameController.text = contest.name;
-    _contestExchangeController.text = contest.exchangeLabel;
+    _contestExchangeController.text = l10n.contestExchangeLabel(
+      contest.id,
+      contest.exchangeLabel,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return BlocListener<ContestSettingCubit, ContestDefinition>(
       listener: (context, contest) {
-        _contestNameController.text = contest.name;
-        _contestExchangeController.text = contest.exchangeLabel;
+        _syncControllers(contest, AppLocalizations.of(context));
       },
       child: BlocBuilder<MainSettingsCubit, bool>(
         builder: (context, isContestRunning) {
@@ -147,7 +209,7 @@ class _ContestSettingsState extends State<_ContestSettings> {
                       ),
                     )
                     .toList(),
-                label: const Text('Name'),
+                label: Text(l10n.contestNameLabel),
                 inputDecorationTheme: const InputDecorationTheme(
                   border: OutlineInputBorder(),
                 ),
@@ -159,9 +221,9 @@ class _ContestSettingsState extends State<_ContestSettings> {
                 // lines rather than being clipped at the field edge.
                 maxLines: null,
                 controller: _contestExchangeController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   border: OutlineInputBorder(),
-                  labelText: 'Exchange',
+                  labelText: l10n.contestExchangeFieldLabel,
                 ),
               ),
             ],
@@ -256,7 +318,7 @@ class _CallsignFieldState extends State<_CallsignField> {
       ],
       decoration: InputDecoration(
         border: OutlineInputBorder(),
-        labelText: 'Callsign',
+        labelText: AppLocalizations.of(context).stationCallsignLabel,
       ),
       onChanged: (value) {
         context.read<_StationCallsignCubit>().onCallSignChange(value);
@@ -310,6 +372,7 @@ class _StationExchangeFieldInputState
   @override
   Widget build(BuildContext context) {
     final field = widget.field;
+    final l10n = AppLocalizations.of(context);
     final isDerived =
         _appSettings
             .stationExchangeConfig(widget.definitionId)[field.id]
@@ -332,9 +395,11 @@ class _StationExchangeFieldInputState
       ],
       decoration: InputDecoration(
         border: OutlineInputBorder(),
-        labelText: field.label,
+        labelText: l10n.stationFieldLabel(field.id, field.label),
         helperText:
-            field.helperText ?? (isDerived ? 'Default from callsign' : null),
+            l10n.stationFieldHelper(field.id) ??
+            field.helperText ??
+            (isDerived ? l10n.defaultFromCallsign : null),
       ),
       onChanged: (value) {
         _appSettings.setStationExchangeValue(

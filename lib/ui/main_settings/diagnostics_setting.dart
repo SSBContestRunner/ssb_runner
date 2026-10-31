@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/log_export.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -25,6 +26,7 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Flex(
       direction: Axis.vertical,
       spacing: 12,
@@ -38,8 +40,8 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             value: _verbose,
-            title: const Text('Verbose logging'),
-            subtitle: const Text('Record debug details for troubleshooting'),
+            title: Text(l10n.verboseLogging),
+            subtitle: Text(l10n.verboseLoggingSubtitle),
             onChanged: (value) {
               context.read<AppSettings>().verboseLogging = value;
               setState(() => _verbose = value);
@@ -54,14 +56,14 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
               child: OutlinedButton.icon(
                 onPressed: _copySummary,
                 icon: const Icon(Icons.copy),
-                label: const Text('Copy diagnostics'),
+                label: Text(l10n.copyDiagnostics),
               ),
             ),
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: _exportLogs,
                 icon: const Icon(Icons.archive_outlined),
-                label: const Text('Export logs'),
+                label: Text(l10n.exportLogs),
               ),
             ),
           ],
@@ -71,6 +73,7 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
   }
 
   Future<void> _copySummary() async {
+    final l10n = AppLocalizations.of(context);
     final summary = await diagnosticSummary();
     await Clipboard.setData(ClipboardData(text: summary));
     if (!mounted) {
@@ -78,7 +81,7 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
     }
 
     toastification.show(
-      title: const Text('Diagnostics copied'),
+      title: Text(l10n.diagnosticsCopied),
       autoCloseDuration: const Duration(seconds: 2),
       type: ToastificationType.success,
       style: ToastificationStyle.fillColored,
@@ -86,15 +89,16 @@ class _DiagnosticsSettingState extends State<DiagnosticsSetting> {
   }
 
   Future<void> _exportLogs() async {
+    final l10n = AppLocalizations.of(context);
     try {
-      final file = await exportLogArchive();
+      final file = await exportLogArchive(fileTypeLabel: l10n.zipArchive);
       if (!mounted || file == null) {
         return;
       }
 
       await Clipboard.setData(ClipboardData(text: file.path));
       toastification.show(
-        title: Text('Exported to ${file.path}'),
+        title: Text(l10n.exportedTo(file.path)),
         autoCloseDuration: const Duration(seconds: 4),
         type: ToastificationType.success,
         style: ToastificationStyle.fillColored,

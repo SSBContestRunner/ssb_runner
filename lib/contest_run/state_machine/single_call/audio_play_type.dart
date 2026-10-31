@@ -9,6 +9,8 @@ class PlayCall extends AudioPlayType {
   PlayCall({required this.callToPlay, this.isMe = false});
 }
 
+/// Pile-up playback. Contract: `calls[0]` is the target caller, played at full
+/// gain as the main audio; `calls[1..]` are interferers mixed underneath.
 class PlayPileup extends AudioPlayType {
   PlayPileup({required this.calls});
   final List<String> calls;

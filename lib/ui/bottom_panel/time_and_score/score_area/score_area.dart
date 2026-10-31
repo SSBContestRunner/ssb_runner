@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area_cubit.dart';
 import 'package:ssb_runner/ui/bottom_panel/time_and_score/score_area/score_area_data.dart';
 
@@ -9,6 +10,7 @@ class ScoreArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final color = theme.colorScheme.shadow;
     final titleTextStyle = theme.textTheme.titleSmall;
 
@@ -39,9 +41,9 @@ class ScoreArea extends StatelessWidget {
                       spacing: 5,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Point', style: titleTextStyle),
-                        Text('Mult', style: titleTextStyle),
-                        Text('Score', style: titleTextStyle),
+                        Text(l10n.scorePoint, style: titleTextStyle),
+                        Text(l10n.scoreMult, style: titleTextStyle),
+                        Text(l10n.scoreScore, style: titleTextStyle),
                       ],
                     ),
                   ),
@@ -113,14 +115,14 @@ class ScoreArea extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Raw',
+                      l10n.scoreRaw,
                       style: titleTextStyle,
                       textAlign: TextAlign.center,
                     ),
                   ),
                   Expanded(
                     child: Text(
-                      'Verified',
+                      l10n.scoreVerified,
                       style: titleTextStyle,
                       textAlign: TextAlign.center,
                     ),

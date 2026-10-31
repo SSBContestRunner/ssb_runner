@@ -77,24 +77,24 @@ void main() {
     final dxcc = _FakeDxccManager();
     final plan = MyExchangePlan(fields: [_cqZoneField], sendsSerial: false);
 
-    expect(
-      validateStationExchange(
-        plan: plan,
-        config: StationExchangeConfig.empty,
-        stationCallsign: 'BI1QJQ',
-        dxccManager: dxcc,
-      ),
-      'Please set CQ Zone',
+    final missing = validateStationExchange(
+      plan: plan,
+      config: StationExchangeConfig.empty,
+      stationCallsign: 'BI1QJQ',
+      dxccManager: dxcc,
     );
-    expect(
-      validateStationExchange(
-        plan: plan,
-        config: const StationExchangeConfig({'cqZone': '99'}),
-        stationCallsign: 'BI1QJQ',
-        dxccManager: dxcc,
-      ),
-      contains('between'),
+    expect(missing, isA<StationExchangeMissing>());
+    expect(missing!.field.id, 'cqZone');
+
+    final outOfRange = validateStationExchange(
+      plan: plan,
+      config: const StationExchangeConfig({'cqZone': '99'}),
+      stationCallsign: 'BI1QJQ',
+      dxccManager: dxcc,
     );
+    expect(outOfRange, isA<StationExchangeOutOfRange>());
+    expect((outOfRange! as StationExchangeOutOfRange).min, _cqZoneField.min);
+    expect((outOfRange as StationExchangeOutOfRange).max, _cqZoneField.max);
     expect(
       validateStationExchange(
         plan: plan,

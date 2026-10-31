@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
@@ -8,17 +7,17 @@ import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/main_page.dart';
 
 class HomePage extends StatelessWidget {
-  final SharedPreferencesWithCache _prefs;
+  final AppSettings _settings;
 
-  const HomePage({super.key, required SharedPreferencesWithCache prefs})
-    : _prefs = prefs;
+  const HomePage({super.key, required AppSettings settings})
+    : _settings = settings;
 
   @override
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider(create: (context) => ContestInputHandler()),
-        RepositoryProvider(create: (context) => AppSettings(prefs: _prefs)),
+        RepositoryProvider<AppSettings>.value(value: _settings),
         RepositoryProvider(
           create: (context) => ContestDataManager(
             audioLoader: context.read(),
