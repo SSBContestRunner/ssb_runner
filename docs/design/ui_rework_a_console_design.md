@@ -4,8 +4,8 @@
 > 决策日期：2026-10-31
 > 修订日期：2026-10-31（三轮评审：§1.4、§1.5 共 8 项调整；§1.6 配色重做）
 > 决策：主界面采用原型 A「Console 平衡式」；配色采用 v2「晴空」令牌；原型 B/C 不进入生产实现
-> 布局基线：[原型 A](../../prototypes/ui-rework/a-console.html) · [方案索引](../../prototypes/ui-rework/index.html) · [无阶段提示变体](../../prototypes/ui-rework/a-console.html?difficulty=standard)
-> 配色基线：[原型 A v2 · 晴空配色](../../prototypes/ui-rework/a-console-v2.html) · [v2 颜色令牌](../../prototypes/ui-rework/assets/palette-v2.css) · [深色预览](../../prototypes/ui-rework/a-console-v2.html?theme=dark)
+> 布局基线：原型 A「Console 平衡式」（已随 v0.3.0 落地实现，原型文件已移除）
+> 配色基线：原型 A v2「晴空」令牌（已随 v0.3.0 落地实现，原型文件已移除）
 > 范围：桌面端主界面、字体与数据排版、设置分组、计时与成绩、功能键操作区、比赛名称与 CQ WPX 序号展示口径
 > 不在范围：训练状态机、计分算法、音频生成算法、数据库结构
 
@@ -39,7 +39,7 @@
 | 四个原问题的覆盖 | 设置抽屉、动作单行、成绩压缩和 MD3 组件体系同时解决 |
 | 后续扩展 | 右侧卡片可继续容纳复盘、会话统计，不需要改动主网格 |
 
-B「Focus」需要改变主导航并弱化日志常驻；C「Ribbon」以全宽日志为主，会牺牲输入区与成绩区的并列关系。两者保留在 `prototypes/ui-rework/` 作为设计存档，不进入 v0.3.0 生产实现。
+B「Focus」需要改变主导航并弱化日志常驻；C「Ribbon」以全宽日志为主，会牺牲输入区与成绩区的并列关系。两者仅作为设计比较存档，不进入 v0.3.0 生产实现；A v2 落地后原型文件已全部移除。
 
 ### 1.3 实施边界
 
@@ -75,7 +75,7 @@ B「Focus」需要改变主导航并弱化日志常驻；C「Ribbon」以全宽�
 
 | # | 评审反馈 | 结论 | 落地位置 |
 | --- | --- | --- | --- |
-| 1 | 旧 A 原型配色阴沉 | 重做「晴空」调色盘：品牌蓝作为 primary；近白卡片 + 浅蓝页面提升亮度；secondary 改青蓝、tertiary 改琥珀、success 改祖母绿；深色改深海蓝 | §4.3.1、[原型 v2](../../prototypes/ui-rework/a-console-v2.html) |
+| 1 | 旧 A 原型配色阴沉 | 重做「晴空」调色盘：品牌蓝作为 primary；近白卡片 + 浅蓝页面提升亮度；secondary 改青蓝、tertiary 改琥珀、success 改祖母绿；深色改深海蓝 | §4.3.1、原型 v2 |
 | 2 | 需要区分布局基线与配色基线 | 布局基线仍为原型 A；配色基线为 `a-console-v2.html`；v2 以 `palette-v2.css` 覆盖层实现，`proto.css`、旧 A 原型和 B/C 存档均不改动 | 文件头、§8.2 |
 | 3 | 颜色必须可实施、可验收 | 提供浅/深两套完整 MD3 令牌与语义用法；生产按令牌显式构造 ColorScheme，不依赖 `fromSeed` 自动派生；关键组合按 WCAG AA 校验 | §4.3.1、§8.1、§9.1 |
 
@@ -399,8 +399,6 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 - `lib/ui/main_page/settings_sheet.dart`：四分类设置抽屉；比赛与电台合并页。
 - `lib/ui/main_page/key_reference_dialog.dart`：键盘速查。
 - 对应 widget 测试：`test/ui/` 下的新布局、抽屉、动作行、成绩卡测试。
-- `prototypes/ui-rework/a-console-v2.html`：A 布局 × 晴空配色原型，作为新配色基线。
-- `prototypes/ui-rework/assets/palette-v2.css`：v2 颜色令牌覆盖层，仅作用于 v2 原型。
 
 **修改**
 
@@ -415,8 +413,8 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 - `lib/contest_type/station_exchange.dart`：确认 `serialDigits <= 0` 路径与注释；不影响其他比赛的字段格式化。
 - `lib/l10n/app_*.arb`：`contestRulesCqWpx` 去掉「3 位」；新增电台序号只读说明；如需要新增开始/停止提示文案。
 - `docs/design/contest_rules_help.md`、`docs/design/contest_station_exchange.md`：同步序号口径与规则文案，避免设计文档互相矛盾。
-- `prototypes/ui-rework/a-console.html`、`assets/proto.css`、`assets/proto.js`：上一轮 A 原型基线（mono-first 字体、四分类设置），自本轮起冻结；旧配色只保留在存档中，不再回写。B/C 同样不修改。
-- `prototypes/ui-rework/assets/Iosevka-Regular-sub.ttf`：原型自带的 Iosevka 子集，v2 原型继续复用，避免本地预览服务器根目录变化导致字体 404。
+
+原型文件（`prototypes/ui-rework/` 下的 HTML、CSS、JS 与字体子集）已在 v0.3.0 UI 落地后全部移除，不在最终变更集内。
 
 受影响测试：
 
@@ -515,11 +513,7 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 
 ## 12. 参考资料
 
-- 布局原型：[A · Console](../../prototypes/ui-rework/a-console.html)、[A · Console（无阶段提示变体）](../../prototypes/ui-rework/a-console.html?difficulty=standard)、[B · Focus](../../prototypes/ui-rework/b-focus.html)、[C · Ribbon](../../prototypes/ui-rework/c-ribbon.html)
-- 配色原型：[A v2 · 晴空配色](../../prototypes/ui-rework/a-console-v2.html)（[深色预览](../../prototypes/ui-rework/a-console-v2.html?theme=dark)）· [v2 颜色令牌](../../prototypes/ui-rework/assets/palette-v2.css)
-- 方案索引与对比：[index.html](../../prototypes/ui-rework/index.html)
-- 共享设计令牌：[proto.css](../../prototypes/ui-rework/assets/proto.css)（旧配色，存档基线）
-- 共享交互脚本：[proto.js](../../prototypes/ui-rework/assets/proto.js)
+- 原型存档：A/B/C 及 v2 原型已随 v0.3.0 UI 落地移除，本文档保留决策与规格记录。
 - 现有功能键设计：[function_keys_f1_f12_design.md](function_keys_f1_f12_design.md)
 - 现有比赛规则帮助：[contest_rules_help.md](contest_rules_help.md)
 - 交换信息与序号设计：[contest_station_exchange.md](contest_station_exchange.md)
