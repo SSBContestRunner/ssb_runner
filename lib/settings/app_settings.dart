@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
@@ -13,7 +16,30 @@ import 'package:ssb_runner/training/training_profile.dart';
 class AppSettings {
   final SharedPreferencesWithCache _prefs;
 
-  AppSettings({required SharedPreferencesWithCache prefs}) : _prefs = prefs;
+  /// Owned by [MainApp], which listens to it to rebuild [MaterialApp.locale].
+  /// AppSettings never disposes it.
+  final ValueNotifier<AppLanguage> languageNotifier;
+
+  AppSettings({
+    required SharedPreferencesWithCache prefs,
+    ValueNotifier<AppLanguage>? languageNotifier,
+  }) : _prefs = prefs,
+       languageNotifier =
+           languageNotifier ??
+           ValueNotifier(
+             AppLanguage.fromId(prefs.getString(_settingLanguage)),
+           ) {
+    this.languageNotifier.value = AppLanguage.fromId(
+      prefs.getString(_settingLanguage),
+    );
+  }
+
+  AppLanguage get language => languageNotifier.value;
+
+  set language(AppLanguage value) {
+    _prefs.setString(_settingLanguage, value.id);
+    languageNotifier.value = value;
+  }
 
   String get contestId =>
       _prefs.getString(_settingContestId) ?? ContestRegistry.all.first.id;
@@ -71,6 +97,12 @@ class AppSettings {
   set phonicType(PhonicType value) =>
       _prefs.setInt(_settingPhonicType, value.index);
 
+  IncomingAccent get incomingAccent =>
+      IncomingAccent.fromId(_prefs.getString(_settingIncomingAccent));
+
+  set incomingAccent(IncomingAccent value) =>
+      _prefs.setString(_settingIncomingAccent, value.id);
+
   TrainingDifficulty get difficulty =>
       TrainingDifficulty.fromId(_prefs.getString(_settingDifficulty));
 
@@ -84,12 +116,104 @@ class AppSettings {
   set audioVolume(double value) =>
       _prefs.setDouble(_settingAudioVolume, value.clamp(0.2, 1.2).toDouble());
 
-  String binding(OperationAction action) =>
-      _prefs.getString('$_settingKeyBindingPrefix${action.id}') ??
-      action.defaultKey;
+  /// Function key bindings are key-centric: every key F1–F12 always exists and
+  /// may map to an [OperationAction] or to Spare (`action == null`).
+  List<FunctionKeyBinding> get functionKeyBindings {
+    final values = <FunctionKey, OperationAction?>{};
+    var hasNewSettings = false;
+    for (final key in FunctionKey.values) {
+      final raw = _prefs.getString('$_settingFunctionKeyPrefix${key.label}');
+      if (raw != null) hasNewSettings = true;
+      values[key] = _actionForStoredValue(raw, fallback: key.defaultAction);
+    }
 
-  Future<void> setBinding(OperationAction action, String key) =>
-      _prefs.setString('$_settingKeyBindingPrefix${action.id}', key);
+    if (hasNewSettings) {
+      return [
+        for (final key in FunctionKey.values)
+          FunctionKeyBinding(key, values[key]),
+      ];
+    }
+
+    final migrated = _migrateLegacyBindings();
+    if (migrated.isNotEmpty) _persistFunctionKeyBindings(migrated);
+    return migrated;
+  }
+
+  Future<void> setFunctionKeyBindings(List<FunctionKeyBinding> bindings) async {
+    await Future.wait([
+      for (final binding in bindings)
+        _prefs.setString(
+          '$_settingFunctionKeyPrefix${binding.key.label}',
+          binding.action?.id ?? _spareValue,
+        ),
+    ]);
+  }
+
+  void _persistFunctionKeyBindings(List<FunctionKeyBinding> bindings) {
+    for (final binding in bindings) {
+      _prefs.setString(
+        '$_settingFunctionKeyPrefix${binding.key.label}',
+        binding.action?.id ?? _spareValue,
+      );
+    }
+  }
+
+  OperationAction? _actionForStoredValue(
+    String? raw, {
+    required OperationAction? fallback,
+  }) {
+    if (raw == null) return fallback;
+    if (raw == _spareValue) return null;
+    return OperationAction.fromId(raw) ?? fallback;
+  }
+
+  /// One-time migration from the old action-centric settings. The new default
+  /// table is the base; each action the operator had customised moves to its
+  /// stored key. A displaced action becomes Spare (user customisation wins).
+  List<FunctionKeyBinding> _migrateLegacyBindings() {
+    final defaults = [
+      for (final key in FunctionKey.values)
+        FunctionKeyBinding(key, key.defaultAction),
+    ];
+
+    final legacy = <OperationAction, FunctionKey>{};
+    for (final action in OperationAction.values) {
+      final label = _prefs.getString('$_settingKeyBindingPrefix${action.id}');
+      if (label == null) continue;
+      final key = FunctionKey.fromLabel(label);
+      if (key != null) legacy[action] = key;
+    }
+
+    if (legacy.isEmpty) return defaults;
+
+    for (final entry in legacy.entries) {
+      for (var index = 0; index < defaults.length; index++) {
+        if (defaults[index].action == entry.key) {
+          defaults[index] = FunctionKeyBinding(defaults[index].key, null);
+        }
+      }
+
+      final targetIndex = defaults.indexWhere(
+        (binding) => binding.key == entry.value,
+      );
+      final displaced = defaults[targetIndex].action;
+      defaults[targetIndex] = FunctionKeyBinding(entry.value, entry.key);
+
+      if (displaced != null && displaced != entry.key) {
+        log.warn(
+          'function key binding conflict during migration',
+          tag: 'settings',
+          fields: {
+            'key': entry.value.label,
+            'action': entry.key.id,
+            'displaced': displaced.id,
+          },
+        );
+      }
+    }
+
+    return defaults;
+  }
 
   List<TrainingRunReview> get sessionHistory =>
       (_prefs.getStringList(_settingSessionHistory) ?? const [])
@@ -190,16 +314,22 @@ class AppSettings {
   }
 }
 
+const _settingLanguage = 'setting_language';
 const _settingContestId = 'setting_contest_id';
 const _settingContestMode = 'setting_contest_mode';
 const _settingStationCallsign = 'setting_station_callsign';
 const _settingStationExchangePrefix = 'setting_station_exchange_';
 const _settingContestDuration = 'setting_contest_duration';
 const _settingPhonicType = 'setting_phonic_type';
+const _settingIncomingAccent = 'setting_incoming_accent';
 const _settingVerboseLogging = 'setting_verbose_logging';
 const _settingDifficulty = 'setting_difficulty';
 const _settingAudioVolume = 'setting_audio_volume';
+
+/// Legacy, action-centric key bindings. Kept only for migration; never written.
 const _settingKeyBindingPrefix = 'setting_key_binding_';
+const _settingFunctionKeyPrefix = 'setting_function_key_';
+const _spareValue = 'spare';
 const _settingSessionHistory = 'setting_session_history';
 const _settingQuestionSeed = 'setting_question_seed';
 const _settingAudioSeed = 'setting_audio_seed';
@@ -209,18 +339,79 @@ const _settingPendingReplayRunId = 'setting_pending_replay_run_id';
 const _settingLockQuestionSeed = 'setting_lock_question_seed';
 const _settingLockAudioSeed = 'setting_lock_audio_seed';
 
-enum OperationAction {
-  cq('cq', 'CQ', 'F1'),
-  exchange('exchange', 'EXCH', 'F2'),
-  tu('tu', 'TU', 'F3'),
-  myCall('my-call', '<my>', 'F4'),
-  hisCall('his-call', '<his>', 'F5'),
-  before('before', 'B4', 'F6'),
-  again('again', 'AGN', 'F7'),
-  noCopy('no-copy', 'NIL', 'F8');
+enum AppLanguage {
+  auto('auto'),
+  english('en'),
+  simplifiedChinese('zh_Hans'),
+  traditionalChinese('zh_Hant'),
+  japanese('ja');
 
-  const OperationAction(this.id, this.label, this.defaultKey);
+  const AppLanguage(this.id);
+
+  final String id;
+
+  static AppLanguage fromId(String? id) =>
+      values.firstWhere((it) => it.id == id, orElse: () => auto);
+}
+
+enum OperationAction {
+  cq('cq', 'CQ'),
+  exchange('exchange', 'EXCH'),
+  tu('tu', 'TU'),
+  myCall('my-call', '<my>'),
+  hisCall('his-call', '<his>'),
+  before('before', 'B4'),
+  again('again', 'AGN'),
+  noCopy('no-copy', 'NIL'),
+  wipe('wipe', 'Wipe');
+
+  const OperationAction(this.id, this.label);
   final String id;
   final String label;
-  final String defaultKey;
+
+  static OperationAction? fromId(String? id) {
+    for (final action in values) {
+      if (action.id == id) return action;
+    }
+    return null;
+  }
+}
+
+/// The single source of the F1–F12 function keys. [defaultAction] is `null`
+/// for Spare keys.
+enum FunctionKey {
+  f1('F1', LogicalKeyboardKey.f1, OperationAction.cq),
+  f2('F2', LogicalKeyboardKey.f2, OperationAction.exchange),
+  f3('F3', LogicalKeyboardKey.f3, OperationAction.tu),
+  f4('F4', LogicalKeyboardKey.f4, OperationAction.myCall),
+  f5('F5', LogicalKeyboardKey.f5, OperationAction.hisCall),
+  f6('F6', LogicalKeyboardKey.f6, OperationAction.before),
+  f7('F7', LogicalKeyboardKey.f7, OperationAction.again),
+  f8('F8', LogicalKeyboardKey.f8, OperationAction.noCopy),
+  f9('F9', LogicalKeyboardKey.f9, null),
+  f10('F10', LogicalKeyboardKey.f10, null),
+  f11('F11', LogicalKeyboardKey.f11, null),
+  f12('F12', LogicalKeyboardKey.f12, OperationAction.wipe);
+
+  const FunctionKey(this.label, this.logicalKey, this.defaultAction);
+
+  final String label;
+  final LogicalKeyboardKey logicalKey;
+  final OperationAction? defaultAction;
+
+  static FunctionKey? fromLabel(String label) {
+    for (final key in values) {
+      if (key.label == label) return key;
+    }
+    return null;
+  }
+}
+
+class FunctionKeyBinding {
+  const FunctionKeyBinding(this.key, this.action);
+
+  final FunctionKey key;
+  final OperationAction? action;
+
+  bool get isSpare => action == null;
 }

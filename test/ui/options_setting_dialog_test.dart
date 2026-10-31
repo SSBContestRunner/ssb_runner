@@ -8,6 +8,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
@@ -17,6 +18,7 @@ import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_settings/main_settings.dart';
 import 'package:ssb_runner/ui/main_settings/options_setting.dart';
@@ -60,6 +62,168 @@ void main() {
     expect(find.text('No completed sessions yet.'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('Function key dialog configures all twelve keys', (tester) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(12));
+    for (final key in FunctionKey.values) {
+      expect(find.text(key.label), findsOneWidget);
+    }
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(settings.functionKeyBindings, hasLength(12));
+    expect(
+      settings.functionKeyBindings[FunctionKey.f12.index].action,
+      OperationAction.wipe,
+    );
+  });
+
+  testWidgets('A function key can be set to Spare and saved', (tester) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    await _selectFunctionKey(tester, FunctionKey.f1.index, 'Spare');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final bindings = settings.functionKeyBindings;
+    expect(bindings[FunctionKey.f1.index].isSpare, isTrue);
+    expect(bindings[FunctionKey.f2.index].action, OperationAction.exchange);
+    expect(bindings[FunctionKey.f12.index].action, OperationAction.wipe);
+  });
+
+  testWidgets('Cancel discards edits and the dialog opens from live bindings', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+    await settings.setFunctionKeyBindings([
+      for (final key in FunctionKey.values)
+        FunctionKeyBinding(
+          key,
+          key == FunctionKey.f1 ? null : key.defaultAction,
+        ),
+    ]);
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    // Opens from the stored bindings: F1 is currently Spare, not the default CQ.
+    final firstField = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>).first,
+    );
+    expect(firstField.initialValue, 'spare');
+
+    await _selectFunctionKey(tester, FunctionKey.f1.index, 'CQ');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // Cancel must not persist the edited value.
+    expect(settings.functionKeyBindings[FunctionKey.f1.index].isSpare, isTrue);
+  });
+
+  testWidgets('Duplicate non-Spare actions block saving', (tester) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    // Wipe already lives on F12; assigning it to F1 too must be rejected.
+    await _selectFunctionKey(tester, FunctionKey.f1.index, 'Wipe');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Each command needs a different function key.'),
+      findsOneWidget,
+    );
+    expect(
+      settings.functionKeyBindings[FunctionKey.f1.index].action,
+      OperationAction.cq,
+      reason: 'a rejected save must not persist anything',
+    );
+
+    // Let the SnackBar time out, then dismiss the dialog.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('Incoming accent selection is labelled and persisted', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics && widget.properties.label == 'Incoming accent',
+      ),
+      findsOneWidget,
+    );
+    expect(settings.incomingAccent, IncomingAccent.auto);
+
+    // The language menu also has an "Auto" entry, so target the accent menu
+    // itself instead of searching for the text.
+    await tester.tap(find.byType(DropdownMenu<IncomingAccent>));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('UK').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(settings.incomingAccent, IncomingAccent.uk);
+  });
+
+  testWidgets('Incoming accent is disabled while a session runs', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+    final cubit = _RunningMainSettingsCubit(
+      contestManager: _createContestManager(settings),
+    )..markRunning();
+    await _pumpHarness(tester, settings, cubit: cubit);
+
+    final menu = tester.widget<DropdownMenu<IncomingAccent>>(
+      find.byType(DropdownMenu<IncomingAccent>),
+    );
+    expect(menu.enabled, isFalse);
+  });
+
+  testWidgets('Language defaults to auto and the selection persists', (
+    tester,
+  ) async {
+    final prefs = await SharedPreferencesWithCache.create(
+      cacheOptions: const SharedPreferencesWithCacheOptions(),
+    );
+    final settings = AppSettings(prefs: prefs);
+    expect(settings.language, AppLanguage.auto);
+
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.byType(DropdownMenu<AppLanguage>));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('日本語').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(settings.language, AppLanguage.japanese);
+    expect(AppSettings(prefs: prefs).language, AppLanguage.japanese);
   });
 
   testWidgets('Backspace in Duration keeps focus on the Duration field', (
@@ -124,6 +288,19 @@ void main() {
   });
 }
 
+Future<void> _selectFunctionKey(
+  WidgetTester tester,
+  int index,
+  String label,
+) async {
+  await tester.tap(find.byType(DropdownButtonFormField<String>).at(index));
+  await tester.pumpAndSettle();
+  // The menu item is the last occurrence; each closed field also builds all
+  // of its items inside an IndexedStack.
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
+
 Future<AppSettings> _createSettings() async {
   final prefs = await SharedPreferencesWithCache.create(
     cacheOptions: const SharedPreferencesWithCacheOptions(),
@@ -133,21 +310,31 @@ Future<AppSettings> _createSettings() async {
 
 /// Builds a callsign field above the options panel so focus can be moved away
 /// from the duration field.
-Future<void> _pumpHarness(WidgetTester tester, AppSettings settings) async {
+Future<void> _pumpHarness(
+  WidgetTester tester,
+  AppSettings settings, {
+  MainSettingsCubit? cubit,
+}) async {
   await tester.pumpWidget(
     ToastificationWrapper(
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: RepositoryProvider<AppSettings>.value(
           value: settings,
           child: BlocProvider<MainSettingsCubit>.value(
-            value: MainSettingsCubit(
-              contestManager: _createContestManager(settings),
-            ),
+            value:
+                cubit ??
+                MainSettingsCubit(
+                  contestManager: _createContestManager(settings),
+                ),
             child: const Scaffold(
               body: Column(
                 children: [
                   TextField(key: Key('callsign')),
-                  Expanded(child: OptionsSetting()),
+                  Expanded(
+                    child: SingleChildScrollView(child: OptionsSetting()),
+                  ),
                 ],
               ),
             ),
@@ -180,6 +367,14 @@ FocusNode _durationFocusNode(WidgetTester tester) =>
 
 String _durationText(WidgetTester tester) =>
     _durationEditable(tester).controller.text;
+
+/// Forces the "session running" state without starting a real session, so the
+/// settings panel's disabled state can be asserted in isolation.
+class _RunningMainSettingsCubit extends MainSettingsCubit {
+  _RunningMainSettingsCubit({required super.contestManager});
+
+  void markRunning() => emit(true);
+}
 
 ContestManager _createContestManager(AppSettings settings) {
   return ContestManager(

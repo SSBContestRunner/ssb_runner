@@ -22,12 +22,18 @@ class ContestInputHandler {
 
   Stream<int> get inputControlStream => _inputControlStreamController.stream;
 
+  /// Notified whenever the operator edits a field by hand (not on [clear]),
+  /// so the listening timeout can restart instead of interrupting the typing.
+  void Function()? onInputChanged;
+
   void onCallEdit(String call) {
     _hisCall = call;
+    onInputChanged?.call();
   }
 
   void onExchangeEdit(String exchange) {
     _exchange = exchange;
+    onInputChanged?.call();
   }
 
   void onRstFilled(bool isRstFilledVal) {

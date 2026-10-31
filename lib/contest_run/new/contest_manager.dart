@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/common/normalize_callsign.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
@@ -147,6 +148,9 @@ class ContestManager {
       dxccManager: dxccManager,
       stationExchange: settings.stationExchangeConfig(definition.id),
     );
+    // Session-level voice policy: fixed for the whole run, recorded with the
+    // result so a replay stays traceable.
+    final accentPolicy = AccentPolicy(settings.incomingAccent);
     _activeRun = TrainingRunMetadata(
       runId: runId,
       contestId: definition.id,
@@ -155,6 +159,7 @@ class ContestManager {
       difficultyId: difficulty.id,
       questionSeed: questionSeed,
       audioSeed: audioSeed,
+      accentId: accentPolicy.accent.id,
       startedAt: DateTime.now().toUtc(),
     );
     _activeContestType = contestType;
@@ -222,6 +227,7 @@ class ContestManager {
       difficulty: difficulty,
       seed: questionSeed,
       answerSource: replaySource,
+      accentPolicy: accentPolicy,
     );
 
     // Emit the run id only once the new running manager is in place: listeners
@@ -241,6 +247,7 @@ class ContestManager {
     required TrainingDifficulty difficulty,
     required int seed,
     AnswerSource? answerSource,
+    required AccentPolicy accentPolicy,
   }) {
     return ContestRunningManager(
       runId: runId,
@@ -252,6 +259,7 @@ class ContestManager {
       difficulty: difficulty,
       seed: seed,
       answerSource: answerSource,
+      accentPolicy: accentPolicy,
       onAnswerGenerated: _recordAnswer,
       onAnswersExhausted: (reason) => stopContest(reason: reason),
     );

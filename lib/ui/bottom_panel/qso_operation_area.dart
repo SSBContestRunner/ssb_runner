@@ -9,12 +9,15 @@ import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/training/training_profile.dart';
 import 'package:ssb_runner/ui/main_page/main_page_cubit.dart';
 
 import '../../contest_type/contest_type.dart';
 
-class QsoOperationAreaCubit extends Cubit<int> {
+class QsoOperationAreaCubit extends Cubit<SingleCallRunState?> {
   final ContestInputHandler _inputHandler;
 
   final ContestManager _contestManager;
@@ -24,13 +27,20 @@ class QsoOperationAreaCubit extends Cubit<int> {
     required ContestInputHandler contestInputHandler,
   }) : _inputHandler = contestInputHandler,
        _contestManager = contestManager,
-       super(0) {
+       super(null) {
     attachOperationContestRunning();
   }
 
   StreamSubscription? _inputControlStreamSubscription;
   StreamSubscription? _contestOperationEventHandlerSubscription;
+  StreamSubscription<SingleCallRunState>? _contestStateSubscription;
   ContestOperationEventHandler? _contestOperationEventHandler;
+
+  /// Phase guidance is a Beginner-only crutch: at higher difficulties the
+  /// operator has to read the band and the state machine themselves.
+  bool _showPhaseHint = false;
+
+  bool get showPhaseHint => _showPhaseHint;
 
   void attachInputControl(void Function(int) callback) {
     if (_inputControlStreamSubscription != null) {
@@ -48,14 +58,32 @@ class QsoOperationAreaCubit extends Cubit<int> {
     _contestOperationEventHandlerSubscription = _contestManager
         .isContestRunningStream
         .listen((isRunning) {
-          if (isRunning) {
-            _contestOperationEventHandler = _contestManager
-                .contestRunningManager
-                ?.contestOperationEventHandler;
+          _contestStateSubscription?.cancel();
+          _contestStateSubscription = null;
+
+          final runningManager = _contestManager.contestRunningManager;
+          if (isRunning && runningManager != null) {
+            _contestOperationEventHandler =
+                runningManager.contestOperationEventHandler;
+            _showPhaseHint =
+                runningManager.difficulty == TrainingDifficulty.beginner;
+            // The stream only carries later transitions; seed the hint with the
+            // phase the round started in.
+            _emitState(runningManager.currentState);
+            _contestStateSubscription = runningManager.stateStream.listen(
+              _emitState,
+            );
           } else {
             _contestOperationEventHandler = null;
+            _showPhaseHint = false;
+            _emitState(null);
           }
         });
+  }
+
+  void _emitState(SingleCallRunState? state) {
+    if (isClosed) return;
+    emit(state);
   }
 
   void handleOperationEvent(OperationEvent event) {
@@ -77,6 +105,9 @@ class QsoOperationAreaCubit extends Cubit<int> {
     _contestOperationEventHandlerSubscription?.cancel();
     _contestOperationEventHandlerSubscription = null;
     _contestOperationEventHandler = null;
+
+    _contestStateSubscription?.cancel();
+    _contestStateSubscription = null;
   }
 }
 
@@ -98,13 +129,20 @@ class QsoOperationArea extends StatelessWidget {
               _ContestTypeCubit(contestManager: context.read()),
         ),
       ],
-      child: BlocBuilder<QsoOperationAreaCubit, int>(
-        buildWhen: (previous, current) => false,
-        builder: (context, _) {
+      child: BlocBuilder<QsoOperationAreaCubit, SingleCallRunState?>(
+        // The hint row only appears while a Beginner contest runs; adding/
+        // removing it is the only change that alters the layout.
+        buildWhen: (previous, current) =>
+            (previous == null) != (current == null),
+        builder: (context, state) {
+          final showHint =
+              state != null &&
+              context.read<QsoOperationAreaCubit>().showPhaseHint;
           return Flex(
             direction: Axis.vertical,
             spacing: 15.0,
             children: [
+              if (showHint) const _PhaseHintBar(),
               _QsoInputArea(),
               Expanded(
                 flex: 1,
@@ -127,6 +165,87 @@ class QsoOperationArea extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Beginner-only hint: shows what the round is waiting for and which key moves
+/// it on, so a mid-QSO phase (e.g. "he wants his serial") is never a silent
+/// dead end. Higher difficulties keep this out of the UI; the transition
+/// logging still records the same phase changes.
+class _PhaseHintBar extends StatelessWidget {
+  const _PhaseHintBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<QsoOperationAreaCubit, SingleCallRunState?>(
+      builder: (context, state) {
+        return Row(
+          spacing: 8.0,
+          children: [
+            Expanded(
+              child: Text(
+                _phaseHint(state),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            if (_canAbandon(state))
+              TextButton(
+                // Match the hint's line height: the button is the row's
+                // intrinsic-height driver whenever it is visible, so a taller
+                // label (the Material default labelLarge) would make the bar
+                // grow and shove the input fields and keypad down each time it
+                // appears.
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: Theme.of(context).textTheme.bodySmall,
+                ),
+                onPressed: () {
+                  // Same action as F1: on an in-flight QSO it gives up the
+                  // round, otherwise it calls CQ again.
+                  context.read<QsoOperationAreaCubit>().handleOperationEvent(
+                    OperationEvent.cq,
+                  );
+                },
+                child: const Text('Abandon (F1)'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+String _phaseHint(SingleCallRunState? state) {
+  return switch (state) {
+    null => '',
+    WaitingSubmitCall() => 'Listening — copy his call, then Enter',
+    HeRepeatCorrectCallAnswer() =>
+      'Call not copied — F5 to submit, F7 to repeat',
+    HeAskForExchange() =>
+      'He wants his serial — type it, Enter to send; F1 abandons this round',
+    WaitingSubmitMyExchange() =>
+      'Your report is sent — type his serial, then Enter; F5/F7 repeats',
+    ReportMyExchange() => 'Sending your report…',
+    QsoEnd() => 'QSO complete — starting the next one',
+    SpListeningCq() => 'Listening — Enter to pounce, F1 for another CQ',
+    SpWaitingHisExchange() =>
+      'He answered — copy his serial, then Enter; F5/F7 repeats',
+    SpQsoEnd() => 'Signing off — the next CQ follows',
+  };
+}
+
+bool _canAbandon(SingleCallRunState? state) {
+  return switch (state) {
+    HeRepeatCorrectCallAnswer() ||
+    HeAskForExchange() ||
+    WaitingSubmitMyExchange() ||
+    ReportMyExchange() => true,
+    _ => false,
+  };
 }
 
 class _QsoInputArea extends StatefulWidget {
@@ -194,10 +313,11 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _contestTypeCubit = context.read<_ContestTypeCubit>();
 
     final colorSchema = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     final bgColor = colorSchema.primaryContainer;
     _attachInputControl(context);
 
-    return BlocBuilder<QsoOperationAreaCubit, int>(
+    return BlocBuilder<QsoOperationAreaCubit, SingleCallRunState?>(
       buildWhen: (previous, current) => false,
       builder: (context, _) {
         return Container(
@@ -225,7 +345,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                     ],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
-                      labelText: 'Call',
+                      labelText: l10n.callLabel,
                     ),
                     onChanged: (value) {
                       context.read<QsoOperationAreaCubit>().onCallInput(value);
@@ -241,7 +361,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                     style: TextStyle(fontFamily: qsoFontFamily),
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
-                      labelText: 'RST',
+                      labelText: l10n.rstLabel,
                     ),
                   ),
                 ),
@@ -263,7 +383,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                         ],
                         decoration: InputDecoration(
                           border: OutlineInputBorder(),
-                          labelText: 'Exchange',
+                          labelText: l10n.exchangeFieldLabel,
                         ),
                         onChanged: (value) {
                           context.read<QsoOperationAreaCubit>().onExchangeInput(
@@ -343,7 +463,7 @@ class _FunctionKeysPad extends StatelessWidget {
           width: 56,
           height: 56,
           child: Tooltip(
-            message: 'Keyboard reference',
+            message: AppLocalizations.of(context).keyboardReference,
             child: IconButton.filledTonal(
               style: IconButton.styleFrom(
                 shape: RoundedRectangleBorder(
@@ -369,33 +489,33 @@ class _FunctionKeys extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final functionKeyBtns =
-        functionKeysFromSettings(context.read<AppSettings>()).entries.map((
-          entry,
-        ) {
-          final buttonTextName = '${entry.key.keyLabel} ${entry.value.btnText}';
-          return (buttonTextName, entry.value);
-        }).toList();
+    final bindings = functionKeysFromSettings(context.read<AppSettings>());
 
-    // Two rows of four whose height is shared from the parent rather than
+    // Three rows of four whose height is shared from the parent rather than
     // derived from a fixed aspect ratio, so the key label keeps enough room to
     // wrap onto a second line instead of being clipped when the window shrinks.
     final rows = <Widget>[];
-    for (var start = 0; start < functionKeyBtns.length; start += 4) {
-      final end = (start + 4).clamp(start, functionKeyBtns.length);
+    for (var start = 0; start < bindings.length; start += 4) {
+      final end = (start + 4).clamp(start, bindings.length);
       rows.add(
         Expanded(
           child: Row(
             spacing: 16.0,
-            children: functionKeyBtns
+            children: bindings
                 .sublist(start, end)
                 .map(
-                  (element) => Expanded(
+                  (binding) => Expanded(
                     child: _FunctionKeyButton(
-                      text: element.$1,
-                      onPressed: () {
-                        onOperationEvent(element.$2);
-                      },
+                      text:
+                          '${binding.key.label} '
+                          '${binding.action?.label ?? 'Spare'}',
+                      onPressed: binding.isSpare
+                          ? null
+                          : () {
+                              onOperationEvent(
+                                operationEventFor(binding.action!),
+                              );
+                            },
                     ),
                   ),
                 )
@@ -405,20 +525,21 @@ class _FunctionKeys extends StatelessWidget {
       );
     }
 
-    return Column(spacing: 16.0, children: rows);
+    // Rows are tighter than columns so three rows still fit the panel height.
+    return Column(spacing: 8.0, children: rows);
   }
 }
 
 class _FunctionKeyButton extends StatelessWidget {
   final String text;
-  final void Function() onPressed;
+  final void Function()? onPressed;
 
-  const _FunctionKeyButton({required this.text, required this.onPressed});
+  const _FunctionKeyButton({required this.text, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Send $text',
+      message: AppLocalizations.of(context).sendTooltip(text),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 4),
