@@ -47,10 +47,12 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 510),
             child: Material(
-              color: color.surface,
-              borderRadius: BorderRadius.circular(16),
+              color: color.surfaceContainerHigh,
+              elevation: 0,
+              borderRadius: BorderRadius.circular(28),
+              clipBehavior: Clip.antiAlias,
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(28),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

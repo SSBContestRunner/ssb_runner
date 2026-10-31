@@ -19,11 +19,11 @@ import 'package:ssb_runner/l10n/locale_resolution.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/boot_trace.dart';
 import 'package:ssb_runner/logging/logging_bootstrap.dart';
-import 'package:ssb_runner/main.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/diagnostics_actions.dart';
 import 'package:ssb_runner/ui/main_app/exit_flow.dart';
 import 'package:ssb_runner/ui/main_app/home_page.dart';
+import 'package:ssb_runner/ui/theme/app_theme.dart';
 import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
@@ -42,6 +42,9 @@ class _MainAppState extends State<MainApp> {
 
   /// Owned here so the MaterialApp can rebuild when the language changes.
   final ValueNotifier<AppLanguage> _language = ValueNotifier(AppLanguage.auto);
+
+  /// Owned here so the MaterialApp can rebuild when the theme changes.
+  final ValueNotifier<ThemeMode> _themeMode = ValueNotifier(ThemeMode.light);
 
   @override
   void initState() {
@@ -185,70 +188,71 @@ class _MainAppState extends State<MainApp> {
       child: ValueListenableBuilder<AppLanguage>(
         valueListenable: _language,
         builder: (context, language, _) {
-          return MaterialApp(
-            navigatorKey: Catcher2.navigatorKey,
-            title: 'SSB Runner',
-            locale: appLanguageLocale(language),
-            localeListResolutionCallback: resolveAppLocale,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            builder: (context, child) {
-              AppL10n.update(AppLocalizations.of(context));
-              return child ?? const SizedBox.shrink();
-            },
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: seedColor,
-                primary: seedColor,
-              ),
-            ),
-            home: MultiRepositoryProvider(
-              providers: [
-                RepositoryProvider(create: (context) => AppDatabase()),
-                RepositoryProvider(create: (context) => AudioLoader()),
-                RepositoryProvider(create: (context) => AudioPlayer()),
-                RepositoryProvider(create: (context) => CallsignLoader()),
-                RepositoryProvider(
-                  create: (context) => DxccManager(database: context.read()),
-                ),
-              ],
-              child: BlocProvider(
-                create: (context) => _MainAppCubit(language: _language)
-                  ..load(
-                    dxccManager: context.read(),
-                    callsignLoader: context.read(),
+          return ValueListenableBuilder<ThemeMode>(
+            valueListenable: _themeMode,
+            builder: (context, themeMode, _) => MaterialApp(
+              navigatorKey: Catcher2.navigatorKey,
+              title: 'SSB Runner',
+              locale: appLanguageLocale(language),
+              localeListResolutionCallback: resolveAppLocale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) {
+                AppL10n.update(AppLocalizations.of(context));
+                return child ?? const SizedBox.shrink();
+              },
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: themeMode,
+              home: MultiRepositoryProvider(
+                providers: [
+                  RepositoryProvider(create: (context) => AppDatabase()),
+                  RepositoryProvider(create: (context) => AudioLoader()),
+                  RepositoryProvider(create: (context) => AudioPlayer()),
+                  RepositoryProvider(create: (context) => CallsignLoader()),
+                  RepositoryProvider(
+                    create: (context) => DxccManager(database: context.read()),
                   ),
-                child: BlocListener<_MainAppCubit, _AppState>(
-                  listenWhen: (previous, current) =>
-                      current is _Ready && current.deps.warning != null,
-                  listener: (context, state) {
-                    final warning = (state as _Ready).deps.warning;
-                    if (warning == null) {
-                      return;
-                    }
-
-                    // The overlay may not be mounted yet when startup finishes
-                    // before the first frame.
-                    WidgetsBinding.instance.addPostFrameCallback(
-                      (_) => _showStartupWarning(warning),
-                    );
-                  },
-                  child: BlocBuilder<_MainAppCubit, _AppState>(
-                    builder: (context, state) {
-                      switch (state) {
-                        case _Loading():
-                          return Container(
-                            color: ColorScheme.of(context).surface,
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        case _Ready(:final deps):
-                          return HomePage(settings: deps.settings);
-                        case _Failed(:final message):
-                          return _StartupFailure(message: message);
+                ],
+                child: BlocProvider(
+                  create: (context) =>
+                      _MainAppCubit(language: _language, themeMode: _themeMode)
+                        ..load(
+                          dxccManager: context.read(),
+                          callsignLoader: context.read(),
+                        ),
+                  child: BlocListener<_MainAppCubit, _AppState>(
+                    listenWhen: (previous, current) =>
+                        current is _Ready && current.deps.warning != null,
+                    listener: (context, state) {
+                      final warning = (state as _Ready).deps.warning;
+                      if (warning == null) {
+                        return;
                       }
+
+                      // The overlay may not be mounted yet when startup finishes
+                      // before the first frame.
+                      WidgetsBinding.instance.addPostFrameCallback(
+                        (_) => _showStartupWarning(warning),
+                      );
                     },
+                    child: BlocBuilder<_MainAppCubit, _AppState>(
+                      builder: (context, state) {
+                        switch (state) {
+                          case _Loading():
+                            return Container(
+                              color: ColorScheme.of(context).surface,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          case _Ready(:final deps):
+                            return HomePage(settings: deps.settings);
+                          case _Failed(:final message):
+                            return _StartupFailure(message: message);
+                        }
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -263,6 +267,7 @@ class _MainAppState extends State<MainApp> {
   void dispose() {
     _listener.dispose();
     _language.dispose();
+    _themeMode.dispose();
     super.dispose();
   }
 }
@@ -298,10 +303,14 @@ class _Failed extends _AppState {
 
 class _MainAppCubit extends Cubit<_AppState> {
   final ValueNotifier<AppLanguage> _language;
+  final ValueNotifier<ThemeMode> _themeMode;
 
-  _MainAppCubit({required ValueNotifier<AppLanguage> language})
-    : _language = language,
-      super(const _Loading());
+  _MainAppCubit({
+    required ValueNotifier<AppLanguage> language,
+    required ValueNotifier<ThemeMode> themeMode,
+  }) : _language = language,
+       _themeMode = themeMode,
+       super(const _Loading());
 
   Future<void> load({
     required DxccManager dxccManager,
@@ -321,7 +330,11 @@ class _MainAppCubit extends Cubit<_AppState> {
         ),
       );
 
-      final settings = AppSettings(prefs: prefs, languageNotifier: _language);
+      final settings = AppSettings(
+        prefs: prefs,
+        languageNotifier: _language,
+        themeModeNotifier: _themeMode,
+      );
 
       // Apply the persisted verbosity choice as early as possible.
       log.setVerbose(settings.verboseLogging);

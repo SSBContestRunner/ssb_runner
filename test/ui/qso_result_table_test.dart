@@ -42,10 +42,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: SizedBox(
-              width: 300,
-              child: QsoRecordRow(item: item, isAlternate: false),
-            ),
+            child: SizedBox(width: 300, child: QsoRecordRow(item: item)),
           ),
         ),
       ),

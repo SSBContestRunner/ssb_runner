@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SSB Runner · UI Rework v0.3.0</title>
+    <link rel="stylesheet" href="assets/proto.css" />
+    <script src="assets/proto.js" defer></script>
+  </head>
+  <body>
+    <main class="index-page">
+      <div class="index-wrap">
+        <header class="index-top">
+          <div class="logo" aria-hidden="true"><span class="icon" data-icon="radio"></span></div>
+          <div class="brand-copy">
+            <div class="brand-name">SSB Runner</div>
+            <div class="brand-sub">UI Rework · v0.3.0 · 设计评审原型</div>
+          </div>
+          <span class="spacer"></span>
+          <span class="chip tonal static">生产代码未改动</span>
+          <button class="icon-btn" type="button" data-theme-toggle aria-label="切换主题" title="切换主题">
+            <span class="icon" data-icon="dark_mode"></span>
+          </button>
+        </header>
+
+        <section class="hero">
+          <span class="eyebrow"><span class="icon xs" data-icon="tune"></span>Material Design 3 · 三个方向</span>
+          <h1>用 MD3 重新排布<br /><em>每一个训练动作</em></h1>
+          <p>
+            同一套设计令牌，三种信息优先级。它们都把 F1–F12 从 3×4 键盘阵列收进行内操作区，
+            把设置收进分类抽屉，把分数与计时压缩成可展开的概览；区别在于训练时你最先看到什么。
+          </p>
+          <div class="hero-tags">
+            <span class="chip static"><span class="icon" data-icon="dashboard"></span>A · Console 平衡</span>
+            <span class="chip static"><span class="icon" data-icon="radio"></span>B · Focus 专注</span>
+            <span class="chip static"><span class="icon" data-icon="list_alt"></span>C · Ribbon 日志优先</span>
+            <span class="chip static"><span class="icon" data-icon="timer"></span>1280×720 / 1024×650</span>
+            <span class="chip static"><span class="icon" data-icon="dark_mode"></span>浅色 / 深色</span>
+          </div>
+        </section>
+
+        <div class="section-label">
+          <h2>三个方向</h2>
+          <span>点击卡片打开可交互原型 · 右上角切换主题</span>
+        </div>
+
+        <div class="proto-grid">
+          <a class="proto-card" href="a-console.html" target="_blank" rel="noopener">
+            <div class="preview a" aria-hidden="true">
+              <div class="pv" style="grid-column: 1 / -1"></div>
+              <div class="pv-lines">
+                <span class="pv-line"></span>
+                <span class="pv-line"></span>
+                <span class="pv-line short"></span>
+                <span class="pv-line"></span>
+                <span class="pv-line"></span>
+              </div>
+              <div class="pv tall accent"></div>
+              <div class="pv deep"></div>
+            </div>
+            <div class="proto-head">
+              <h3>A · Console</h3>
+              <span class="tag">推荐</span>
+            </div>
+            <p>
+              双栏布局：左侧日志与输入，右侧练习卡。信息最完整，最接近现有使用习惯；
+              F 键收成单行，设置改为 4 页签侧边抽屉（比赛与电台合并），分数与计时合并成一张紧凑的会话卡。
+            </p>
+            <div class="proto-foot">
+              <span class="meta">侧边设置 · 单行按键</span>
+              <span class="open">打开原型<span class="icon xs" data-icon="chevron_right"></span></span>
+            </div>
+          </a>
+
+          <a class="proto-card" href="b-focus.html" target="_blank" rel="noopener">
+            <div class="preview b" aria-hidden="true">
+              <div class="pv-rail"><span></span><span></span><span></span><span></span></div>
+              <div class="pv"></div>
+              <div class="pv-lines">
+                <span class="pv-line short"></span>
+                <span class="pv-line"></span>
+                <span class="pv-line"></span>
+                <span class="pv-line short"></span>
+              </div>
+            </div>
+            <div class="proto-head">
+              <h3>B · Focus</h3>
+              <span class="tag">任务优先</span>
+            </div>
+            <p>
+              导航栏 + 居中任务区：主界面只保留当前收报、输入和最近 4 条；日志与统计变成独立视图。
+              设置使用全屏分类对话框，适合希望减少干扰、专注听抄的场景。
+            </p>
+            <div class="proto-foot">
+              <span class="meta">全屏设置 · 动作面板</span>
+              <span class="open">打开原型<span class="icon xs" data-icon="chevron_right"></span></span>
+            </div>
+          </a>
+
+          <a class="proto-card" href="c-ribbon.html" target="_blank" rel="noopener">
+            <div class="preview c" aria-hidden="true">
+              <div class="pv"></div>
+              <div class="pv accent"></div>
+              <div class="pv-lines">
+                <span class="pv-line"></span>
+                <span class="pv-line"></span>
+                <span class="pv-line short"></span>
+                <span class="pv-line"></span>
+                <span class="pv-line"></span>
+              </div>
+              <div class="pv deep"></div>
+            </div>
+            <div class="proto-head">
+              <h3>C · Ribbon</h3>
+              <span class="tag">日志优先</span>
+            </div>
+            <p>
+              78px 单行概览 + 全宽日志 + 底部操作台：计时、分数和统计压成一条 ribbon，
+              日志成为视觉主体，新增前缀列。适合看重通联复盘、需要一次看到更多记录的场景。
+            </p>
+            <div class="proto-foot">
+              <span class="meta">侧边设置 · 单行按键</span>
+              <span class="open">打开原型<span class="icon xs" data-icon="chevron_right"></span></span>
+            </div>
+          </a>
+        </div>
+
+        <div class="section-label">
+          <h2>设计决策</h2>
+          <span>针对四个原始问题</span>
+        </div>
+
+        <div class="decision-grid">
+          <div class="decision">
+            <span class="num">01</span>
+            <h3>符合 Material Design 3</h3>
+            <p>
+              使用 color roles、type scale、state layer、focus ring 与 tonal elevation；
+              按钮层级收敛为 Filled / Tonal / Outlined / Text 四级。
+            </p>
+          </div>
+          <div class="decision">
+            <span class="num">02</span>
+            <h3>Function keys 收纳</h3>
+            <p>
+              F1–F12 从 3×4 面板收成 38px 行内操作；B 只显示当前上下文 6 个，
+              其余进入底部动作面板，完整键位随时可查。
+            </p>
+          </div>
+          <div class="decision">
+            <span class="num">03</span>
+            <h3>设置不再长滚动</h3>
+            <p>
+              A 将联动的比赛与电台合并为「比赛与电台」，与训练 / 音频 / 系统组成四类；
+              B 使用全屏分类对话框，C 存档保留五类侧边抽屉，首屏即可完成常用配置。
+            </p>
+          </div>
+          <div class="decision">
+            <span class="num">04</span>
+            <h3>分数与计时收紧</h3>
+            <p>
+              已验证总分成为主角，原始分与更正数降为辅助信息；
+              计时、进度、运行状态合并，为日志或输入区让出约 200px 高度。
+            </p>
+          </div>
+        </div>
+
+        <div class="section-label">
+          <h2>怎么选</h2>
+          <span>同一套令牌的三种取舍</span>
+        </div>
+
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col">评估项</th>
+              <th scope="col">A · Console</th>
+              <th scope="col">B · Focus</th>
+              <th scope="col">C · Ribbon</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>核心布局</td>
+              <td class="accent">日志 + 输入双栏，右侧会话卡</td>
+              <td>居中任务工作区 + 导航栏</td>
+              <td>单行概览 + 全宽日志 + 底部操作台</td>
+            </tr>
+            <tr>
+              <td>功能键</td>
+              <td>单行 9 个常用动作 + 速查</td>
+              <td>上下文 6 个 + 全部动作面板</td>
+              <td>单行 9 个常用动作 + 速查</td>
+            </tr>
+            <tr>
+              <td>设置</td>
+              <td>4 页签侧边抽屉（比赛与电台合并）</td>
+              <td>全屏设置 + 分类导航</td>
+              <td>5 页签侧边抽屉</td>
+            </tr>
+            <tr>
+              <td>计时与分数</td>
+              <td>紧凑会话卡，信息完整</td>
+              <td>顶部计时胶囊 + 独立统计页</td>
+              <td>78px 单行 ribbon</td>
+            </tr>
+            <tr>
+              <td>日志可见范围</td>
+              <td>中栏，约 8 行</td>
+              <td>最近 4 条，完整记录在独立视图</td>
+              <td class="accent">全宽，约 6–8 行，可滚动</td>
+            </tr>
+            <tr>
+              <td>最适合</td>
+              <td>保持现有习惯、信息均衡</td>
+              <td>减少干扰、专注听抄</td>
+              <td>通联复盘、长日志阅读</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="section-label">
+          <h2>MD3 设计令牌</h2>
+          <span>从现有 seed color 推导</span>
+        </div>
+
+        <div class="swatches">
+          <span class="swatch"><i style="background: var(--primary)"></i>Primary #0059BA</span>
+          <span class="swatch"><i style="background: var(--primary-container)"></i>Primary container</span>
+          <span class="swatch"><i style="background: var(--secondary-container)"></i>Secondary container</span>
+          <span class="swatch"><i style="background: var(--surface-container-low)"></i>Surface container low</span>
+          <span class="swatch"><i style="background: var(--surface-container-high)"></i>Surface container high</span>
+          <span class="swatch"><i style="background: var(--success)"></i>Success</span>
+          <span class="swatch"><i style="background: var(--error)"></i>Error</span>
+        </div>
+
+        <div class="note">
+          <span class="icon" data-icon="info"></span>
+          <div>
+            <strong>评审提示：</strong>三个页面都是离线静态 HTML/CSS/JS，无外部依赖，数据为演示用途；
+            支持主题切换、设置抽屉、键盘速查、成绩明细和 F1–F12 操作演示。可用深链快速检查：
+            <code>#settings</code>、<code>#keyref</code>、<code>#score</code>；B 另支持
+            <code>#actions</code>、<code>#view-log</code>、<code>#view-stats</code>。
+            生产 Flutter 代码尚未改动。
+          </div>
+        </div>
+
+        <footer class="index-foot">
+          <span>SSB Runner · v0.3.0 UI Rework</span>
+          <span>Material Design 3 原型</span>
+          <span>1280×720 / 1024×650</span>
+          <span>2026-10-31</span>
+        </footer>
+      </div>
+    </main>
+  </body>
+</html>
