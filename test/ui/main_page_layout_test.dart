@@ -38,7 +38,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('SSB Runner'), findsWidgets);
-        expect(find.byIcon(Icons.radio), findsOneWidget);
+        expect(find.byKey(const Key('appBrandMark')), findsOneWidget);
         expect(find.text('CQ WPX'), findsOneWidget);
         expect(find.text('QSO Records'), findsOneWidget);
         expect(find.text('This session'), findsOneWidget);
@@ -58,7 +58,7 @@ void main() {
       await _pumpMainPage(tester, size, locale: const Locale('ja'));
 
       expect(tester.takeException(), isNull);
-      expect(find.byIcon(Icons.radio), findsOneWidget);
+      expect(find.byKey(const Key('appBrandMark')), findsOneWidget);
       expect(find.text('CQ WPX'), findsOneWidget);
       expect(find.text('今回の練習'), findsOneWidget);
       expect(find.text('コンテストルール'), findsOneWidget);

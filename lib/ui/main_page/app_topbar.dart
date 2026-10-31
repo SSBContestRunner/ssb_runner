@@ -116,11 +116,18 @@ class _BrandMark extends StatelessWidget {
         Container(
           width: 38,
           height: 38,
+          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color: scheme.primary,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.radio, size: 22, color: scheme.onPrimary),
+          child: Image.asset(
+            'assets/logo/logo_mark.png',
+            key: const Key('appBrandMark'),
+            filterQuality: FilterQuality.medium,
+            color: scheme.onPrimary,
+            colorBlendMode: BlendMode.srcIn,
+          ),
         ),
         const SizedBox(width: 10),
         Column(
