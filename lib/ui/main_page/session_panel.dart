@@ -111,9 +111,7 @@ class _SessionCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   _ProgressBlock(duration: options.duration),
                   const SizedBox(height: 14),
-                  const _ScoreBlock(),
-                  const SizedBox(height: 14),
-                  const _StatGrid(),
+                  const _SessionStatsBlock(),
                 ],
               ),
             ),
@@ -302,8 +300,8 @@ class _ProgressBlock extends StatelessWidget {
   }
 }
 
-class _ScoreBlock extends StatelessWidget {
-  const _ScoreBlock();
+class _SessionStatsBlock extends StatelessWidget {
+  const _SessionStatsBlock();
 
   @override
   Widget build(BuildContext context) {
@@ -315,88 +313,182 @@ class _ScoreBlock extends StatelessWidget {
         .where((qso) => qso.corrections.isNotEmpty)
         .length;
 
+    final metaStyle = AppDataText.style(
+      context,
+      fontSize: 11,
+      letterSpacing: 0.4,
+      color: scheme.onSurfaceVariant,
+    );
+    final scoreNumberStyle = AppDataText.style(
+      context,
+      fontSize: 12.5,
+      letterSpacing: 0.3,
+    );
+
     return BlocBuilder<_ScoreCubit, _ScoreData>(
       builder: (context, data) {
         final score = data.verifiedScore;
         final raw = data.rawScore;
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.emoji_events_outlined,
-                  size: 16,
-                  color: scheme.tertiary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.verifiedScoreLabel,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(letterSpacing: 0.4),
-                ),
-              ],
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _formatNumber(score.score),
-                      maxLines: 1,
-                      style: AppDataText.style(
-                        context,
-                        fontSize: 42,
-                        height: 50 / 42,
-                        letterSpacing: 1,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Icon(
+                              Icons.emoji_events_outlined,
+                              size: 12,
+                              color: scheme.tertiary,
+                            ),
+                          ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(l10n.verifiedScoreLabel, style: metaStyle),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatNumber(score.score),
+                                style: scoreNumberStyle,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(l10n.scoreUnit, style: metaStyle),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    l10n.scoreUnit,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  l10n.rawScoreValue(_formatNumber(raw.score)),
-                  style: AppDataText.style(
-                    context,
-                    fontSize: 12,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 12,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: scheme.outlineVariant,
-                ),
-                Expanded(
-                  child: Text(
-                    l10n.correctionsSummary(corrections, score.multiple),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppDataText.style(
-                      context,
-                      fontSize: 12,
-                      color: scheme.onSurfaceVariant,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(l10n.rawScoreLabel, style: metaStyle),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatNumber(raw.score),
+                            style: scoreNumberStyle,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Text('·', style: metaStyle),
+                          ),
+                          Text('$corrections', style: scoreNumberStyle),
+                          const SizedBox(width: 3),
+                          Text(l10n.correctionsLabel, style: metaStyle),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.only(top: 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: scheme.outlineVariant)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.statRate.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppDataText.style(
+                            context,
+                            fontSize: 11,
+                            letterSpacing: 0.5,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        BlocBuilder<_QsoSpeedCubit, double?>(
+                          builder: (context, speed) => Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    speed == null
+                                        ? '---'
+                                        : speed.toStringAsFixed(1),
+                                    maxLines: 1,
+                                    style: AppDataText.style(
+                                      context,
+                                      fontSize: 30,
+                                      height: 38 / 30,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (speed != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 3),
+                                  child: Text(
+                                    l10n.rateSuffix,
+                                    style: AppDataText.style(
+                                      context,
+                                      fontSize: 11,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Container(
+                    padding: const EdgeInsets.only(left: 14),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: BorderSide(color: scheme.outlineVariant),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _SideStat(
+                          label: l10n.statQsos,
+                          value: _formatNumber(score.count),
+                        ),
+                        const SizedBox(height: 6),
+                        _SideStat(
+                          label: l10n.statMultiplier,
+                          value: _formatNumber(score.multiple),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -405,115 +497,42 @@ class _ScoreBlock extends StatelessWidget {
   }
 }
 
-class _StatGrid extends StatelessWidget {
-  const _StatGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
-
-    return BlocBuilder<_ScoreCubit, _ScoreData>(
-      builder: (context, data) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(color: scheme.outlineVariant),
-              bottom: BorderSide(color: scheme.outlineVariant),
-            ),
-          ),
-          child: Row(
-            children: [
-              _StatCell(
-                label: l10n.statQsos,
-                value: _formatNumber(data.verifiedScore.count),
-                first: true,
-              ),
-              _StatCell(
-                label: l10n.statMultiplier,
-                value: _formatNumber(data.verifiedScore.multiple),
-              ),
-              BlocBuilder<_QsoSpeedCubit, double?>(
-                builder: (context, speed) => _StatCell(
-                  label: l10n.statRate,
-                  value: speed == null ? '---' : speed.toStringAsFixed(1),
-                  suffix: speed == null ? null : l10n.rateSuffix,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StatCell extends StatelessWidget {
-  const _StatCell({
-    required this.label,
-    required this.value,
-    this.suffix,
-    this.first = false,
-  });
+class _SideStat extends StatelessWidget {
+  const _SideStat({required this.label, required this.value});
 
   final String label;
   final String value;
-  final String? suffix;
-  final bool first;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.only(left: 10),
-        decoration: BoxDecoration(
-          border: first
-              ? null
-              : Border(left: BorderSide(color: scheme.outlineVariant)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(letterSpacing: 0.5),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 104),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppDataText.style(
+              context,
+              fontSize: 10.5,
+              letterSpacing: 0.4,
+              color: scheme.onSurfaceVariant,
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Flexible(
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppDataText.style(
-                      context,
-                      fontSize: 19,
-                      height: 26 / 19,
-                    ),
-                  ),
-                ),
-                if (suffix != null)
-                  Text(
-                    suffix!,
-                    style: AppDataText.style(
-                      context,
-                      fontSize: 12,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            maxLines: 1,
+            style: AppDataText.style(context, fontSize: 17, height: 22 / 17),
+          ),
+        ],
       ),
     );
   }

@@ -308,25 +308,8 @@
   "elapsedLabel": "Elapsed",
   "remainingLabel": "Remaining",
   "verifiedScoreLabel": "Verified score",
-  "rawScoreValue": "Raw {score}",
-  "@rawScoreValue": {
-    "placeholders": {
-      "score": {
-        "type": "String"
-      }
-    }
-  },
-  "correctionsSummary": "{count} corrections · ×{multiple}",
-  "@correctionsSummary": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "multiple": {
-        "type": "int"
-      }
-    }
-  },
+  "rawScoreLabel": "Raw",
+  "correctionsLabel": "corrections",
   "scoreUnit": "pts",
   "statMultiplier": "Mult",
   "rateSuffix": "/h",
