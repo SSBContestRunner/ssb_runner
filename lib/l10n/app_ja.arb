@@ -174,7 +174,7 @@
   "settingsTabSystem": "システム",
   "settingsContestSection": "コンテスト",
   "myStation": "自局",
-  "stationExchangeReadonlyHint": "コンテストの規則に従って自動生成されます。",
+  "stationSerialAutoHint": "シリアル番号は交信数から自動生成されます。設定は不要です。",
   "settingsRunningLock": "練習中は設定を変更できません。先に停止してください。",
   "settingsFunctionKeysRowSubtitle": "キー割り当ての表示 · F1–F12 のカスタマイズ",
   "settingsHistoryRowSubtitle": "振り返り・再生・練習シードのインポート",

@@ -531,16 +531,19 @@ class _ActionRow extends StatelessWidget {
             ),
         ];
 
-        if (isNarrow) {
-          return Wrap(spacing: 6, runSpacing: 8, children: buttons);
-        }
-
-        // Wrapping inside the flexible slot keeps a custom 10–12 key layout
-        // from overflowing while the default nine stay on one line at 1280.
+        // The shortcut icon stays pinned to the right even when the buttons
+        // wrap at narrow widths; dropping it made the action row lose the only
+        // keyboard-reference entry users look for.
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: Wrap(spacing: 8, runSpacing: 8, children: buttons)),
+            Expanded(
+              child: Wrap(
+                spacing: isNarrow ? 6 : 8,
+                runSpacing: 8,
+                children: buttons,
+              ),
+            ),
             const SizedBox(width: 8),
             _KeyReferenceButton(
               onPressed: () => showKeyReferenceDialog(
