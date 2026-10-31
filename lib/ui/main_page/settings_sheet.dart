@@ -764,16 +764,12 @@ class _StationFields extends StatelessWidget {
       spacing: 12,
       children: [
         _CallsignField(enabled: enabled),
-        if (plan.fields.isEmpty)
-          _ReadonlyExchangeField(
-            enabled: enabled,
-            contestId: definition.id,
-            label: l10n.contestExchangeFieldLabel,
-            value: l10n.contestExchangeLabel(
-              definition.id,
-              definition.exchangeLabel,
-            ),
-            helper: l10n.stationExchangeReadonlyHint,
+        // CQ WPX derives the serial from completed QSOs, so it has no field to
+        // configure; an input-shaped read-only box was mistaken for one.
+        if (plan.sendsSerial)
+          _PanelNote(
+            icon: Icons.info_outline,
+            text: l10n.stationSerialAutoHint,
           ),
         for (final field in plan.fields)
           _StationExchangeFieldInput(
@@ -784,58 +780,6 @@ class _StationFields extends StatelessWidget {
           ),
       ],
     );
-  }
-}
-
-class _ReadonlyExchangeField extends StatefulWidget {
-  const _ReadonlyExchangeField({
-    required this.enabled,
-    required this.contestId,
-    required this.label,
-    required this.value,
-    required this.helper,
-  });
-
-  final bool enabled;
-  final String contestId;
-  final String label;
-  final String value;
-  final String helper;
-
-  @override
-  State<_ReadonlyExchangeField> createState() => _ReadonlyExchangeFieldState();
-}
-
-class _ReadonlyExchangeFieldState extends State<_ReadonlyExchangeField> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.value,
-  );
-
-  @override
-  void didUpdateWidget(covariant _ReadonlyExchangeField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_controller.text != widget.value) {
-      _controller.text = widget.value;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      enabled: widget.enabled,
-      readOnly: true,
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: widget.label,
-        helperText: widget.helper,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }
 

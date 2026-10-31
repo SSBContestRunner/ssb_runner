@@ -84,8 +84,8 @@ void main() {
     expect(find.text('Contest'), findsOneWidget);
     expect(find.text('My station'), findsOneWidget);
     expect(find.text('Name'), findsOneWidget);
-    // Contest exchange plus the read-only station exchange line.
-    expect(find.text('Exchange'), findsNWidgets(2));
+    // CQ WPX has no station exchange field, only the contest exchange line.
+    expect(find.text('Exchange'), findsOneWidget);
 
     await _openTab(tester, 'Training');
     expect(find.text('Training mode'), findsOneWidget);
@@ -111,18 +111,48 @@ void main() {
     harness.dispose();
   });
 
+  testWidgets('CQ WPX explains the serial instead of showing an input', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(tester);
+
+    expect(
+      find.text(
+        'The serial is generated automatically from your completed QSOs.',
+      ),
+      findsOneWidget,
+    );
+    // Only the contest exchange line still shows "59 #".
+    expect(find.text('59 #'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
   testWidgets('switching contest updates contest and station fields at once', (
     tester,
   ) async {
     final harness = await _pumpSheet(tester);
 
-    expect(find.text('59 #'), findsNWidgets(2));
+    expect(find.text('59 #'), findsOneWidget);
+    expect(
+      find.text(
+        'The serial is generated automatically from your completed QSOs.',
+      ),
+      findsOneWidget,
+    );
 
     harness.contestCubit.changeContest('CQ-WW-SSB');
     await tester.pump();
     await tester.pump();
 
     expect(find.text('59 #'), findsNothing);
+    expect(
+      find.text(
+        'The serial is generated automatically from your completed QSOs.',
+      ),
+      findsNothing,
+    );
     expect(find.text('59 Zone'), findsOneWidget);
     expect(find.text('CQ Zone'), findsOneWidget);
     expect(find.text('My station'), findsOneWidget);
