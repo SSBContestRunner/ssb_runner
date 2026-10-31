@@ -1,4 +1,3 @@
-import 'package:catcher_2/mode/dialog_report_mode.dart';
 import 'package:catcher_2/mode/report_mode_action_confirmed.dart';
 import 'package:catcher_2/model/platform_type.dart';
 import 'package:catcher_2/model/report.dart';
@@ -6,18 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssb_runner/error_handling.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
+import 'package:ssb_runner/logging/crash_issue_reporter.dart';
 import 'package:ssb_runner/ui/crash_report_page.dart';
 
 void main() {
-  test(
-    'debug config keeps the dialog mode and release uses the crash page',
-    () async {
-      final (debugOptions, releaseOptions) = await initErrorHandling();
+  test('debug and release both show the crash page', () async {
+    final (debugOptions, releaseOptions) = await initErrorHandling();
 
-      expect(debugOptions.reportMode, isA<DialogReportMode>());
-      expect(releaseOptions.reportMode, isA<CrashReportMode>());
-    },
-  );
+    expect(debugOptions.reportMode, isA<CrashReportMode>());
+    expect(releaseOptions.reportMode, isA<CrashReportMode>());
+    // Only release builds may publish the report as a GitHub issue.
+    expect((debugOptions.reportMode as CrashReportMode).canSendReport, isFalse);
+    expect(debugOptions.handlers.whereType<CrashIssueReporter>(), isEmpty);
+  });
 
   testWidgets('shows the crash details and diagnostics actions', (
     tester,
