@@ -159,6 +159,10 @@ flutter:
 
 
   fonts:
+    # Latin/digit face for data and UI text. Subsetted from Iosevka v34.9.1
+    # (SIL OFL, see fonts/LICENSE-Iosevka.txt) to Basic Latin plus the symbols
+    # the UI renders (· × – — …). Regenerate with pyftsubset from the union of
+    # lib/l10n/*.arb and lib/**/*.dart when adding characters outside it.
     - family: Iosevka
       fonts:
         - asset: fonts/Iosevka-Regular-sub.ttf

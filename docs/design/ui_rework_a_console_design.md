@@ -181,7 +181,7 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 ### 4.3 设计令牌
 
 - **颜色**：以项目品牌蓝 `#0059BA` 为锚点，按 §4.3.1 的浅色/深色令牌显式构造 `ColorScheme`；不使用 `ColorScheme.fromSeed` 的默认派生结果（会重新生成灰紫表面、板岩灰与紫色辅色）。error 表达更正/错误；success 只用于运行状态，通过 `ThemeExtension` 提供，不冒充 MD3 标准角色。深色模式是否本期上线见 §11。
-- **字体**：以现有 Iosevka（`qsoFontFamily`）作为拉丁字母/数字的主字体，中文使用随包的 Noto Sans SC（思源黑体）Regular/Medium/Bold 子集，避免各平台系统 CJK 字形不一致；只有子集缺字时才回退系统 CJK。呼号、RST、交换信息、UTC、计时、分数、速率、统计数值、序号和规则数值一律使用 Iosevka + tabular figures。不再把系统 sans-serif 作为拉丁/数字的主字体。
+- **字体**：以现有 Iosevka（`qsoFontFamily`）作为拉丁字母/数字的主字体，中文使用随包的 Noto Sans SC（思源黑体）Regular/Medium/Bold 子集，避免各平台系统 CJK 字形不一致；只有子集缺字时才回退系统 CJK。Iosevka 子集覆盖 Basic Latin 与 UI 符号（`· × – — …`），小写字母和尖括号不再回退 Noto。呼号、RST、交换信息、UTC、计时、分数、速率、统计数值、序号和规则数值一律使用 Iosevka + tabular figures。不再把系统 sans-serif 作为拉丁/数字的主字体。
 - **字号**：卡片标题 15/20 600；正文 14/20；辅助 12–13；呼号输入框静止标签 14、浮动标签 13；计时与总分等宽 42/34（紧凑高度时）；统计值 19。
 - **形状**：卡片 16；抽屉 28（仅左侧圆角）；对话框 28；输入容器 12；按钮 16；badge 8。
 - **间距**：4px 基础网格；常用 8/12/16/20/24。
@@ -271,9 +271,9 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 - **交换信息不显示实时匹配**：编辑过程中不显示「已匹配」、成功色或任何正确性提示；只保留焦点、输入过滤和自动大写。正确性只在提交后由日志行与更正列反馈，避免训练时被 UI 提前告知答案。
 - 阶段提示：仅入门难度且运行中显示；内容来自现有 `SingleCallRunState`，保留放弃本轮入口。图标底使用 tertiary-container，作为界面中唯一的暖色引导点。标准/进阶**整行不构建**（图标、阶段标题、提示和 Enter chip 一起隐藏），不保留空白占位；操作台高度随内容收缩，日志区吸收剩余高度。难度设置只在停止时可改，因此运行中不会因切换难度产生布局跳动。
 - 输入区：呼号、RST、交换信息三个字段横向排列；呼号/交换信息可编辑，RST 只读并显示「自动」；保留自动大写、长度限制、输入过滤和焦点切换逻辑。
-- 动作区：由 `functionKeysFromSettings` 动态生成，只展示非 Spare 的动作，按 F 键顺序排列；默认 9 个动作在 1280/1024 下均保持单行（1024 隐藏动作行末端的速查图标），自定义更多动作时允许换行。按钮点击与 F 键都映射到同一个 `OperationEvent`。
+- 动作区：由 `functionKeysFromSettings` 动态生成，只展示非 Spare 的动作，按 F 键顺序排列；默认 9 个动作在 1280 下保持单行，窗口更窄或自定义更多动作时自动换行。按钮点击与 F 键都映射到同一个 `OperationEvent`。
 - 动作按钮不抢输入焦点：使用 `ExcludeFocus`/不可获取焦点的包装，保证点击发送后输入框仍保持编辑状态。
-- 键盘速查入口在 1280 下同时保留在顶栏和动作行末端；≤1060 隐藏动作行末端的重复入口，顶栏入口始终保留，避免按键换行后只剩一个孤立图标。
+- 键盘速查入口在顶栏和动作行末端同时保留；窄窗口下动作按钮换行时，图标固定在动作区右侧，不随换行隐藏。
 
 ### 5.4 本次练习 / 成绩卡（替换 `QsoSpeedArea` + `TimeAndScoreArea`）
 
@@ -302,7 +302,7 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 - 宽度 480px，右侧全高，左侧 28px 圆角；标题区固定，Tab 栏 48px 固定，内容区独立滚动。
 - 四个分类：比赛与电台、训练、音频、系统（分组映射见 §6）。
 - 比赛与电台合并页：上半部分为比赛名称、比赛交换格式和比赛规则入口；下半部分为「我的电台」呼号与发送交换信息。
-- 切换比赛后，`myExchangePlan` 决定的下半部分字段立即更新：CQ WPX 无交换字段，仅只读序号说明；CQ WW 显示 CQ Zone；ARRL DX 按站点显示州/省或功率；IARU HF 显示 ITU Zone；JIDX 按站点显示都道府县或 CQ Zone。修改呼号时依赖呼号的派生字段也即时更新。
+- 切换比赛后，`myExchangePlan` 决定的下半部分字段立即更新：CQ WPX 无交换字段，仅显示序号自动生成的说明（序号由已完成的 QSO 数决定，不提供输入框）；CQ WW 显示 CQ Zone；ARRL DX 按站点显示州/省或功率；IARU HF 显示 ITU Zone；JIDX 按站点显示都道府县或 CQ Zone。修改呼号时依赖呼号的派生字段也即时更新。
 - 合并页内容独立滚动；不要求用户为改电台信息切换 Tab。
 - 比赛名称下拉使用 `ContestDefinition.name`，不显示 SSB 后缀；比赛交换格式为只读展示，使用 Iosevka。
 - CQ WPX 序号不写入设置、不持久化、不回退旧值；开始校验不要求序号字段。
@@ -324,7 +324,7 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 
 | 新分类 | 生产设置项 | 现有来源 |
 | --- | --- | --- |
-| 比赛与电台 | 比赛名称（`ContestDefinition.name`，无 SSB 后缀）、比赛交换格式（只读）、比赛规则入口；呼号、站点交换字段（按 `myExchangePlan` 动态生成；CQ WPX 无字段，仅只读序号说明） | `ContestSettingCubit`、`ContestRulesDialog`、`_StationCallsignCubit`、`_StationExchangeFieldInput` |
+| 比赛与电台 | 比赛名称（`ContestDefinition.name`，无 SSB 后缀）、比赛交换格式（只读）、比赛规则入口；呼号、站点交换字段（按 `myExchangePlan` 动态生成；CQ WPX 无字段，仅显示序号自动生成的说明） | `ContestSettingCubit`、`ContestRulesDialog`、`_StationCallsignCubit`、`_StationExchangeFieldInput` |
 | 训练 | 训练模式、时长、难度、练习种子 | `OptionsSetting` 前半部分、`_PracticeSeedDialog` |
 | 音频 | 音标类型、来台口音、来台音量 | `OptionsSetting` 后半部分 |
 | 系统 | 语言、功能键、历史练习、详细日志、复制诊断、导出日志 | `OptionsSetting` 的语言/历史练习、`DiagnosticsSetting` |

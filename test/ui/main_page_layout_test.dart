@@ -45,11 +45,9 @@ void main() {
         expect(find.text('Contest rules'), findsOneWidget);
         expect(find.text('Start training'), findsOneWidget);
 
-        // The action-row keyboard shortcut is duplicated only on wide windows.
-        expect(
-          find.byIcon(Icons.keyboard_outlined),
-          size.width > 1060 ? findsNWidgets(2) : findsOneWidget,
-        );
+        // The topbar and the action row both expose the keyboard reference,
+        // including when the action buttons wrap at the minimum width.
+        expect(find.byIcon(Icons.keyboard_outlined), findsNWidgets(2));
 
         expect(tester.takeException(), isNull);
       },

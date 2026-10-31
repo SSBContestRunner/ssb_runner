@@ -58,15 +58,19 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the repeated keyboard entry is hidden at 1024 width', (
+  testWidgets('the keyboard entry stays visible when the action row wraps', (
     tester,
   ) async {
     final harness = await _createHarness();
     await _pumpConsole(tester, harness, width: 1024, consoleWidth: 660);
 
-    // The topbar entry stays; only the action-row duplicate is removed.
-    expect(find.byIcon(Icons.keyboard_outlined), findsNothing);
+    expect(find.byIcon(Icons.keyboard_outlined), findsOneWidget);
     expect(find.text('Wipe'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.keyboard_outlined));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Keyboard reference'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
   });
