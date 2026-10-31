@@ -98,6 +98,8 @@
   "keyTipToggleCallExchange": "コールサインと交換情報を切り替え",
   "keyTipSendCallExchange": "相手のコールサインと交換情報を送信（F2 + F5）",
   "keyTipSubmit": "この記録を送信",
+  "keyTipClearInput": "入力欄をクリア",
+  "keyTipStopSending": "送信を停止（ラウンドは放棄しません）",
   "callLabel": "コールサイン",
   "rstLabel": "RST",
   "exchangeFieldLabel": "交換情報",

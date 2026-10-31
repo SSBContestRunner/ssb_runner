@@ -200,6 +200,8 @@
   "keyTipToggleCallExchange": "toggle between CALL and Exchange",
   "keyTipSendCallExchange": "send his call and exchange (F2 + F5)",
   "keyTipSubmit": "submit your record",
+  "keyTipClearInput": "clear the input fields",
+  "keyTipStopSending": "stop sending (does not abandon the round)",
   "callLabel": "Call",
   "rstLabel": "RST",
   "exchangeFieldLabel": "Exchange",

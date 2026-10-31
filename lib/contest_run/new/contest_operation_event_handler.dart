@@ -124,6 +124,7 @@ class ContestOperationEventHandler {
         break;
       case OperationEvent.submit:
       case OperationEvent.cancel:
+      case OperationEvent.wipe:
         break;
     }
 
@@ -200,6 +201,11 @@ class ContestOperationEventHandler {
         break;
       case OperationEvent.exch:
         _handleExchEvent();
+        break;
+      case OperationEvent.wipe:
+        // Wipe only clears the operator's input: no state change, no audio,
+        // no database write and no operation log.
+        _inputHandler.clear();
         break;
       default:
         break;

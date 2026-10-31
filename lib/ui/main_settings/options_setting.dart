@@ -392,15 +392,18 @@ class _KeyBindingsDialog extends StatefulWidget {
 
 class _KeyBindingsDialogState extends State<_KeyBindingsDialog> {
   late final AppSettings settings;
-  late final Map<OperationAction, String> bindings;
+
+  /// One entry per key, in F1 → F12 order. Values are [OperationAction.id] or
+  /// [spareBindingValue] for a key with no action.
+  late final Map<FunctionKey, String> bindings;
 
   @override
   void initState() {
     super.initState();
     settings = context.read();
     bindings = {
-      for (final action in OperationAction.values)
-        action: settings.binding(action),
+      for (final binding in settings.functionKeyBindings)
+        binding.key: binding.action?.id ?? _spareBindingValue,
     };
   }
 
@@ -408,26 +411,33 @@ class _KeyBindingsDialogState extends State<_KeyBindingsDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AlertDialog(
+      scrollable: true,
       title: Text(l10n.functionKeysTitle),
       content: SizedBox(
         width: 360,
-        child: ListView(
-          shrinkWrap: true,
+        child: Column(
           children: [
-            for (final action in OperationAction.values)
-              DropdownButtonFormField<String>(
-                initialValue: bindings[action],
-                decoration: InputDecoration(labelText: action.label),
-                items: List.generate(
-                  8,
-                  (index) => DropdownMenuItem(
-                    value: 'F${index + 1}',
-                    child: Text('F${index + 1}'),
-                  ),
+            for (final key in FunctionKey.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: DropdownButtonFormField<String>(
+                  initialValue: bindings[key],
+                  decoration: InputDecoration(labelText: key.label),
+                  items: [
+                    const DropdownMenuItem(
+                      value: _spareBindingValue,
+                      child: Text('Spare'),
+                    ),
+                    for (final action in OperationAction.values)
+                      DropdownMenuItem(
+                        value: action.id,
+                        child: Text(action.label),
+                      ),
+                  ],
+                  onChanged: (id) {
+                    if (id != null) setState(() => bindings[key] = id);
+                  },
                 ),
-                onChanged: (key) {
-                  if (key != null) setState(() => bindings[action] = key);
-                },
               ),
           ],
         ),
@@ -438,17 +448,21 @@ class _KeyBindingsDialogState extends State<_KeyBindingsDialog> {
           child: Text(l10n.cancel),
         ),
         FilledButton(
-          onPressed: () {
-            if (bindings.values.toSet().length != bindings.length) {
+          onPressed: () async {
+            final assigned = bindings.values
+                .where((id) => id != _spareBindingValue)
+                .toList();
+            if (assigned.toSet().length != assigned.length) {
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text(l10n.functionKeysUnique)));
               return;
             }
-            for (final entry in bindings.entries) {
-              settings.setBinding(entry.key, entry.value);
-            }
-            Navigator.pop(context);
+            await settings.setFunctionKeyBindings([
+              for (final key in FunctionKey.values)
+                FunctionKeyBinding(key, OperationAction.fromId(bindings[key])),
+            ]);
+            if (context.mounted) Navigator.pop(context);
           },
           child: Text(l10n.save),
         ),
@@ -456,6 +470,8 @@ class _KeyBindingsDialogState extends State<_KeyBindingsDialog> {
     );
   }
 }
+
+const _spareBindingValue = 'spare';
 
 class _PracticeSeedDialog extends StatefulWidget {
   const _PracticeSeedDialog();

@@ -64,6 +64,104 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('Function key dialog configures all twelve keys', (tester) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(12));
+    for (final key in FunctionKey.values) {
+      expect(find.text(key.label), findsOneWidget);
+    }
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(settings.functionKeyBindings, hasLength(12));
+    expect(
+      settings.functionKeyBindings[FunctionKey.f12.index].action,
+      OperationAction.wipe,
+    );
+  });
+
+  testWidgets('A function key can be set to Spare and saved', (tester) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    await _selectFunctionKey(tester, FunctionKey.f1.index, 'Spare');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final bindings = settings.functionKeyBindings;
+    expect(bindings[FunctionKey.f1.index].isSpare, isTrue);
+    expect(bindings[FunctionKey.f2.index].action, OperationAction.exchange);
+    expect(bindings[FunctionKey.f12.index].action, OperationAction.wipe);
+  });
+
+  testWidgets('Cancel discards edits and the dialog opens from live bindings', (
+    tester,
+  ) async {
+    final settings = await _createSettings();
+    await settings.setFunctionKeyBindings([
+      for (final key in FunctionKey.values)
+        FunctionKeyBinding(
+          key,
+          key == FunctionKey.f1 ? null : key.defaultAction,
+        ),
+    ]);
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    // Opens from the stored bindings: F1 is currently Spare, not the default CQ.
+    final firstField = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>).first,
+    );
+    expect(firstField.initialValue, 'spare');
+
+    await _selectFunctionKey(tester, FunctionKey.f1.index, 'CQ');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // Cancel must not persist the edited value.
+    expect(settings.functionKeyBindings[FunctionKey.f1.index].isSpare, isTrue);
+  });
+
+  testWidgets('Duplicate non-Spare actions block saving', (tester) async {
+    final settings = await _createSettings();
+    await _pumpHarness(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    // Wipe already lives on F12; assigning it to F1 too must be rejected.
+    await _selectFunctionKey(tester, FunctionKey.f1.index, 'Wipe');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Each command needs a different function key.'),
+      findsOneWidget,
+    );
+    expect(
+      settings.functionKeyBindings[FunctionKey.f1.index].action,
+      OperationAction.cq,
+      reason: 'a rejected save must not persist anything',
+    );
+
+    // Let the SnackBar time out, then dismiss the dialog.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Incoming accent selection is labelled and persisted', (
     tester,
   ) async {
@@ -188,6 +286,19 @@ void main() {
     await tester.pump();
     expect(_durationText(tester), '0');
   });
+}
+
+Future<void> _selectFunctionKey(
+  WidgetTester tester,
+  int index,
+  String label,
+) async {
+  await tester.tap(find.byType(DropdownButtonFormField<String>).at(index));
+  await tester.pumpAndSettle();
+  // The menu item is the last occurrence; each closed field also builds all
+  // of its items inside an IndexedStack.
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
 }
 
 Future<AppSettings> _createSettings() async {

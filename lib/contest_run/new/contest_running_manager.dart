@@ -96,7 +96,7 @@ class ContestRunningManager {
       );
 
   late final _keyEventManager = KeyEventHandler(
-    functionKeys: functionKeysFromSettings(_contestDataManager.appSettings),
+    bindings: functionKeysFromSettings(_contestDataManager.appSettings),
   );
 
   late final KeyEventCallback _keyEventCallback = _onKeyEvent;

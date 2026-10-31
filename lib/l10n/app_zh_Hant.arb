@@ -98,6 +98,8 @@
   "keyTipToggleCallExchange": "在呼號和交換資訊之間切換",
   "keyTipSendCallExchange": "傳送對方呼號和交換資訊（F2 + F5）",
   "keyTipSubmit": "提交本條記錄",
+  "keyTipClearInput": "清空輸入框",
+  "keyTipStopSending": "停止發送（不放棄本輪）",
   "callLabel": "呼號",
   "rstLabel": "RST",
   "exchangeFieldLabel": "交換資訊",

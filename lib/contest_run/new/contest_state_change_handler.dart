@@ -143,8 +143,9 @@ class ContestStateChangeHandler {
   }
 
   /// F1 in the middle of a QSO: drop the round without logging it, then start
-  /// a fresh question. The operator's input is cleared so nothing from the
-  /// abandoned round leaks into the next one.
+  /// a fresh question. The abandoned station goes back into the pool and, in
+  /// pile-up mode, stays audible as an interferer. The operator's input is left
+  /// untouched — F12 is the explicit "clear input" key.
   Future<void> abandonRound() async {
     if (_disposed || _isAbandoning) return;
     _isAbandoning = true;
@@ -161,6 +162,7 @@ class ContestStateChangeHandler {
         return;
       }
 
+      final requeuedCallsign = _abandonedCallsign(abandonedState);
       log.info(
         'round abandoned',
         tag: 'contest.state',
@@ -168,11 +170,13 @@ class ContestStateChangeHandler {
           'runId': _contestRunId,
           'reason': 'cq',
           'from': '${abandonedState.runtimeType}',
+          'requeuedCallsign': requeuedCallsign,
         },
       );
 
-      _inputHandler.clear();
-      final contestAnswer = await _generateNextAnswer();
+      final contestAnswer = await _generateNextAnswer(
+        requeueCallsign: requeuedCallsign,
+      );
       if (contestAnswer == null || _disposed) return;
 
       _stateMachine.transition(
@@ -186,6 +190,15 @@ class ContestStateChangeHandler {
       _isAbandoning = false;
     }
   }
+
+  /// The station being worked on in an in-flight QSO, or null outside one.
+  String? _abandonedCallsign(SingleCallRunState state) => switch (state) {
+    HeRepeatCorrectCallAnswer s => s.currentCallAnswer,
+    HeAskForExchange s => s.currentCallAnswer,
+    WaitingSubmitMyExchange s => s.currentCallAnswer,
+    ReportMyExchange s => s.currentCallAnswer,
+    _ => null,
+  };
 
   Future<void> _playAudioByStateChange(
     SingleCallRunState toState,
@@ -654,9 +667,10 @@ class ContestStateChangeHandler {
 
   /// Produces the next question, or `null` once the answer sequence is
   /// exhausted (in which case the run is finished and the review is shown).
-  Future<ContestAnswer?> _generateNextAnswer() async {
+  /// [requeueCallsign] is passed only from the abandon path.
+  Future<ContestAnswer?> _generateNextAnswer({String? requeueCallsign}) async {
     try {
-      return _answerGenerator.generateAnswer();
+      return _answerGenerator.generateAnswer(requeueCallsign: requeueCallsign);
     } on AnswerSourceExhausted catch (end) {
       // Finish the final sign-off before stopping audio and saving the review.
       await _waitAudioNotPlaying();

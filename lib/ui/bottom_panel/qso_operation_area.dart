@@ -488,33 +488,33 @@ class _FunctionKeys extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final functionKeyBtns =
-        functionKeysFromSettings(context.read<AppSettings>()).entries.map((
-          entry,
-        ) {
-          final buttonTextName = '${entry.key.keyLabel} ${entry.value.btnText}';
-          return (buttonTextName, entry.value);
-        }).toList();
+    final bindings = functionKeysFromSettings(context.read<AppSettings>());
 
-    // Two rows of four whose height is shared from the parent rather than
+    // Three rows of four whose height is shared from the parent rather than
     // derived from a fixed aspect ratio, so the key label keeps enough room to
     // wrap onto a second line instead of being clipped when the window shrinks.
     final rows = <Widget>[];
-    for (var start = 0; start < functionKeyBtns.length; start += 4) {
-      final end = (start + 4).clamp(start, functionKeyBtns.length);
+    for (var start = 0; start < bindings.length; start += 4) {
+      final end = (start + 4).clamp(start, bindings.length);
       rows.add(
         Expanded(
           child: Row(
             spacing: 16.0,
-            children: functionKeyBtns
+            children: bindings
                 .sublist(start, end)
                 .map(
-                  (element) => Expanded(
+                  (binding) => Expanded(
                     child: _FunctionKeyButton(
-                      text: element.$1,
-                      onPressed: () {
-                        onOperationEvent(element.$2);
-                      },
+                      text:
+                          '${binding.key.label} '
+                          '${binding.action?.label ?? 'Spare'}',
+                      onPressed: binding.isSpare
+                          ? null
+                          : () {
+                              onOperationEvent(
+                                operationEventFor(binding.action!),
+                              );
+                            },
                     ),
                   ),
                 )
@@ -524,15 +524,16 @@ class _FunctionKeys extends StatelessWidget {
       );
     }
 
-    return Column(spacing: 16.0, children: rows);
+    // Rows are tighter than columns so three rows still fit the panel height.
+    return Column(spacing: 8.0, children: rows);
   }
 }
 
 class _FunctionKeyButton extends StatelessWidget {
   final String text;
-  final void Function() onPressed;
+  final void Function()? onPressed;
 
-  const _FunctionKeyButton({required this.text, required this.onPressed});
+  const _FunctionKeyButton({required this.text, this.onPressed});
 
   @override
   Widget build(BuildContext context) {

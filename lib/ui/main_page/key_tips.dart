@@ -19,7 +19,8 @@ class KeyTips extends StatelessWidget {
         child: Center(
           child: SizedBox(
             width: 480,
-            height: 320,
+            // Seven key rows (Tab … Enter, F12, Esc) need the extra height.
+            height: 470,
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
@@ -32,7 +33,7 @@ class KeyTips extends StatelessWidget {
                   spacing: 8,
                   children: [
                     Expanded(
-                      child: Padding(
+                      child: SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
                         child: Flex(
                           direction: Axis.horizontal,
@@ -44,11 +45,14 @@ class KeyTips extends StatelessWidget {
                               spacing: 16,
                               children: _keys(),
                             ),
-                            // Descriptions
-                            Flex(
-                              direction: Axis.vertical,
-                              spacing: 30,
-                              children: _descriptions(l10n),
+                            // Descriptions share the remaining width so long
+                            // hints wrap instead of overflowing the dialog.
+                            Expanded(
+                              child: Flex(
+                                direction: Axis.vertical,
+                                spacing: 30,
+                                children: _descriptions(l10n),
+                              ),
                             ),
                           ],
                         ),
@@ -93,6 +97,8 @@ class KeyTips extends StatelessWidget {
       _KeyboardKey(keyText: 'Space'),
       _KeyboardKey(keyText: ';'),
       _KeyboardKey(keyText: 'Enter'),
+      _KeyboardKey(keyText: 'F12'),
+      _KeyboardKey(keyText: 'Esc'),
     ];
   }
 
@@ -104,6 +110,8 @@ class KeyTips extends StatelessWidget {
       Text(l10n.keyTipToggleCallExchange, style: textStyle),
       Text(l10n.keyTipSendCallExchange, style: textStyle),
       Text(l10n.keyTipSubmit, style: textStyle),
+      Text(l10n.keyTipClearInput, style: textStyle),
+      Text(l10n.keyTipStopSending, style: textStyle),
     ];
   }
 }
