@@ -119,6 +119,26 @@ void main() {
       expect(toState, isA<QsoEnd>());
       expect((toState as QsoEnd).correctedCall, isNull);
     });
+
+    test('收到 Retry 原地重播他的序号', () {
+      final machine = initSingleCallRunStateMachine(
+        initialState: WaitingSubmitMyExchange(
+          currentCallAnswer: 'B100IARU',
+          currentExchangeAnswer: '59 001',
+          submitCall: 'B100IARU',
+          audioPlayType: PlayExchange(exchange: '59 001', isMe: false),
+          isOperateInput: false,
+        ),
+        transitionListener: (_) {},
+      );
+
+      final toState = machine.transition(Retry());
+
+      expect(toState, isA<WaitingSubmitMyExchange>());
+      final waiting = toState as WaitingSubmitMyExchange;
+      expect(waiting.audioPlayType, isA<PlayExchange>());
+      expect((waiting.audioPlayType as PlayExchange).isMe, isFalse);
+    });
   });
 
   group('在途 QSO 放弃本轮', () {

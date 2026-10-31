@@ -318,6 +318,18 @@ class ContestOperationEventHandler {
     _audioPlayer.resetStream();
   }
 
+  /// F5 (`<his>`) sends the callsign the operator copied. What that means for
+  /// the round depends on where it stands, so the states are spelled out
+  /// instead of inferred:
+  ///
+  /// - still waiting for the callsign (or he is repeating it): the copy is
+  ///   submitted, as before;
+  /// - the callsign is already agreed and he owes us the exchange: he repeats
+  ///   his serial, exactly like F7 (AGN). Run and S&P both work this way.
+  ///
+  /// States outside the matrix (sign-off, report being sent) get nothing on
+  /// purpose: they have no `Retry` handler, so a blanket retry would only spam
+  /// the state log with dropped-event warnings.
   Future<void> _handleHisCall() async {
     await _waitAudioNotPlaying();
 
@@ -325,15 +337,18 @@ class ContestOperationEventHandler {
       return;
     }
 
-    if (_stateMachine.currentState is WaitingSubmitCall ||
-        _stateMachine.currentState is HeRepeatCorrectCallAnswer) {
-      _stateMachine.transition(SubmitCall(call: _hisCall));
-      return;
-    }
-
-    if (_stateMachine.currentState is HeAskForExchange) {
-      transition(Retry());
-      return;
+    switch (_stateMachine.currentState) {
+      case WaitingSubmitCall():
+      case HeRepeatCorrectCallAnswer():
+        _stateMachine.transition(SubmitCall(call: _hisCall));
+        break;
+      case HeAskForExchange():
+      case WaitingSubmitMyExchange():
+      case SpWaitingHisExchange():
+        transition(Retry());
+        break;
+      default:
+        break;
     }
   }
 

@@ -228,11 +228,12 @@ String _phaseHint(SingleCallRunState? state) {
     HeAskForExchange() =>
       'He wants his serial — type it, Enter to send; F1 abandons this round',
     WaitingSubmitMyExchange() =>
-      'Your report is sent — type his serial, then Enter',
+      'Your report is sent — type his serial, then Enter; F5/F7 repeats',
     ReportMyExchange() => 'Sending your report…',
     QsoEnd() => 'QSO complete — starting the next one',
     SpListeningCq() => 'Listening — Enter to pounce, F1 for another CQ',
-    SpWaitingHisExchange() => 'He answered — copy his serial, then Enter',
+    SpWaitingHisExchange() =>
+      'He answered — copy his serial, then Enter; F5/F7 repeats',
     SpQsoEnd() => 'Signing off — the next CQ follows',
   };
 }
