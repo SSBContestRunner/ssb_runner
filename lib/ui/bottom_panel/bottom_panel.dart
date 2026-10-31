@@ -9,7 +9,9 @@ class BottomPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 200,
+      // Tall enough for the three rows of F1–F12 buttons plus the input area,
+      // including the Beginner phase-hint row.
+      height: 280,
       child: Flex(
         direction: Axis.horizontal,
         spacing: 18.0,

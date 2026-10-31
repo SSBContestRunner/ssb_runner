@@ -1,0 +1,17 @@
+# fastforge Windows EXE (Inno Setup) 配置。
+# 产物：ssb_runner-<version>-windows-setup.exe；zip 便携包仍会同时产出。
+# AppId 是安装/升级的唯一标识，发布后不可更改；不要加花括号（会被 Inno 当作常量解析）。
+app_id: 367C747B-BCE1-4BB0-B8DD-F402E9056B64
+display_name: SSB Runner
+executable_name: ssb_runner.exe
+publisher_name: SSB Contest Runner
+publisher_url: https://ssbrunner.com/
+# 纯 per-user 安装，不弹 UAC；卸载同样只需当前用户权限。
+install_dir_name: "{localappdata}\\Programs\\SSB Runner"
+privileges_required: lowest
+create_desktop_icon: false
+launch_at_startup: false
+locales:
+  - en
+  - zh
+setup_icon_file: windows/runner/resources/app_icon.ico

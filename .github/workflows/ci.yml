@@ -84,16 +84,16 @@ jobs:
           # also the oldest usable runner -- the prebuilt libsqlite3.so that
           # package:sqlite3 downloads requires GLIBC_2.34.
           case "$PLATFORM" in
-            all)     matrix='[{"os":"ubuntu-22.04","platform":"linux","targets":"deb,appimage,zip"},{"os":"windows-latest","platform":"windows","targets":"zip"},{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
+            all)     matrix='[{"os":"ubuntu-22.04","platform":"linux","targets":"deb,appimage,zip"},{"os":"windows-latest","platform":"windows","targets":"zip,exe"},{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
             linux)   matrix='[{"os":"ubuntu-22.04","platform":"linux","targets":"deb,appimage,zip"}]' ;;
-            windows) matrix='[{"os":"windows-latest","platform":"windows","targets":"zip"}]' ;;
+            windows) matrix='[{"os":"windows-latest","platform":"windows","targets":"zip,exe"}]' ;;
             macos)   matrix='[{"os":"macos-latest","platform":"macos","targets":"dmg"}]' ;;
             *)
               echo "::error::Unknown platform '$PLATFORM' (expected: all, linux, windows, macos)"
               exit 1
               ;;
           esac
-          # Windows ships a portable zip, never an Inno Setup installer exe.
+          # Windows ships both a portable zip and a single-file Inno Setup installer exe.
           echo "matrix={\"include\":$matrix}" >> "$GITHUB_OUTPUT"
 
   # One job per platform rather than a single matrix job: a matrix job reports a single
@@ -217,8 +217,21 @@ jobs:
         # through --dart-define, which Flutter 3.47 rejects (fastforge #354).
         run: dart pub global activate fastforge 0.6.12
 
+      - name: Ensure Inno Setup 6
+        # fastforge's exe target resolves ISCC.exe from the default Inno Setup 6 path;
+        # images normally preinstall it, but install it explicitly if missing.
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) {
+            Write-Host 'Inno Setup 6 not found; installing via winget'
+            winget install --id JRSoftware.InnoSetup -e --silent --accept-package-agreements --accept-source-agreements
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
+          Write-Host "ISCC -> $iscc"
+
       - name: Build & package
-        # Windows ships a portable zip, never an Inno Setup installer exe.
+        # Windows ships both a portable zip and a single-file Inno Setup installer exe.
         #
         # Fastforge shells out to `flutter build windows`, whose Dart build hooks
         # (flutter_soloud, sqlite3) download prebuilt native libraries from GitHub
@@ -235,7 +248,7 @@ jobs:
             Write-Host "== fastforge package attempt $attempt/$attempts =="
             $ok = $false
             try {
-              dart pub global run fastforge:main package --platform=windows --targets=zip --build-dart-define "CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}"
+              dart pub global run fastforge:main package --platform=windows --targets=zip,exe --build-dart-define "CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}"
               $ok = ($LASTEXITCODE -eq 0)
             } catch {
               Write-Host "attempt $attempt threw: $_"
@@ -408,6 +421,27 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/smoke-test-windows.ps1
 
+  # Round-trips the single-file installer on a clean Windows runner: silent per-user install,
+  # assert the bundle (including the app-local MSVC runtime DLLs) landed complete, start the
+  # app, then silently uninstall and assert the install directory and shortcut are gone.
+  smoke-test-windows-installer:
+    name: Smoke test (Windows installer)
+    needs: package-windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ssb-runner-windows
+          path: artifacts
+
+      - name: Run Windows installer smoke test
+        shell: pwsh
+        run: ./.github/scripts/smoke-test-windows-installer.ps1
+
   # Same regression guard as the Windows job, for the macOS runner's own teardown path: the
   # app closes its window at SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER seconds (window_manager ->
   # [NSWindow performClose], i.e. the red button) and the process must be gone afterwards.
@@ -430,7 +464,7 @@ jobs:
       - name: Run macOS smoke test
         run: bash .github/scripts/smoke-test-macos.sh
 
-  # A release only ships a complete set, so every package and all three smoke tests must
+  # A release only ships a complete set, so every package and all four smoke tests must
   # have succeeded. Tag pushes are the only way in, and those build all three platforms.
   release:
     name: Draft GitHub Release
@@ -440,8 +474,8 @@ jobs:
       - package-macos
       - smoke-test-debian
       - smoke-test-windows
+      - smoke-test-windows-installer
       - smoke-test-macos
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

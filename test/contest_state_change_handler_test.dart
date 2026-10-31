@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 // `Retry` also exists in test_api; hide it so the state machine's event wins.
 import 'package:flutter_test/flutter_test.dart' hide Retry;
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_engine.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
@@ -21,6 +22,7 @@ import 'package:ssb_runner/contest_run/new/contest_state_change_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/search_and_pounce_run_state_machine.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
@@ -309,6 +311,195 @@ void main() {
       await rig.dispose();
     });
   });
+
+  group('F1 放弃当前轮', () {
+    test('四个 in-flight 状态放弃后换题，旧目标留在 PILE-UP 非主音', () async {
+      for (final stateBuilder in _inFlightStateBuilders) {
+        final loader = CallsignLoader()
+          ..callSigns.addAll(['OLD1', 'NEW1', 'NEW2']);
+        final generator = _liveGenerator(loader);
+        // The round being worked on was drawn before the operator pressed F1.
+        final working = generator.generateAnswer();
+        final rig = await _rig(
+          initialState: stateBuilder(working.callSign),
+          callsignLoader: loader,
+          answerSource: generator,
+        );
+
+        await rig.handler.abandonRound();
+
+        final next = rig.machine.currentState;
+        expect(next, isA<WaitingSubmitCall>());
+        final waiting = next as WaitingSubmitCall;
+        expect(waiting.currentCallAnswer, isNot(working.callSign));
+        expect(waiting.pileupCallsigns.first, waiting.currentCallAnswer);
+        expect(waiting.pileupCallsigns.skip(1), contains(working.callSign));
+        await rig.dispose();
+      }
+    });
+
+    test('池耗尽时旧目标降级为主音继续，不结束序列', () async {
+      String? endReason;
+      final loader = CallsignLoader()..callSigns.add('ONLY1');
+      final generator = _liveGenerator(loader);
+      final working = generator.generateAnswer();
+      final rig = await _rig(
+        initialState: _heAskForExchange(working.callSign),
+        callsignLoader: loader,
+        answerSource: generator,
+        onAnswersExhausted: (reason) => endReason = reason,
+      );
+
+      await rig.handler.abandonRound();
+
+      final next = rig.machine.currentState as WaitingSubmitCall;
+      expect(next.currentCallAnswer, 'ONLY1');
+      expect(next.pileupCallsigns, ['ONLY1']);
+      expect(endReason, isNull);
+
+      // Only after this round's normal QsoEnd does the empty pool end the run.
+      rig.machine.transition(SubmitCall(call: 'ONLY1'));
+      rig.machine.transition(SubmitHisExchange(exchange: '001'));
+      rig.machine.transition(SubmitMyExchange(exchange: '001', call: 'ONLY1'));
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      expect(endReason, 'callsign_pool_exhausted');
+      await rig.dispose();
+    });
+
+    test('放弃路径不清空输入框，并把旧目标交给生成器', () async {
+      final rig = await _rig(initialState: _heAskForExchange('B100IARU'));
+      rig.input.onCallEdit('B100');
+      rig.input.onExchangeEdit('59 0');
+
+      await rig.handler.abandonRound();
+
+      expect(rig.input.hisCall, 'B100');
+      expect(rig.input.exchange, '59 0');
+      expect(rig.answers.lastRequeueCallsign, 'B100IARU');
+      await rig.dispose();
+    });
+
+    test('非 in-flight 状态按 F1 仍为重播 CQ 的 Retry', () async {
+      var abandonCalls = 0;
+      final rig = await _rig(initialState: _waitingSubmitCall('B100IARU'));
+      final handler = ContestOperationEventHandler(
+        contestRunId: 'run-1',
+        contestDataManager: rig.dataManager,
+        contestType: _FixedContestType(),
+        stateMachine: rig.machine,
+        inputHandler: rig.input,
+        onAbandonRound: () async {
+          abandonCalls++;
+        },
+      );
+
+      await handler.handleOperationEvent(OperationEvent.cq);
+
+      expect(abandonCalls, 0);
+      expect(rig.machine.currentState, isA<WaitingSubmitCall>());
+      await rig.dispose();
+    });
+
+    test('F12 Wipe 在 Run 的每个在途状态下都只清空输入', () async {
+      final wipeStates = <SingleCallRunState Function(String)>[
+        (call) => WaitingSubmitCall(
+          currentCallAnswer: call,
+          currentExchangeAnswer: '59 002',
+        ),
+        ..._inFlightStateBuilders,
+      ];
+
+      for (final build in wipeStates) {
+        final loader = _CountingAudioLoader();
+        final rig = await _rig(
+          initialState: build('B100IARU'),
+          audioLoader: loader,
+        );
+        rig.input.onCallEdit('B100');
+        rig.input.onExchangeEdit('59 0');
+        final before = rig.machine.currentState;
+
+        await rig.operationHandler.handleOperationEvent(OperationEvent.wipe);
+
+        expect(rig.input.hisCall, isEmpty);
+        expect(rig.input.exchange, isEmpty);
+        expect(rig.machine.currentState, same(before));
+        expect(loader.calls, 0, reason: 'wipe must not load or play audio');
+        expect(await rig.database.select(rig.database.qsoTable).get(), isEmpty);
+        expect(
+          await rig.database.select(rig.database.eventLogTable).get(),
+          isEmpty,
+        );
+        await rig.dispose();
+      }
+    });
+
+    test('F12 Wipe 在 S&P 下也只清空输入', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _spListeningCq(),
+        searchAndPounce: true,
+        audioLoader: loader,
+      );
+      rig.input.onCallEdit('A1AAA');
+      rig.input.onExchangeEdit('007');
+      final listening = rig.machine.currentState;
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.wipe);
+
+      expect(rig.input.hisCall, isEmpty);
+      expect(rig.input.exchange, isEmpty);
+      expect(rig.machine.currentState, same(listening));
+
+      rig.machine.transition(SpPounce());
+      rig.input.onCallEdit('A1AAA');
+      rig.input.onExchangeEdit('007');
+      final waiting = rig.machine.currentState;
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.wipe);
+
+      expect(rig.input.hisCall, isEmpty);
+      expect(rig.input.exchange, isEmpty);
+      expect(rig.machine.currentState, same(waiting));
+
+      rig.machine.transition(
+        SpSubmitHisExchange(exchange: '007', myExchange: '001'),
+      );
+      rig.input.onCallEdit('A1AAA');
+      rig.input.onExchangeEdit('007');
+      final signingOff = rig.machine.currentState;
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.wipe);
+
+      expect(rig.input.hisCall, isEmpty);
+      expect(rig.input.exchange, isEmpty);
+      expect(rig.machine.currentState, same(signingOff));
+      expect(loader.calls, 0, reason: 'wipe must not load or play audio');
+      expect(await rig.database.select(rig.database.qsoTable).get(), isEmpty);
+      expect(
+        await rig.database.select(rig.database.eventLogTable).get(),
+        isEmpty,
+      );
+      await rig.dispose();
+    });
+
+    test('F12 清空后重新输入与提交按现有逻辑工作', () async {
+      final rig = await _rig(initialState: _heAskForExchange('B100IARU'));
+      rig.input.onCallEdit('B100');
+      rig.input.onExchangeEdit('59 0');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.wipe);
+      expect(rig.input.hisCall, isEmpty);
+      expect(rig.input.exchange, isEmpty);
+
+      rig.input.onExchangeEdit('59 002');
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+
+      expect(rig.machine.currentState, isA<WaitingSubmitMyExchange>());
+      await rig.dispose();
+    });
+  });
 }
 
 void _advanceToSpQsoEnd(
@@ -340,6 +531,62 @@ SpListeningCq _spListeningCq() {
   );
 }
 
+WaitingSubmitCall _waitingSubmitCall(String callAnswer) {
+  return WaitingSubmitCall(
+    currentCallAnswer: callAnswer,
+    currentExchangeAnswer: '59 002',
+  );
+}
+
+HeAskForExchange _heAskForExchange(String callAnswer) {
+  return HeAskForExchange(
+    currentCallAnswer: callAnswer,
+    currentExchangeAnswer: '59 002',
+    submitCall: callAnswer,
+    isPlayMyCall: false,
+  );
+}
+
+/// The four states in which F1 means "abandon this round".
+final _inFlightStateBuilders = <SingleCallRunState Function(String)>[
+  (call) => HeRepeatCorrectCallAnswer(
+    currentCallAnswer: call,
+    currentExchangeAnswer: '59 002',
+    submitCall: call,
+  ),
+  (call) => HeAskForExchange(
+    currentCallAnswer: call,
+    currentExchangeAnswer: '59 002',
+    submitCall: call,
+    isPlayMyCall: false,
+  ),
+  (call) => WaitingSubmitMyExchange(
+    currentCallAnswer: call,
+    currentExchangeAnswer: '59 002',
+    submitCall: call,
+    audioPlayType: PlayExchange(exchange: '59 002', isMe: false),
+    isOperateInput: false,
+  ),
+  (call) => ReportMyExchange(
+    currentCallAnswer: call,
+    currentExchangeAnswer: '59 002',
+    submitCall: call,
+    myExchange: '001',
+    audioPlayType: PlayExchange(exchange: '59 002', isMe: false),
+    isOperateInput: false,
+  ),
+];
+
+ContestAnswerGenerator _liveGenerator(CallsignLoader loader) {
+  return ContestAnswerGenerator(
+    callsignLoader: loader,
+    contestType: _FixedContestType(),
+    mode: TrainingMode.pileup,
+    difficulty: TrainingDifficulty.advanced,
+    random: SessionRandom(7),
+  );
+}
+
 /// Builds the Run/S&P handler with every dependency replaced by a test double.
 Future<_Rig> _rig({
   required SingleCallRunState initialState,
@@ -347,6 +594,7 @@ Future<_Rig> _rig({
   AudioLoader? audioLoader,
   AppDatabase? database,
   AnswerSource? answerSource,
+  CallsignLoader? callsignLoader,
   void Function(String reason)? onAnswersExhausted,
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
@@ -374,7 +622,7 @@ Future<_Rig> _rig({
     audioPlayer: AudioPlayer(engine: _SilentAudioEngine()),
     appSettings: settings,
     appDatabase: db,
-    callsignLoader: CallsignLoader(),
+    callsignLoader: callsignLoader ?? CallsignLoader(),
     dxccManager: DxccManager(database: db),
     inputHandler: input,
   );
@@ -393,6 +641,7 @@ Future<_Rig> _rig({
     ),
     contestAnswerGenerator: answerSource ?? answers,
     onAnswersExhausted: onAnswersExhausted,
+    accentPolicy: const AccentPolicy(IncomingAccent.auto),
   );
 
   return _Rig(
@@ -465,9 +714,13 @@ class _FixedAnswerSource implements AnswerSource {
   /// worked on, so the first call hands out the question after it.
   int calls = 0;
 
+  /// The abandoned callsign handed over by the last call, if any.
+  String? lastRequeueCallsign;
+
   @override
-  ContestAnswer generateAnswer() {
+  ContestAnswer generateAnswer({String? requeueCallsign}) {
     calls++;
+    lastRequeueCallsign = requeueCallsign;
     return _answers[calls];
   }
 }
@@ -480,6 +733,20 @@ class _SilentAudioLoader extends AudioLoader {
     String accentDir,
     AudioPayload audioPayload,
   ) async => Uint8List(0);
+}
+
+/// Proves that an operation event (e.g. Wipe) never even asks for audio.
+class _CountingAudioLoader extends _SilentAudioLoader {
+  int calls = 0;
+
+  @override
+  Future<Uint8List> loadAudio(
+    String accentDir,
+    AudioPayload audioPayload,
+  ) async {
+    calls++;
+    return super.loadAudio(accentDir, audioPayload);
+  }
 }
 
 /// Holds every [AudioLoader.loadAudio] call until [release], which reproduces

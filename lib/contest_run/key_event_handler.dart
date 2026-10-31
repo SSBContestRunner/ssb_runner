@@ -3,22 +3,22 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 
-final defaultFunctionKeysMap = {
-  LogicalKeyboardKey.f1: OperationEvent.cq,
-  LogicalKeyboardKey.f2: OperationEvent.exch,
-  LogicalKeyboardKey.f3: OperationEvent.tu,
-  LogicalKeyboardKey.f4: OperationEvent.myCall,
-  LogicalKeyboardKey.f5: OperationEvent.hisCall,
-  LogicalKeyboardKey.f6: OperationEvent.b4,
-  LogicalKeyboardKey.f7: OperationEvent.agn,
-  LogicalKeyboardKey.f8: OperationEvent.nil,
-};
+/// The default F1–F12 bindings, derived from [FunctionKey] so the keys and the
+/// settings share one source.
+List<FunctionKeyBinding> get defaultFunctionKeyBindings => [
+  for (final key in FunctionKey.values)
+    FunctionKeyBinding(key, key.defaultAction),
+];
 
 class KeyEventHandler {
-  KeyEventHandler({Map<LogicalKeyboardKey, OperationEvent>? functionKeys})
-    : _functionKeysMap = functionKeys ?? defaultFunctionKeysMap;
+  KeyEventHandler({List<FunctionKeyBinding>? bindings})
+    : _bindings = bindings ?? defaultFunctionKeyBindings;
 
-  final Map<LogicalKeyboardKey, OperationEvent> _functionKeysMap;
+  final List<FunctionKeyBinding> _bindings;
+
+  late final Map<LogicalKeyboardKey, OperationAction?> _actionByKey = {
+    for (final binding in _bindings) binding.key.logicalKey: binding.action,
+  };
 
   bool _isFunctionKeyPressed = false;
 
@@ -47,7 +47,7 @@ class KeyEventHandler {
   }
 
   void _handleKeyPressed(LogicalKeyboardKey key) {
-    if (_functionKeysMap.keys.contains(key)) {
+    if (_actionByKey.containsKey(key)) {
       _handleFunctionKeyPressed(key);
     }
 
@@ -85,43 +85,24 @@ class KeyEventHandler {
 
     _isFunctionKeyPressed = true;
 
-    final operationEvent = _functionKeysMap[key];
-    if (operationEvent != null) {
-      _operationEventController.add(operationEvent);
+    // Spare keys are recognised as function keys but dispatch nothing.
+    final action = _actionByKey[key];
+    if (action != null) {
+      _operationEventController.add(operationEventFor(action));
     }
   }
 
   void _handleFunctionKeyReleased(LogicalKeyboardKey key) {
-    if (_functionKeysMap.keys.contains(key)) {
+    if (_actionByKey.containsKey(key)) {
       _isFunctionKeyPressed = false;
     }
   }
 }
 
-Map<LogicalKeyboardKey, OperationEvent> functionKeysFromSettings(
-  AppSettings settings,
-) {
-  final result = <LogicalKeyboardKey, OperationEvent>{};
-  for (final action in OperationAction.values) {
-    final key = _logicalFunctionKey(settings.binding(action));
-    if (key != null) result[key] = _operationEventFor(action);
-  }
-  return result.isEmpty ? defaultFunctionKeysMap : result;
-}
+List<FunctionKeyBinding> functionKeysFromSettings(AppSettings settings) =>
+    settings.functionKeyBindings;
 
-LogicalKeyboardKey? _logicalFunctionKey(String label) => switch (label) {
-  'F1' => LogicalKeyboardKey.f1,
-  'F2' => LogicalKeyboardKey.f2,
-  'F3' => LogicalKeyboardKey.f3,
-  'F4' => LogicalKeyboardKey.f4,
-  'F5' => LogicalKeyboardKey.f5,
-  'F6' => LogicalKeyboardKey.f6,
-  'F7' => LogicalKeyboardKey.f7,
-  'F8' => LogicalKeyboardKey.f8,
-  _ => null,
-};
-
-OperationEvent _operationEventFor(OperationAction action) => switch (action) {
+OperationEvent operationEventFor(OperationAction action) => switch (action) {
   OperationAction.cq => OperationEvent.cq,
   OperationAction.exchange => OperationEvent.exch,
   OperationAction.tu => OperationEvent.tu,
@@ -130,6 +111,7 @@ OperationEvent _operationEventFor(OperationAction action) => switch (action) {
   OperationAction.before => OperationEvent.b4,
   OperationAction.again => OperationEvent.agn,
   OperationAction.noCopy => OperationEvent.nil,
+  OperationAction.wipe => OperationEvent.wipe,
 };
 
 enum OperationEvent {
@@ -141,6 +123,7 @@ enum OperationEvent {
   b4(btnText: 'B4'),
   agn(btnText: 'AGN'),
   nil(btnText: 'NIL'),
+  wipe(btnText: 'Wipe'),
   submit(btnText: ''),
   cancel(btnText: ''),
   hisCallAndMyExchange(btnText: '');
