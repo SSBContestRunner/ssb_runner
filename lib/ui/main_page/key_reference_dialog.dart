@@ -258,7 +258,7 @@ class _Kbd extends StatelessWidget {
 
     return Container(
       constraints: BoxConstraints(minWidth: minWidth),
-      height: 20,
+      height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 5),
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -270,7 +270,7 @@ class _Kbd extends StatelessWidget {
         label,
         style: AppDataText.style(
           context,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w500,
           color: scheme.onSurfaceVariant,
           letterSpacing: 0.2,

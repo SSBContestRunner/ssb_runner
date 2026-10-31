@@ -168,7 +168,7 @@ const appFontFallback = <String>[
 abstract final class AppDataText {
   static TextStyle style(
     BuildContext context, {
-    double fontSize = 13,
+    double fontSize = 14,
     FontWeight fontWeight = FontWeight.w400,
     Color? color,
     double letterSpacing = 0.3,
@@ -316,23 +316,23 @@ abstract final class AppTheme {
           titleSmall: base.textTheme.titleSmall?.copyWith(
             fontFamily: qsoFontFamily,
             fontFamilyFallback: appFontFallback,
-            fontSize: 13,
-            height: 18 / 13,
+            fontSize: 14,
+            height: 20 / 14,
             fontWeight: FontWeight.w600,
             color: scheme.onSurface,
           ),
           bodyMedium: base.textTheme.bodyMedium?.copyWith(
             fontFamily: qsoFontFamily,
             fontFamilyFallback: appFontFallback,
-            fontSize: 13,
-            height: 19 / 13,
+            fontSize: 14,
+            height: 20 / 14,
             color: scheme.onSurface,
           ),
           bodySmall: base.textTheme.bodySmall?.copyWith(
             fontFamily: qsoFontFamily,
             fontFamilyFallback: appFontFallback,
-            fontSize: 11,
-            height: 16 / 11,
+            fontSize: 12,
+            height: 17 / 12,
             letterSpacing: 0.2,
             color: scheme.onSurfaceVariant,
           ),
@@ -347,8 +347,8 @@ abstract final class AppTheme {
           labelMedium: base.textTheme.labelMedium?.copyWith(
             fontFamily: qsoFontFamily,
             fontFamilyFallback: appFontFallback,
-            fontSize: 12,
-            height: 16 / 12,
+            fontSize: 13,
+            height: 18 / 13,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.2,
             color: scheme.onSurfaceVariant,
@@ -356,8 +356,8 @@ abstract final class AppTheme {
           labelSmall: base.textTheme.labelSmall?.copyWith(
             fontFamily: qsoFontFamily,
             fontFamilyFallback: appFontFallback,
-            fontSize: 11,
-            height: 16 / 11,
+            fontSize: 12,
+            height: 17 / 12,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.5,
             color: scheme.onSurfaceVariant,

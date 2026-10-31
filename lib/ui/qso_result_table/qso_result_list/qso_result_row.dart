@@ -26,29 +26,29 @@ class QsoRecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final baseStyle = AppDataText.style(context, fontSize: 13);
+    final baseStyle = AppDataText.style(context, fontSize: 14);
     final mutedStyle = AppDataText.style(
       context,
-      fontSize: 12,
+      fontSize: 13,
       color: scheme.onSurfaceVariant,
     );
     final callStyle = AppDataText.style(
       context,
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: FontWeight.w500,
       letterSpacing: 0.6,
       color: item.call.isCorrect ? scheme.onSurface : scheme.error,
     );
     final exchangeStyle = AppDataText.style(
       context,
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: FontWeight.w500,
       letterSpacing: 0.6,
       color: item.exchange.isCorrect ? scheme.onSurface : scheme.error,
     );
     final correctionsStyle = AppDataText.style(
       context,
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: FontWeight.w500,
       color: item.corrections.isEmpty ? scheme.outline : scheme.onSurface,
     );
@@ -58,7 +58,7 @@ class QsoRecordRow extends StatelessWidget {
     );
 
     return Container(
-      height: 40,
+      height: 42,
       decoration: BoxDecoration(
         color: isLatest ? highlight : Colors.transparent,
         border: Border(

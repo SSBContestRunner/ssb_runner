@@ -81,8 +81,8 @@ class RulesCard extends StatelessWidget {
                       line,
                       style: AppDataText.style(
                         context,
-                        fontSize: 12,
-                        height: 18 / 12,
+                        fontSize: 13,
+                        height: 19 / 13,
                         color: scheme.onSurface,
                         letterSpacing: 0.1,
                       ),
