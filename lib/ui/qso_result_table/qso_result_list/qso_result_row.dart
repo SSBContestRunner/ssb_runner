@@ -4,7 +4,11 @@ import 'package:ssb_runner/ui/theme/app_theme.dart';
 
 /// Column metrics shared by the log header and every row so the labels stay
 /// aligned with the data.
-const double qsoUtcColumnWidth = 74;
+///
+/// A full HH:MM:SS timestamp at 13px needs 54px of Iosevka advance plus the
+/// 2 × [qsoCellPadding] cell padding; 84 leaves enough slack that it does not
+/// ellipsise.
+const double qsoUtcColumnWidth = 84;
 const double qsoCallColumnFlex = 105;
 const double qsoRstColumnWidth = 52;
 const double qsoExchangeColumnFlex = 100;
