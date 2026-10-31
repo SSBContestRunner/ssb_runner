@@ -4,6 +4,7 @@ import 'package:catcher_2/model/catcher_2_options.dart';
 import 'package:catcher_2/model/platform_type.dart';
 import 'package:catcher_2/model/report.dart';
 import 'package:catcher_2/model/report_handler.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
@@ -61,6 +62,7 @@ class _LoggingReportHandler extends ReportHandler {
 /// is included in copied/exported diagnostics.
 void _logCrashReport(Report report) {
   final stackTrace = report.stackTrace;
+  final details = report.errorDetails;
 
   log.error(
     'Unhandled error',
@@ -70,6 +72,12 @@ void _logCrashReport(Report report) {
       'platform': '${report.platformType}',
       'device': safeDeviceParameters(report.deviceParameters),
       'application': report.applicationParameters,
+      // Layout errors (e.g. RenderFlex overflow) carry no stack trace; the
+      // widget/file that caused them only lives in the details diagnostics
+      // (debugCreator). Without it a report cannot be traced to the widget
+      // that overflowed. Debug only: the creator chain is unavailable in
+      // release anyway and its dump would bloat the report.
+      if (kDebugMode && details != null) 'error_details': details.toString(),
     },
     error: report.error,
     stackTrace: stackTrace is StackTrace ? stackTrace : null,

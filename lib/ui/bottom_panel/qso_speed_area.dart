@@ -23,6 +23,50 @@ class QsoSpeedArea extends StatelessWidget {
   }
 }
 
+/// Speed readout rendered inside the QSO records panel.
+///
+/// The panel is a fixed 240 px wide and the 40 px insets on both sides leave
+/// 160 px for this label. Long localised units such as the Simplified/
+/// Traditional Chinese "QSO/小时" make a numeric reading wider than that slot,
+/// which used to overflow the row (crash log: "overflowed by 4.7 pixels on the
+/// right"). Scaling the label down keeps the unit visible instead of clipping
+/// it, and leaves the English/Japanese text untouched because scaleDown never
+/// enlarges.
+class QsoSpeedReadout extends StatelessWidget {
+  const QsoSpeedReadout({super.key, required this.speed, required this.unit});
+
+  /// QSOs per hour, or `null` while no interval has been measured yet.
+  final double? speed;
+
+  /// Localised unit appended after the value, e.g. "QSO/小时".
+  final String unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = speed;
+    final text = value == null
+        ? '--- $unit'
+        : '${value.toStringAsFixed(1)} $unit';
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              maxLines: 1,
+              softWrap: false,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w300),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _QsoRecordSpeedCubit extends Cubit<double?> {
   final ContestTimer _contestTimer;
   final ContestManager _contestManager;
@@ -94,30 +138,15 @@ class _QsoRecordSpeed extends StatelessWidget {
             top: 46,
             left: 40,
             right: 40,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                BlocProvider(
-                  create: (context) => _QsoRecordSpeedCubit(
-                    contestManager: context.read(),
-                    contestTimer: context.read(),
-                  ),
-                  child: BlocBuilder<_QsoRecordSpeedCubit, double?>(
-                    builder: (context, speed) {
-                      final speedText = speed == null
-                          ? '--- ${l10n.qsoSpeedUnit}'
-                          : '${speed.toStringAsFixed(1)} ${l10n.qsoSpeedUnit}';
-                      return Text(
-                        speedText,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+            child: BlocProvider(
+              create: (context) => _QsoRecordSpeedCubit(
+                contestManager: context.read(),
+                contestTimer: context.read(),
+              ),
+              child: BlocBuilder<_QsoRecordSpeedCubit, double?>(
+                builder: (context, speed) =>
+                    QsoSpeedReadout(speed: speed, unit: l10n.qsoSpeedUnit),
+              ),
             ),
           ),
         ],
