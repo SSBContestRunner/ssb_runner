@@ -16,33 +16,35 @@ class QsoRecordList extends StatefulWidget {
 class _QsoResultListState extends State<QsoRecordList> {
   final _controller = ScrollController();
 
-  _QsoResultListState();
-
   void _setupAutoScroll() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_controller.hasClients) {
+        return;
+      }
       _controller.jumpTo(_controller.position.maxScrollExtent);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => QsoRecordListCubit(
-        appDatabase: context.read(),
-        contestManager: context.read(),
-      ),
-      child: BlocBuilder<QsoRecordListCubit, List<QsoResult>>(
-        builder: (context, qsos) {
-          _setupAutoScroll();
-          return ListView.separated(
+    return BlocBuilder<QsoRecordListCubit, List<QsoResult>>(
+      builder: (context, qsos) {
+        _setupAutoScroll();
+        if (qsos.isEmpty) {
+          return const SizedBox.expand();
+        }
+        return Scrollbar(
+          controller: _controller,
+          child: ListView.builder(
             controller: _controller,
-            itemBuilder: (context, index) =>
-                QsoRecordRow(item: qsos[index], isAlternate: index.isOdd),
-            separatorBuilder: (context, index) => SizedBox(height: 4),
+            itemBuilder: (context, index) => QsoRecordRow(
+              item: qsos[index],
+              isLatest: index == qsos.length - 1,
+            ),
             itemCount: qsos.length,
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

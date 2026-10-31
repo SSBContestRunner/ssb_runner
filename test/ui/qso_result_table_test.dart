@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_row.dart';
+import 'package:ssb_runner/ui/theme/app_theme.dart';
 
 void main() {
   test('duplicate records stay visible with DUPE and exchange corrections', () {
@@ -42,10 +45,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: SizedBox(
-              width: 300,
-              child: QsoRecordRow(item: item, isAlternate: false),
-            ),
+            child: SizedBox(width: 300, child: QsoRecordRow(item: item)),
           ),
         ),
       ),
@@ -53,5 +53,36 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('K1ABCDEFGHIJ 1500'), findsOneWidget);
+  });
+
+  testWidgets('a full UTC timestamp fits inside its column', (tester) async {
+    // HH:MM:SS is 54.4px of Iosevka advance at 13px plus letter spacing, so a
+    // 74px column including cell padding ellipsised the last seconds digit.
+    final loader = FontLoader('Iosevka')
+      ..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'));
+    await loader.load();
+
+    final item = QsoResult(
+      call: QsoResultField(data: 'BG7TVF', isCorrect: true),
+      exchange: QsoResultField(data: '0012', isCorrect: true),
+      utc: '14:23:45',
+      corrections: '',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(width: 644, child: QsoRecordRow(item: item)),
+          ),
+        ),
+      ),
+    );
+
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.text('14:23:45'),
+    );
+    expect(paragraph.didExceedMaxLines, isFalse);
   });
 }

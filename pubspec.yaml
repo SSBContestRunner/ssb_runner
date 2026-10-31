@@ -159,9 +159,24 @@ flutter:
 
 
   fonts:
+    # Latin/digit face for data and UI text. Subsetted from Iosevka v34.9.1
+    # (SIL OFL, see fonts/LICENSE-Iosevka.txt) to Basic Latin plus the symbols
+    # the UI renders (· × – — …). Regenerate with pyftsubset from the union of
+    # lib/l10n/*.arb and lib/**/*.dart when adding characters outside it.
     - family: Iosevka
       fonts:
         - asset: fonts/Iosevka-Regular-sub.ttf
+    # CJK face for everything Iosevka lacks, subsetted to the characters used
+    # by the app's UI strings. Source: Noto Sans SC (SIL OFL, see
+    # fonts/LICENSE-NotoSansSC.txt); regenerate with pyftsubset from the union
+    # of lib/l10n/*.arb when adding new UI text.
+    - family: Noto Sans SC
+      fonts:
+        - asset: fonts/NotoSansSC-Regular-sub.otf
+        - asset: fonts/NotoSansSC-Medium-sub.otf
+          weight: 500
+        - asset: fonts/NotoSansSC-Bold-sub.otf
+          weight: 700
 
 # Force every remaining package to the newest published version where the
 # constraint is loose enough to allow it:

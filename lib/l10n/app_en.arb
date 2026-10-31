@@ -202,6 +202,16 @@
   "keyTipSubmit": "submit your record",
   "keyTipClearInput": "clear the input fields",
   "keyTipStopSending": "stop sending (does not abandon the round)",
+  "phaseHintListening": "Listening — copy his call, then Enter",
+  "phaseHintCallNotCopied": "Call not copied — F5 to submit, F7 to repeat",
+  "phaseHintHeWantsSerial": "He wants his serial — type it, Enter to send; F1 abandons this round",
+  "phaseHintReportSent": "Your report is sent — type his serial, then Enter; F5/F7 repeats",
+  "phaseHintSendingReport": "Sending your report…",
+  "phaseHintQsoComplete": "QSO complete — starting the next one",
+  "phaseHintSpListening": "Listening — Enter to pounce, F1 for another CQ",
+  "phaseHintSpHeAnswered": "He answered — copy his serial, then Enter; F5/F7 repeats",
+  "phaseHintSpSigningOff": "Signing off — the next CQ follows",
+  "abandonRound": "Abandon (F1)",
   "callLabel": "Call",
   "rstLabel": "RST",
   "exchangeFieldLabel": "Exchange",
@@ -266,5 +276,76 @@
   "fieldPrefecture": "Prefecture",
   "helperStateProvince": "Two-letter state or province code",
   "helperPower": "Transmitter output in watts",
-  "helperPrefecture": "Prefecture number for your call area"
+  "helperPrefecture": "Prefecture number for your call area",
+  "appSubtitle": "SSB contest trainer",
+  "toggleTheme": "Toggle theme",
+  "logSubtitle": "Logged automatically in UTC order",
+  "logCount": "{count} entries",
+  "@logCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logCorrections": "{count} corrections",
+  "@logCorrections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoLabel": "Auto",
+  "autoUppercase": "Auto uppercase",
+  "sessionTitle": "This session",
+  "sessionStatusRunning": "Running",
+  "sessionStatusIdle": "Stopped",
+  "sessionRunningNote": "Timer running · stop any time",
+  "sessionIdleNote": "Stopped · data is kept",
+  "startTraining": "Start training",
+  "stopTraining": "Stop training",
+  "elapsedLabel": "Elapsed",
+  "remainingLabel": "Remaining",
+  "verifiedScoreLabel": "Verified score",
+  "rawScoreValue": "Raw {score}",
+  "@rawScoreValue": {
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "correctionsSummary": "{count} corrections · ×{multiple}",
+  "@correctionsSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "multiple": {
+        "type": "int"
+      }
+    }
+  },
+  "scoreUnit": "pts",
+  "statMultiplier": "Mult",
+  "rateSuffix": "/h",
+  "rulesView": "View",
+  "settingsTitle": "Settings",
+  "settingsTabContestStation": "Contest & station",
+  "settingsTabTraining": "Training",
+  "settingsTabAudio": "Audio",
+  "settingsTabSystem": "System",
+  "settingsContestSection": "Contest",
+  "myStation": "My station",
+  "stationSerialAutoHint": "The serial is generated automatically from your completed QSOs.",
+  "settingsRunningLock": "Settings can't be changed while a session runs. Stop it first.",
+  "settingsFunctionKeysRowSubtitle": "View bindings · customize F1–F12",
+  "settingsHistoryRowSubtitle": "Review, replay and import practice seeds",
+  "settingsAutoSaveNote": "Changes are saved automatically.",
+  "keyReferenceTitle": "Keyboard reference",
+  "keyReferenceFunctions": "Function keys",
+  "keyReferenceShortcuts": "Shortcuts",
+  "keyReferenceSpare": "Unassigned",
+  "functionKeysRunningLock": "Function keys can't be changed while a session runs."
 }
