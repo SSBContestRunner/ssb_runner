@@ -467,11 +467,11 @@ class _QsoField extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: scheme.primary, width: 2),
           ),
-          labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+          labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: scheme.onSurfaceVariant,
             letterSpacing: 0.4,
           ),
-          floatingLabelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+          floatingLabelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: scheme.primary,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.4,
@@ -642,7 +642,7 @@ class _Kbd extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Container(
-      height: 18,
+      height: 20,
       padding: const EdgeInsets.symmetric(horizontal: 5),
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -654,7 +654,7 @@ class _Kbd extends StatelessWidget {
         label,
         style: AppDataText.style(
           context,
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: FontWeight.w500,
           color: scheme.onSurfaceVariant,
           letterSpacing: 0.2,

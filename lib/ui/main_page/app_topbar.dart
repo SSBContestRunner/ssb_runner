@@ -55,7 +55,7 @@ class AppTopbar extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppDataText.style(
                       context,
-                      fontSize: 11,
+                      fontSize: 12,
                       color: scheme.onSurfaceVariant,
                       letterSpacing: 0.4,
                     ),

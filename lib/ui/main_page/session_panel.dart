@@ -203,7 +203,7 @@ class _TimerBlock extends StatelessWidget {
 
         final metaStyle = AppDataText.style(
           context,
-          fontSize: 11,
+          fontSize: 12,
           color: scheme.onSurfaceVariant,
         );
 
@@ -276,7 +276,7 @@ class _ProgressBlock extends StatelessWidget {
             : (elapsed.inSeconds / totalSeconds).clamp(0.0, 1.0);
         final metaStyle = AppDataText.style(
           context,
-          fontSize: 11,
+          fontSize: 12,
           color: scheme.onSurfaceVariant,
         );
 
@@ -374,7 +374,7 @@ class _ScoreBlock extends StatelessWidget {
                   l10n.rawScoreValue(_formatNumber(raw.score)),
                   style: AppDataText.style(
                     context,
-                    fontSize: 11,
+                    fontSize: 12,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -391,7 +391,7 @@ class _ScoreBlock extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppDataText.style(
                       context,
-                      fontSize: 11,
+                      fontSize: 12,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -481,10 +481,9 @@ class _StatCell extends StatelessWidget {
               label.toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontSize: 10,
-                letterSpacing: 0.5,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(letterSpacing: 0.5),
             ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -507,7 +506,7 @@ class _StatCell extends StatelessWidget {
                     suffix!,
                     style: AppDataText.style(
                       context,
-                      fontSize: 10,
+                      fontSize: 12,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
