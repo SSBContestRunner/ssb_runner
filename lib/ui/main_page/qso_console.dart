@@ -184,6 +184,7 @@ class _PhaseHintBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     return BlocBuilder<QsoConsoleCubit, SingleCallRunState?>(
       builder: (context, state) {
@@ -205,7 +206,7 @@ class _PhaseHintBar extends StatelessWidget {
             ),
             Expanded(
               child: Text(
-                _phaseHint(state),
+                _phaseHint(l10n, state),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(
@@ -229,7 +230,7 @@ class _PhaseHintBar extends StatelessWidget {
                     OperationEvent.cq,
                   );
                 },
-                child: const Text('Abandon (F1)'),
+                child: Text(l10n.abandonRound),
               ),
           ],
         );
@@ -238,22 +239,18 @@ class _PhaseHintBar extends StatelessWidget {
   }
 }
 
-String _phaseHint(SingleCallRunState? state) {
+String _phaseHint(AppLocalizations l10n, SingleCallRunState? state) {
   return switch (state) {
     null => '',
-    WaitingSubmitCall() => 'Listening — copy his call, then Enter',
-    HeRepeatCorrectCallAnswer() =>
-      'Call not copied — F5 to submit, F7 to repeat',
-    HeAskForExchange() =>
-      'He wants his serial — type it, Enter to send; F1 abandons this round',
-    WaitingSubmitMyExchange() =>
-      'Your report is sent — type his serial, then Enter; F5/F7 repeats',
-    ReportMyExchange() => 'Sending your report…',
-    QsoEnd() => 'QSO complete — starting the next one',
-    SpListeningCq() => 'Listening — Enter to pounce, F1 for another CQ',
-    SpWaitingHisExchange() =>
-      'He answered — copy his serial, then Enter; F5/F7 repeats',
-    SpQsoEnd() => 'Signing off — the next CQ follows',
+    WaitingSubmitCall() => l10n.phaseHintListening,
+    HeRepeatCorrectCallAnswer() => l10n.phaseHintCallNotCopied,
+    HeAskForExchange() => l10n.phaseHintHeWantsSerial,
+    WaitingSubmitMyExchange() => l10n.phaseHintReportSent,
+    ReportMyExchange() => l10n.phaseHintSendingReport,
+    QsoEnd() => l10n.phaseHintQsoComplete,
+    SpListeningCq() => l10n.phaseHintSpListening,
+    SpWaitingHisExchange() => l10n.phaseHintSpHeAnswered,
+    SpQsoEnd() => l10n.phaseHintSpSigningOff,
   };
 }
 
