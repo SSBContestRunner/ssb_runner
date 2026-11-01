@@ -169,7 +169,10 @@ class _StatusChip extends StatelessWidget {
         ? semantic.onSuccessContainer
         : isPending
         ? scheme.onErrorContainer
-        : scheme.onPrimaryContainer;
+        // V2 keeps the container fill but draws the check and label in the
+        // brand blue, matching the approved prototype instead of the darker
+        // onPrimaryContainer role.
+        : scheme.primary;
 
     final semanticsLabel = isPending
         ? l10n.readinessIncomplete(issues.length)

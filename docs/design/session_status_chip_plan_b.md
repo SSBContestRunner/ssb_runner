@@ -34,7 +34,7 @@
 | isRunning | issues | chip 状态 | 底色 | 前景 | 左侧标记 | 文案 key | 可点击 |
 |---|---|---|---|---|---|---|---|
 | true | 忽略（不评估） | running | `successContainer` | `onSuccessContainer` | 7px 实心圆点 | `sessionStatusRunning` | 否 |
-| false | 0 | ready | `primaryContainer` | `onPrimaryContainer` | `Icons.check_rounded` 14px | `sessionStatusReady` | 否 |
+| false | 0 | ready | `primaryContainer` | `primary` | `Icons.check_rounded` 14px | `sessionStatusReady` | 否 |
 | false | >0 | pending | `errorContainer` | `onErrorContainer` | 7px 实心圆点 | `sessionStatusPending(count)` | 是，打开问题清单 |
 
 补充约束：
@@ -42,7 +42,8 @@
 - chip 尺寸不变：高 26、左右内边距 10、圆角 8、图标与文字间距 6、文字 `labelSmall`（12/17，w600，字距 0.5）。
 - 圆圈点沿用现有 `_StatusChip` 的 7px 圆点实现；就绪态改为勾图标，形成「勾 / 点」的形态差异。
 - 就绪态**不使用**任何 success 色，绿色仅保留给运行中；红色仅保留给待处理。
-- 深色模式全部走 `ColorScheme` 角色，不写死颜色。`primaryContainer` 深色为 `#00498C`、`onPrimaryContainer` 为 `#D6E7FF`。
+- 深色模式全部走 `ColorScheme` 角色，不写死颜色。`primaryContainer` 深色为 `#00498C`、`primary` 为 `#A7CCFF`。
+- 就绪态的勾与文字用 `primary`（浅色 `#0059BA`、深色 `#A7CCFF`），不用 `onPrimaryContainer`：后者偏深，视觉上会被读成藏青而不是原型里的品牌蓝。
 - 运行中不评估设置：即使运行期改了设置，chip 仍为运行中，避免中途打断（保持现有行为）。
 
 ### 3.2 底部区域
@@ -243,7 +244,7 @@ final label = isRunning
 - 就绪态：底部只有按钮与说明，整卡无绿色/红色色带；chip 为蓝底勾 + 「已就绪」；
 - 待处理态：chip 为红底 + 「N 项待处理」，点击弹出清单，按钮点击行为不变；
 - 运行态：chip 为绿底 + 圆点 + 「进行中」，底部无 readiness 元素；
-- 三个状态在浅色与深色模式下都满足 WCAG AA（正文 12px 对比度 ≥ 4.5:1，实测 primaryContainer/onPrimaryContainer 约 9:1，errorContainer/onErrorContainer 约 8:1）；
+- 三个状态在浅色与深色模式下都满足 WCAG AA（正文 12px 对比度 ≥ 4.5:1，实测 primaryContainer/primary 约 5.3:1，errorContainer/onErrorContainer 约 8:1）；
 - 1024×650 与 1280×720 无溢出异常，中/英/日/繁体标题行不截断。
 
 ## 10. 风险与回滚

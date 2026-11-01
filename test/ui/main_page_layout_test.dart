@@ -168,6 +168,20 @@ void main() {
     expect(find.text('Ready'), findsOneWidget);
     expect(find.text('2 to fix'), findsNothing);
 
+    // V2: the chip keeps the primary container fill but the check and label
+    // use the brand blue, not the darker onPrimaryContainer role.
+    final chip = tester.widget<Container>(
+      find.byKey(const Key('sessionStatusChip')),
+    );
+    expect(
+      (chip.decoration! as BoxDecoration).color,
+      AppTheme.lightScheme.primaryContainer,
+    );
+    expect(
+      tester.widget<Text>(find.text('Ready')).style?.color,
+      AppTheme.lightScheme.primary,
+    );
+
     await tester.tap(find.byKey(const Key('sessionStatusChip')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
