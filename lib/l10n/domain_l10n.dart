@@ -1,6 +1,7 @@
 import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
+import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 
 /// Localized labels for domain enums and station/contest metadata.
@@ -69,6 +70,43 @@ extension DomainL10n on AppLocalizations {
         'JIDX-SSB' => contestExchangeJidx,
         _ => fallback,
       };
+
+  String settingsTabLabel(SettingsTab tab) => switch (tab) {
+    SettingsTab.contestStation => settingsTabContestStation,
+    SettingsTab.training => settingsTabTraining,
+    SettingsTab.audio => settingsTabAudio,
+    SettingsTab.system => settingsTabSystem,
+  };
+
+  /// Section inside a drawer tab. Unknown ids stay readable as-is.
+  String settingsSectionLabel(String id) => switch (id) {
+    'myStation' => myStation,
+    _ => id,
+  };
+
+  /// The problem itself, reusing the existing validation copy.
+  String settingsIssueMessage(SettingsIssue issue) {
+    final field = stationFieldLabel(issue.fieldId, issue.fieldLabel);
+    return switch (issue.kind) {
+      SettingsIssueKind.callsignMissing => callsignRequired,
+      SettingsIssueKind.durationMissing => durationRequired,
+      SettingsIssueKind.exchangeMissing => fieldRequired(field),
+      SettingsIssueKind.exchangeInvalid => fieldInvalid(field),
+      SettingsIssueKind.exchangeOutOfRange => fieldRange(
+        field,
+        issue.min ?? 0,
+        issue.max ?? 0,
+      ),
+    };
+  }
+
+  /// Where to fix it, e.g. `Settings › Contest & station › My station`.
+  String settingsIssuePath(SettingsIssue issue) {
+    final tab = settingsTabLabel(issue.tab);
+    final section = issue.sectionId;
+    if (section == null) return settingsPath(tab);
+    return settingsPathWithSection(tab, settingsSectionLabel(section));
+  }
 
   /// Multi-line rule summary for the Contest help dialog. Lines are separated
   /// by `\n`; unknown ids fall back to the definition's English text.

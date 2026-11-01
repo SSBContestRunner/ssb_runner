@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QSO 控制台「我方交换」字段原型 · SSB Runner</title>
+<style>
+@font-face {
+  font-family: "ProtoIosevka";
+  src: url("../../fonts/Iosevka-Regular-sub.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ProtoNoto";
+  src: url("../../fonts/NotoSansSC-Regular-sub.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ProtoNoto";
+  src: url("../../fonts/NotoSansSC-Medium-sub.otf") format("opentype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root {
+  --page: #E8EEF7;
+  --page-grid: rgba(0, 89, 186, 0.055);
+  --app: #F4F8FE;
+  --panel: #FBFDFF;
+  --panel-2: #FFFFFF;
+  --container: #EAF1FA;
+  --container-high: #E1EAF6;
+  --container-highest: #D5E2F1;
+  --outline: #6C7E93;
+  --outline-variant: #C3D2E2;
+  --line: rgba(195, 210, 226, 0.8);
+  --on-surface: #182030;
+  --on-surface-variant: #4D5E73;
+  --muted: #6B7C92;
+  --primary: #0059BA;
+  --on-primary: #FFFFFF;
+  --primary-container: #D5E6FF;
+  --on-primary-container: #002A56;
+  --secondary-container: #C6EAF5;
+  --on-secondary-container: #003441;
+  --tertiary: #8A5200;
+  --tertiary-container: #FFE3B3;
+  --on-tertiary-container: #2E1B00;
+  --error: #BA1A1A;
+  --error-container: #FFDAD6;
+  --success: #177D4B;
+  --success-container: #C6F2DC;
+  --shadow: rgba(13, 42, 82, 0.14);
+  --hatch: rgba(0, 40, 90, 0.034);
+  --font-ui: "ProtoNoto", "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-data: "ProtoIosevka", "Iosevka", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+}
+
+body[data-theme="dark"] {
+  --page: #050C19;
+  --page-grid: rgba(167, 204, 255, 0.055);
+  --app: #0B1526;
+  --panel: #111E32;
+  --panel-2: #16253C;
+  --container: #16253C;
+  --container-high: #1E304A;
+  --container-highest: #273B58;
+  --outline: #8497AE;
+  --outline-variant: #394C66;
+  --line: rgba(57, 76, 102, 0.85);
+  --on-surface: #E4ECF9;
+  --on-surface-variant: #B6C7DD;
+  --muted: #8296AF;
+  --primary: #A7CCFF;
+  --on-primary: #00315E;
+  --primary-container: #00498C;
+  --on-primary-container: #D6E7FF;
+  --secondary-container: #00515F;
+  --on-secondary-container: #BFEDF7;
+  --tertiary: #FFD08A;
+  --tertiary-container: #653F00;
+  --on-tertiary-container: #FFE3B3;
+  --error: #FFB4AB;
+  --error-container: #93000A;
+  --success: #6FDFAC;
+  --success-container: #0C4A32;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --hatch: rgba(255, 255, 255, 0.045);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 26px 24px 70px;
+  background-color: var(--page);
+  background-image:
+    linear-gradient(var(--page-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--page-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--on-surface);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.55;
+  transition: background-color .25s ease, color .25s ease;
+}
+
+.page { max-width: 1380px; margin: 0 auto; }
+
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 14px; }
+.page-head h1 { margin: 0; font-size: 21px; font-weight: 500; letter-spacing: .2px; }
+.page-head .sub { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.page-head .meta { font-family: var(--font-data); font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; letter-spacing: .4px; }
+.page-head .meta b { color: var(--primary); font-weight: 500; }
+
+.toolbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; flex-wrap: wrap; gap: 12px 26px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: color-mix(in srgb, var(--panel-2) 88%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 26px -22px var(--shadow);
+}
+.ctl { display: flex; align-items: center; gap: 9px; }
+.ctl-label { font-size: 11px; letter-spacing: .6px; color: var(--muted); white-space: nowrap; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--container); border-radius: 10px; }
+.seg button {
+  appearance: none; border: 0; background: transparent; color: var(--on-surface-variant);
+  padding: 5px 9px; border-radius: 8px; font: inherit; font-size: 11.5px; cursor: pointer;
+  white-space: nowrap; transition: background .16s ease, color .16s ease;
+}
+.seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--primary); font-weight: 500; box-shadow: 0 1px 3px rgba(13,42,82,.12); }
+.seg button:hover { color: var(--primary); }
+.sw { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--on-surface-variant); cursor: pointer; user-select: none; }
+.sw input { appearance: none; width: 30px; height: 17px; border-radius: 999px; background: var(--container-highest); position: relative; cursor: pointer; transition: background .18s ease; margin: 0; }
+.sw input::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--panel-2); box-shadow: 0 1px 2px rgba(0,0,0,.22); transition: transform .18s ease;
+}
+.sw input:checked { background: var(--primary); }
+.sw input:checked::after { transform: translateX(13px); }
+.btn {
+  appearance: none; border: 1px solid var(--outline-variant); background: var(--panel-2);
+  color: var(--on-surface); font: inherit; font-size: 11.5px; padding: 6px 12px; border-radius: 9px;
+  cursor: pointer; transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.btn:hover { border-color: var(--primary); color: var(--primary); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.btn.primary:hover { filter: brightness(1.06); color: var(--on-primary); }
+
+/* ── app mock ───────────────────────────────────────────── */
+.stage {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 26px 60px -38px var(--shadow), 0 1px 0 rgba(255,255,255,.5) inset;
+  background: var(--app);
+}
+.stage::before {
+  content: ""; display: block; height: 3px;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 35%, transparent) 62%, transparent);
+}
+.app { min-width: 1020px; }
+.topbar {
+  height: 64px; display: flex; align-items: center; gap: 14px;
+  padding: 0 20px; border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 38px; height: 38px; border-radius: 12px; background: var(--primary);
+  display: grid; place-items: center; color: var(--on-primary);
+  box-shadow: 0 6px 14px -8px var(--primary);
+}
+.brand-mark svg { width: 19px; height: 19px; }
+.brand-name { font-size: 14.5px; font-weight: 500; letter-spacing: .2px; }
+.brand-ver { font-family: var(--font-data); font-size: 10.5px; color: var(--muted); letter-spacing: .5px; }
+.vrule { width: 1px; height: 28px; background: var(--outline-variant); }
+.contest-block { flex: 1; min-width: 0; }
+.contest-name { font-size: 15px; font-weight: 500; }
+.contest-meta { font-family: var(--font-data); font-size: 11px; color: var(--muted); letter-spacing: .45px; }
+.top-actions { display: flex; align-items: center; gap: 6px; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 50%; border: 0; background: transparent;
+  display: grid; place-items: center; cursor: pointer; color: var(--on-surface-variant);
+  transition: background .16s ease, color .16s ease;
+}
+.icon-btn:hover { background: var(--container); color: var(--primary); }
+.icon-btn.filled { background: var(--secondary-container); color: var(--on-secondary-container); }
+.icon-btn svg { width: 19px; height: 19px; }
+
+.app-body { display: flex; gap: 14px; padding: 16px; height: 660px; }
+.app-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.app-right { width: 340px; display: flex; flex-direction: column; gap: 12px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.log-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.log-head { height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 18px; }
+.log-title { flex: 1; min-width: 0; }
+.log-title h3 { margin: 0; font-size: 14.5px; font-weight: 500; }
+.log-title p { margin: 1px 0 0; font-size: 11px; color: var(--muted); }
+.chip {
+  height: 26px; padding: 0 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; background: var(--secondary-container); color: var(--on-secondary-container);
+  font-variant-numeric: tabular-nums;
+}
+.log-table { flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.log-header { height: 34px; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 10.5px; letter-spacing: .6px; }
+.log-rows { flex: 1; overflow-y: auto; }
+.log-row {
+  height: 42px; display: flex; align-items: center; padding: 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+  transition: background .2s ease;
+}
+.log-row.latest { background: color-mix(in srgb, var(--primary-container) 48%, var(--panel)); }
+.c-utc { width: 84px; font-family: var(--font-data); font-size: 12px; color: var(--muted); padding: 0 10px; }
+.c-call { flex: 105; font-family: var(--font-data); font-size: 14px; letter-spacing: .6px; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-rst { width: 52px; font-family: var(--font-data); font-size: 13px; color: var(--on-surface-variant); padding: 0 10px; }
+.c-ex { flex: 100; font-family: var(--font-data); font-size: 14px; letter-spacing: .6px; padding: 0 10px; }
+.c-cor { width: 132px; font-family: var(--font-data); font-size: 11.5px; color: var(--muted); padding: 0 10px; }
+.log-empty { padding: 26px 18px; color: var(--muted); font-size: 12px; }
+
+/* console */
+.console { padding: 12px 16px 14px; background: var(--container); border-radius: 16px; }
+.phase-bar { display: flex; align-items: center; gap: 8px; height: 26px; margin-bottom: 8px; }
+.phase-dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--tertiary-container); color: var(--on-tertiary-container); flex: none; }
+.phase-dot svg { width: 15px; height: 15px; }
+.phase-text { font-size: 11.5px; color: var(--on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phase-abandon { margin-left: auto; font-size: 11px; color: var(--primary); opacity: .85; }
+.fields { display: flex; gap: 10px; }
+.field {
+  position: relative; height: 64px; min-width: 0;
+  background: var(--panel-2); border: 1px solid var(--outline-variant); border-radius: 12px;
+  padding: 20px 13px 8px; display: flex; align-items: center;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.f-call { flex: 34 1 0; }
+.f-rst { flex: 9 1 0; }
+.f-sent { flex: 14 1 0; }
+.f-rcvd { flex: 34 1 0; }
+.field-label {
+  position: absolute; left: 13px; top: 7px; font-size: 10.5px; letter-spacing: .25px;
+  color: var(--on-surface-variant); pointer-events: none; white-space: nowrap;
+  max-width: calc(100% - 26px); overflow: hidden; text-overflow: ellipsis;
+}
+.field-value { font-family: var(--font-data); font-size: 22px; letter-spacing: 1.2px; color: var(--on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.field-placeholder { font-family: var(--font-data); font-size: 22px; letter-spacing: 1.2px; color: var(--muted); }
+.field-suffix { margin-left: auto; padding-left: 6px; color: var(--muted); display: flex; align-items: center; flex: none; }
+.field-note { position: absolute; right: 12px; top: 7px; font-size: 10px; color: var(--muted); letter-spacing: .2px; }
+
+.field.fixed {
+  background-color: var(--container-highest);
+  background-image: repeating-linear-gradient(45deg, transparent 0 6px, var(--hatch) 6px 7px);
+  border-color: color-mix(in srgb, var(--outline) 42%, transparent);
+}
+.field.fixed .field-label { color: var(--muted); }
+.field.fixed .field-value { color: var(--on-surface-variant); }
+.field.fixed.clickable { cursor: pointer; }
+.field.fixed.clickable:hover { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent); }
+.field.fixed.clickable:hover .field-value { color: var(--primary); }
+
+.tip-wrap { position: relative; }
+.tip {
+  position: absolute; left: 50%; top: calc(100% + 9px); transform: translate(-50%, 4px);
+  width: max-content; max-width: 280px; padding: 7px 10px; border-radius: 9px;
+  background: var(--on-surface); color: var(--app); font-size: 11px; line-height: 1.45;
+  opacity: 0; pointer-events: none; transition: opacity .16s ease, transform .16s ease;
+  z-index: 12; box-shadow: 0 12px 26px -16px var(--shadow); text-align: left; font-family: var(--font-ui);
+}
+.tip-wrap:hover .tip, .field.fixed:hover .tip { opacity: 1; transform: translate(-50%, 0); }
+
+.actions { display: flex; gap: 8px; margin-top: 12px; }
+.action {
+  flex: 1 1 0; max-width: 210px; height: 44px; border-radius: 12px; background: var(--container-highest);
+  border: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--font-ui); font-size: 11.5px; color: var(--on-surface); cursor: pointer;
+  transition: background .16s ease;
+}
+.action:hover { background: color-mix(in srgb, var(--primary) 12%, var(--container-highest)); }
+.kbd {
+  height: 20px; min-width: 20px; padding: 0 5px; border-radius: 4px; background: var(--panel-2);
+  border: 1px solid var(--outline-variant); font-family: var(--font-data); font-size: 9.5px;
+  display: grid; place-items: center; color: var(--on-surface-variant);
+}
+.action-label { font-weight: 500; }
+.action.spare { opacity: .45; }
+
+/* right column */
+.session { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.session-top { display: flex; align-items: center; gap: 8px; }
+.session-top h3 { margin: 0; font-size: 14px; font-weight: 500; flex: 1; }
+.status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; background: var(--success-container); color: var(--success); font-size: 10.5px; }
+.status-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.big-stat { border-radius: 14px; background: var(--container); padding: 13px 14px; }
+.big-stat .k { font-size: 10.5px; color: var(--muted); letter-spacing: .5px; }
+.big-stat .v { font-family: var(--font-data); font-size: 30px; letter-spacing: 1px; color: var(--on-surface); line-height: 1.2; }
+.big-stat .v small { font-size: 12px; letter-spacing: .4px; color: var(--muted); margin-left: 6px; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 9px 10px; }
+.stat-card .k { font-size: 10px; color: var(--muted); }
+.stat-card .v { font-family: var(--font-data); font-size: 17px; color: var(--on-surface); }
+.session-note { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.session-note::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent); }
+.session-actions { display: flex; gap: 8px; margin-top: auto; }
+.big-btn { flex: 1; height: 42px; border-radius: 12px; border: 1px solid var(--outline-variant); background: var(--panel-2); color: var(--on-surface); font-family: var(--font-ui); font-size: 12px; cursor: pointer; }
+.big-btn.stop { background: var(--error-container); border-color: transparent; color: var(--error); }
+
+.rules { padding: 15px 16px; }
+.rules .r-head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.rules .r-head h3 { margin: 0; font-size: 13px; font-weight: 500; flex: 1; }
+.rules .r-head .chev { color: var(--muted); font-size: 12px; }
+.rules p { margin: 0; font-size: 11.5px; color: var(--on-surface-variant); line-height: 1.65; }
+.rules p + p { margin-top: 3px; color: var(--muted); }
+
+/* drawer */
+.backdrop {
+  position: absolute; inset: 0; background: color-mix(in srgb, #04101F 42%, transparent);
+  opacity: 0; pointer-events: none; transition: opacity .24s ease; z-index: 20;
+}
+.backdrop.show { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 486px; max-width: 94%;
+  background: var(--panel); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; z-index: 21;
+  transform: translateX(102%); transition: transform .28s cubic-bezier(.22,.8,.24,1);
+  box-shadow: -24px 0 50px -34px var(--shadow);
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 16px 10px 24px; }
+.drawer-head .eyebrow { font-family: var(--font-data); font-size: 10px; letter-spacing: 1.3px; color: var(--muted); }
+.drawer-head h2 { margin: 2px 0 0; font-size: 21px; font-weight: 500; }
+.drawer-head .spacer { flex: 1; }
+.tabs { display: flex; gap: 4px; padding: 0 16px 0 24px; border-bottom: 1px solid var(--line); }
+.tab { padding: 9px 10px 11px; font-size: 12px; color: var(--on-surface-variant); position: relative; }
+.tab.active { color: var(--primary); font-weight: 500; }
+.tab.active::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--primary); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px 24px 28px; }
+.drawer-body h4 { margin: 0 0 10px; font-size: 12.5px; font-weight: 500; color: var(--on-surface); }
+.lock-note { display: flex; gap: 8px; padding: 10px 12px; border-radius: 11px; background: var(--container); color: var(--on-surface-variant); font-size: 11.5px; margin-bottom: 14px; }
+.lock-note svg { flex: none; margin-top: 1px; }
+.dfield { margin-bottom: 16px; }
+.dfield .lbl { font-size: 10.5px; color: var(--muted); margin-bottom: 4px; letter-spacing: .4px; }
+.dinput {
+  height: 46px; border-radius: 10px; border: 1px solid var(--outline-variant); background: var(--panel-2);
+  display: flex; align-items: center; padding: 0 12px; font-family: var(--font-data); font-size: 15px;
+  color: var(--on-surface); gap: 8px;
+}
+.dinput input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; color: inherit; letter-spacing: .8px; min-width: 0; }
+.dinput input:disabled { color: var(--muted); }
+.dinput.readonly { background: var(--container-high); color: var(--on-surface-variant); }
+.dinput.error { border-color: var(--error); box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 12%, transparent); }
+.dhelper { margin-top: 5px; font-size: 10.5px; color: var(--muted); }
+.dhelper.error { color: var(--error); }
+.info-note { display: flex; gap: 8px; margin-bottom: 16px; padding: 12px 14px; border-radius: 11px; background: var(--container); color: var(--on-surface-variant); font-size: 11.5px; line-height: 1.5; }
+.info-note svg { flex: none; margin-top: 1px; }
+.divider { height: 1px; background: var(--line); margin: 18px 0; }
+.preview { border-radius: 13px; border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--outline-variant)); background: color-mix(in srgb, var(--primary-container) 42%, var(--panel)); padding: 14px 16px; }
+.preview .k { font-size: 10px; letter-spacing: .7px; color: var(--muted); }
+.preview .v { display: flex; align-items: baseline; gap: 9px; margin-top: 4px; }
+.preview .num { font-family: var(--font-data); font-size: 24px; letter-spacing: 1.4px; color: var(--primary); }
+.preview .hint { font-size: 10.5px; color: var(--on-surface-variant); }
+.preview .sub { margin-top: 5px; font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+.rules-link { display: flex; align-items: center; gap: 8px; padding: 9px 0 2px; font-size: 11.5px; color: var(--on-surface-variant); }
+.rules-link .chev { margin-left: auto; color: var(--muted); }
+
+/* status caption under mock */
+.caption {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px;
+  margin: 10px 2px 0; font-size: 11.5px; color: var(--muted);
+}
+.caption b { font-family: var(--font-data); font-weight: 400; color: var(--on-surface-variant); }
+.caption .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--outline-variant); }
+
+/* notes */
+.notes { margin-top: 40px; display: grid; gap: 18px; }
+.note-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+.note-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.note-head h2 { margin: 0; font-size: 15px; font-weight: 500; }
+.note-head .idx { font-family: var(--font-data); font-size: 11px; color: var(--primary); }
+.note-head .desc { margin-left: auto; font-size: 11px; color: var(--muted); }
+.flow { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.node { flex: 1 1 180px; min-width: 150px; border-radius: 12px; border: 1px solid var(--line); background: var(--container); padding: 11px 12px; }
+.node .k { display: block; font-size: 10px; color: var(--muted); letter-spacing: .4px; margin-bottom: 3px; }
+.node .v { font-family: var(--font-data); font-size: 13.5px; color: var(--on-surface); }
+.node.emphasis { border-color: color-mix(in srgb, var(--primary) 45%, var(--outline-variant)); background: color-mix(in srgb, var(--primary-container) 40%, var(--panel)); }
+.node.emphasis .v { color: var(--primary); }
+.arrow { align-self: center; color: var(--outline); font-family: var(--font-data); font-size: 15px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { text-align: left; font-weight: 500; color: var(--muted); font-size: 10.5px; letter-spacing: .5px; border-bottom: 1px solid var(--line); padding: 7px 8px; }
+.tbl td { border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); padding: 7px 8px; vertical-align: top; color: var(--on-surface-variant); }
+.tbl td.mono, .tbl .mono { font-family: var(--font-data); color: var(--on-surface); }
+.tbl tr.is-active td { background: color-mix(in srgb, var(--primary-container) 40%, transparent); color: var(--on-surface); }
+.tbl tr:last-child td { border-bottom: 0; }
+.decisions { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+.decision { border: 1px solid var(--line); border-radius: 13px; padding: 13px 14px; background: var(--panel); }
+.decision .d-head { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+.decision .d-id { font-family: var(--font-data); font-size: 10.5px; color: var(--primary); }
+.decision .d-title { font-size: 12.5px; font-weight: 500; flex: 1; }
+.tag { font-size: 9.5px; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px; background: var(--success-container); color: var(--success); }
+.tag.alt { background: var(--container); color: var(--muted); }
+.decision p { margin: 0; font-size: 11.5px; color: var(--on-surface-variant); line-height: 1.6; }
+.decision .d-foot { margin-top: 8px; font-size: 10.5px; color: var(--muted); }
+.note-foot { margin-top: 10px; font-size: 10.5px; color: var(--muted); }
+
+@media (max-width: 760px) {
+  body { padding: 18px 12px 50px; }
+  .page-head { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .page-head .meta { text-align: left; }
+}
+</style>
+</head>
+<body data-theme="light">
+<div class="page">
+
+  <header class="page-head">
+    <div>
+      <h1>QSO 控制台「我方交换」字段</h1>
+      <p class="sub">布局已定：呼号 → RST → 我方交换 → 对方交换。RST 与我方交换置灰、窄栏，主要宽度留给呼号与对方交换。</p>
+    </div>
+    <div class="meta">
+      原型 v1 · <b>2026-11-01</b><br />
+      方案：docs/design/qso_sent_exchange_field.md
+    </div>
+  </header>
+
+  <!-- ── toolbar ── -->
+  <div class="toolbar" role="group" aria-label="原型方案开关">
+    <div class="ctl">
+      <span class="ctl-label">比赛</span>
+      <div class="seg" id="seg-contest">
+        <button data-group="contest" data-value="CQ-WW-SSB">CQ WW</button>
+        <button data-group="contest" data-value="CQ-WPX">CQ WPX</button>
+        <button data-group="contest" data-value="IARU-HF">IARU</button>
+        <button data-group="contest" data-value="ARRL-DX">ARRL</button>
+        <button data-group="contest" data-value="JIDX-SSB">JIDX</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">界面语言</span>
+      <div class="seg">
+        <button data-group="lang" data-value="zh">中文</button>
+        <button data-group="lang" data-value="en">English</button>
+        <button data-group="lang" data-value="ja">日本語</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">主题</span>
+      <div class="seg">
+        <button data-group="theme" data-value="light">浅色</button>
+        <button data-group="theme" data-value="dark">深色</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">状态</span>
+      <div class="seg">
+        <button data-group="phase" data-value="idle">待机</button>
+        <button data-group="phase" data-value="sending">发送中</button>
+        <button data-group="phase" data-value="waiting">等待对方</button>
+        <button data-group="phase" data-value="signoff">收尾</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label class="sw"><input type="checkbox" id="swMissing" /> 模拟未配置</label>
+    </div>
+    <div class="ctl">
+      <button class="btn" id="btnRecord">记录 1 条 QSO</button>
+      <button class="btn" id="btnReset">重置</button>
+      <button class="btn primary" id="btnOpenSettings">打开设置</button>
+    </div>
+  </div>
+
+  <!-- ── app mock ── -->
+  <div class="stage" id="stage">
+    <div class="app">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <path d="M4 14.5c2.6-6 5.2-6 7.8 0s5.2 6 7.8 0" />
+              <path d="M4 9.5h2.2M17.8 9.5H20" opacity=".55" />
+            </svg>
+          </div>
+          <div>
+            <div class="brand-name">SSB Runner</div>
+            <div class="brand-ver">0.9.0</div>
+          </div>
+        </div>
+        <div class="vrule"></div>
+        <div class="contest-block">
+          <div class="contest-name" id="topContest">CQ WW</div>
+          <div class="contest-meta" id="topMeta">Run · Standard · BI1QJQ</div>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" title="键盘速查" aria-label="键盘速查">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <rect x="2.5" y="6.5" width="19" height="11" rx="2.4" />
+              <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 13.5h9" />
+            </svg>
+          </button>
+          <button class="icon-btn" id="btnTheme" title="切换主题" aria-label="切换主题">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4L18 18M18 6l-1.6 1.6M7.6 16.4L6 18" />
+              <circle cx="12" cy="12" r="4" />
+            </svg>
+          </button>
+          <button class="icon-btn filled" id="btnSettingsIcon" title="设置" aria-label="设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <circle cx="12" cy="12" r="2.9" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.32a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.68 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6h.09A1.7 1.7 0 0 0 10.12 3.04V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="app-body">
+        <div class="app-left">
+          <div class="panel log-panel">
+            <div class="log-head">
+              <div class="log-title">
+                <h3 id="logTitle">QSO 记录</h3>
+                <p id="logSubtitle">按 UTC 顺序自动记录</p>
+              </div>
+              <span class="chip" id="logCount">0 条</span>
+            </div>
+            <div class="log-table">
+              <div class="log-header">
+                <div class="c-utc">UTC</div>
+                <div class="c-call" id="hdrCall">呼号</div>
+                <div class="c-rst">Rst</div>
+                <div class="c-ex" id="hdrEx">交换信息</div>
+                <div class="c-cor" id="hdrCor">更正</div>
+              </div>
+              <div class="log-rows" id="logRows"></div>
+            </div>
+          </div>
+
+          <div class="console">
+            <div class="phase-bar">
+              <span class="phase-dot">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                  <path d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Z" />
+                  <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" />
+                </svg>
+              </span>
+              <span class="phase-text" id="phaseText">守听中 — 抄下对方呼号，然后按 Enter</span>
+              <span class="phase-abandon" id="phaseAbandon">放弃 (F1)</span>
+            </div>
+
+            <div class="fields" id="fields">
+              <div class="field f-call">
+                <span class="field-label" id="lblCall">呼号</span>
+                <span class="field-value" id="valCall">JA1ABC</span>
+                <span class="field-suffix" id="sfxCall">自动大写</span>
+              </div>
+              <div class="field f-rst fixed" id="fieldRst">
+                <span class="field-label" id="lblRst">RST</span>
+                <span class="field-value" id="valRst">59</span>
+              </div>
+              <div class="field f-sent fixed clickable" id="fieldSent">
+                <span class="field-label" id="lblSent">我方交换</span>
+                <span class="field-value" id="valSent">24</span>
+                <span class="field-suffix" id="sfxSent"></span>
+                <span class="tip" id="tipSent">固定值 · 在 设置 › 比赛与电台 › 我的电台 修改</span>
+              </div>
+              <div class="field f-rcvd" id="fieldRcvd">
+                <span class="field-label" id="lblRcvd">对方交换</span>
+                <span class="field-value" id="valRcvd">05</span>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="action"><span class="kbd">F1</span><span class="action-label">CQ</span></button>
+              <button class="action"><span class="kbd">F2</span><span class="action-label">EXCH</span></button>
+              <button class="action"><span class="kbd">F3</span><span class="action-label">TU</span></button>
+              <button class="action"><span class="kbd">F4</span><span class="action-label">&lt;my&gt;</span></button>
+              <button class="action"><span class="kbd">F5</span><span class="action-label">&lt;his&gt;</span></button>
+              <button class="action"><span class="kbd">F6</span><span class="action-label">B4</span></button>
+              <button class="action"><span class="kbd">F7</span><span class="action-label">AGN</span></button>
+              <button class="action"><span class="kbd">F8</span><span class="action-label">NIL</span></button>
+              <button class="action"><span class="kbd">F9</span><span class="action-label">Wipe</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="app-right">
+          <div class="panel session">
+            <div class="session-top">
+              <h3 id="sessTitle">本次练习</h3>
+              <span class="status-chip" id="sessStatus">进行中</span>
+            </div>
+            <div class="big-stat">
+              <div class="k" id="scoreK">已验证总分</div>
+              <div class="v" id="scoreV"><span id="scoreNum">000</span><small id="scoreUnit">分</small></div>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-card"><div class="k" id="kQso">QSO</div><div class="v" id="vQso">2</div></div>
+              <div class="stat-card"><div class="k" id="kMult">系数</div><div class="v" id="vMult">2</div></div>
+              <div class="stat-card"><div class="k" id="kCor">更正</div><div class="v" id="vCor">0</div></div>
+            </div>
+            <div class="session-note" id="sessNote">计时中 · 随时可停止</div>
+            <div class="session-actions">
+              <button class="big-btn stop" id="btnStop">停止训练</button>
+            </div>
+          </div>
+          <div class="panel rules">
+            <div class="r-head">
+              <h3 id="rulesTitle">比赛规则</h3>
+              <span class="chev">›</span>
+            </div>
+            <p id="rulesLine1">我方发送：59 + CQ 分区</p>
+            <p id="rulesLine2">对方发送：呼号 + CQ 分区</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="backdrop" id="backdrop"></div>
+    <aside class="drawer" id="drawer" aria-hidden="true">
+      <div class="drawer-head">
+        <div>
+          <div class="eyebrow">SSB RUNNER</div>
+          <h2 id="drawerTitle">设置</h2>
+        </div>
+        <div class="spacer"></div>
+        <button class="icon-btn" id="btnCloseDrawer" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <div class="tabs">
+        <span class="tab active" id="tabContest">比赛与电台</span>
+        <span class="tab">训练</span>
+        <span class="tab">音频</span>
+        <span class="tab">系统</span>
+      </div>
+      <div class="drawer-body">
+        <div class="lock-note" id="drawerLockNote" style="display:none">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <circle cx="8" cy="8" r="6.4" /><path d="M8 7.2v3.2M8 4.9h.01" />
+          </svg>
+          <span id="drawerLockText">比赛进行中无法修改设置，请先停止本次练习。</span>
+        </div>
+
+        <h4 id="contestSectionTitle">比赛</h4>
+        <div class="dfield">
+          <div class="lbl" id="contestNameLbl">比赛名称</div>
+          <div class="dinput readonly">
+            <span id="drawerContestName">CQ WW</span>
+          </div>
+        </div>
+        <div class="dfield">
+          <div class="lbl" id="contestExchLbl">比赛交换</div>
+          <div class="dinput readonly" id="drawerContestExch">59 分区</div>
+        </div>
+        <div class="rules-link">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <path d="M4.5 2.5h7M4.5 13.5h7M4.5 2.5v11M11.5 2.5v11" opacity=".35" />
+            <path d="M3 8h10" />
+          </svg>
+          <span id="drawerRulesLink">比赛规则 · 我方发送：59 + CQ 分区</span>
+          <span class="chev">›</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <h4 id="stationSectionTitle">我的电台</h4>
+        <div class="dfield">
+          <div class="lbl" id="callLbl">呼号</div>
+          <div class="dinput"><input id="drawerCall" value="BI1QJQ" spellcheck="false" /></div>
+        </div>
+        <div id="stationFieldWrap"></div>
+        <div class="preview" id="settingsPreviewWrap">
+          <div class="k" id="previewK">发射内容</div>
+          <div class="v">
+            <span class="num" id="previewNum">59 24</span>
+            <span class="hint" id="previewHint">RST 固定 59</span>
+          </div>
+          <div class="sub" id="previewSub">24 来自上方 CQ 分区；控制台只读显示 24。</div>
+        </div>
+        <div class="note-foot" id="drawerFoot">所有更改即时保存，无需额外确认。</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="caption">
+    <span>当前推导：</span>
+    <b id="capA">比赛 CQ WW</b><span class="dot"></span>
+    <b id="capB">设置 CQ 分区 24</b><span class="dot"></span>
+    <b id="capC">播报 24</b><span class="dot"></span>
+    <b id="capD">序号 不适用</b>
+  </div>
+
+  <!-- ── notes ── -->
+  <div class="notes">
+
+    <section class="note-card">
+      <div class="note-head">
+        <span class="idx">01</span>
+        <h2>数据链路：只读投影，不新增存储</h2>
+        <span class="desc">运行时取值与实发值共用同一个 buildMyExchange</span>
+      </div>
+      <div class="flow">
+        <div class="node"><span class="k">设置 › 我的电台</span><span class="v">CQ 分区 = 5</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="k">比赛 plan + 呼号派生</span><span class="v">MyExchangePlan</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="k">播报化（补零）</span><span class="v">05</span></div>
+        <div class="arrow">→</div>
+        <div class="node emphasis"><span class="k">控制台只读字段</span><span class="v">05（只读）</span></div>
+      </div>
+      <p class="note-foot">WPX 另由「本局 QSO 行数 + 1」驱动序号；该口径与发送时调用的 _myExchange() 完全一致，落库后字段立即指向下一个序号。N1MM 只在可变交换时显示 SentNr；本 App 按决策固定四栏、始终显示（D7 / D8）。</p>
+    </section>
+
+    <section class="note-card">
+      <div class="note-head">
+        <span class="idx">02</span>
+        <h2>各比赛显示对照</h2>
+        <span class="desc">字段只显示 RST 之后的交换部分</span>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr><th>比赛</th><th>设置来源</th><th>我方字段</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>CQ WPX</td><td>自动序号</td><td class="mono">001 → 002</td><td>每条 QSO 落库递增</td></tr>
+          <tr><td>CQ WW</td><td>CQ 分区（可派生）</td><td class="mono">05 / 24</td><td>填 5 显示 05，与实际读音一致</td></tr>
+          <tr><td>IARU</td><td>ITU 分区（手填）</td><td class="mono">08</td><td>未填显示 —，且开始被拦截</td></tr>
+          <tr><td>ARRL（DX 台）</td><td>功率</td><td class="mono">100</td><td>原样，不补零</td></tr>
+          <tr><td>ARRL（W/VE 台）</td><td>州/省</td><td class="mono">TX</td><td>字母，逐字母朗读</td></tr>
+          <tr><td>JIDX（JA 台）</td><td>都道府县</td><td class="mono">10</td><td>补两位</td></tr>
+          <tr><td>JIDX（非 JA 台）</td><td>CQ 分区（可派生）</td><td class="mono">24</td><td>与 CQ WW 同源</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="note-card">
+      <div class="note-head">
+        <span class="idx">03</span>
+        <h2>状态时序</h2>
+        <span class="desc">顶部「状态」可切换，高亮行跟随原型</span>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>阶段</th><th>状态</th><th>显示值</th><th>理由</th></tr></thead>
+        <tbody id="phaseTable">
+          <tr data-phase="idle"><td>待机</td><td class="mono">—</td><td class="mono">001（下一局第 1 个）</td><td>不沿用上一局的列表长度</td></tr>
+          <tr data-phase="sending"><td>发送中</td><td class="mono">ReportMyExchange</td><td class="mono">本局行数 + 1</td><td>尚未落库，与正在发送的值相同</td></tr>
+          <tr data-phase="waiting"><td>等待对方交换</td><td class="mono">WaitingSubmitMyExchange</td><td class="mono">本局行数 + 1</td><td>尚未落库，仍与实发值相同</td></tr>
+          <tr data-phase="signoff"><td>落库后收尾</td><td class="mono">QsoEnd / SpQsoEnd</td><td class="mono">行数 + 1（下一个）</td><td>立即指向下一个序号（D3 已定：不冻结）</td></tr>
+        </tbody>
+      </table>
+      <p class="note-foot">序号口径必须与本局原始行数（含 DUPE）一致，不能用 uniqueQsos 的计数，否则 WPX 会与实发值偏移。落库后字段立刻指向下一个序号，与 N1MM 的下一序号显示一致。</p>
+    </section>
+
+    <section class="note-card">
+      <div class="note-head">
+        <span class="idx">04</span>
+        <h2>决策记录</h2>
+        <span class="desc">决策已固化，原型按最终结论运行</span>
+      </div>
+      <div class="decisions">
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D1</span><span class="d-title">标签命名</span><span class="tag">已确定 A</span></div>
+          <p>采用「对方交换 / 我方交换」对称命名（英文 Rcvd / Sent，日文 受信交換 / 送信交換）。日志表头同步改为「对方交换」。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D2</span><span class="d-title">是否包含 RST</span><span class="tag">已确定 独立</span></div>
+          <p>RST 保持独立，固定 59，与 SendNr 一样置灰；buildMyExchange 只返回 RST 之后的部分，避免重复 59。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D3</span><span class="d-title">WPX 序号时序</span><span class="tag">已确定 不冻结</span></div>
+          <p>字段始终等于 buildMyExchange(本局行数 + 1)，即下一个 QSO 要发的序号，与 _myExchange() 同一口径，零状态耦合。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D4</span><span class="d-title">设置页发射预览</span><span class="tag">已确定 加</span></div>
+          <p>在我的电台下方显示「发射内容：59 05」，把设置里录入的 5 与实际播报的 05 连起来。预览块与上方字段保持 16px 间距（MD3），CQ WPX 的序号提示与预览之间同样 16px。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D5</span><span class="d-title">锁定图标跳设置</span><span class="tag">已确定 加</span></div>
+          <p>点击锁定图标深链到设置页对应字段；运行中禁用点击，tooltip 改为「比赛进行中无法修改；停止后可改」。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D6</span><span class="d-title">写入 QSO 记录</span><span class="tag alt">已确定 不写入</span></div>
+          <p>不新增 QsoTable 列；日志表第 4 列「交换信息」改名为「对方交换」，明确它记录的是收到的一方。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D7</span><span class="d-title">字段顺序与宽度</span><span class="tag">已确定</span></div>
+          <p>固定为 Call → RST → 我方交换 → 对方交换；RST 与我方交换窄栏、置灰、不可聚焦，主要宽度（约 75%）留给 Call 与对方交换。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+        <article class="decision">
+          <div class="d-head"><span class="d-id">D8</span><span class="d-title">固定交换是否显示</span><span class="tag">已确定 始终显示</span></div>
+          <p>固定四栏意味着 SendNr 始终存在（D8 按“显示”落定）。N1MM 只在可变交换时显示 SentNr；本 App 为训练保留常显。</p>
+          <div class="d-foot">已应用于本原型</div>
+        </article>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ───────────────────────── data ───────────────────────── */
+const I18N = {
+  zh: {
+    call: "呼号", rst: "RST",
+    rcvdA: "对方交换",
+    sentA: "我方交换",
+    sentTooltip: "固定值 · 在 设置 › 比赛与电台 › 我的电台 修改",
+    sentTooltipRunning: "比赛进行中无法修改；停止后可改",
+    notSet: "—",
+    autoUpper: "自动大写",
+    qsoTitle: "QSO 记录", qsoSubtitle: "按 UTC 顺序自动记录",
+    sessionTitle: "本次练习", running: "进行中",
+    score: "已验证总分", unit: "分", kQso: "QSO", kMult: "系数", kCor: "更正",
+    sessionNote: "计时中 · 随时可停止", stop: "停止训练",
+    rules: "比赛规则",
+    phaseIdle: "守听中 — 抄下对方呼号，然后按 Enter",
+    phaseSending: "正在发送报告…",
+    phaseWaiting: "报告已发送 — 输入对方序号，然后按 Enter",
+    phaseSignoff: "QSO 完成 — 正在开始下一轮",
+    abandon: "放弃 (F1)",
+    settings: "设置", tabContest: "比赛与电台", tabTraining: "训练", tabAudio: "音频", tabSystem: "系统",
+    contestSection: "比赛", contestName: "比赛名称", contestExchange: "比赛交换", rulesLink: "比赛规则",
+    stationSection: "我的电台", callsign: "呼号",
+    lockedNote: "比赛进行中无法修改设置，请先停止本次练习。",
+    derivedHelper: "根据呼号自动填写",
+    serialNote: "序号按 QSO 数量自动生成，无需设置。",
+    previewK: "发射内容", previewHint: "RST 固定 59",
+    previewSub: (v, f) => f + " 来自上方 " + f + "；控制台只读显示 " + v + "。",
+    previewSubSerial: (v) => "序号随本局 QSO 数自动递增；控制台显示 " + v + "。",
+    previewEmpty: "未配置",
+    previewEmptySub: "请先在 我的电台 填写必填字段，否则无法开始比赛。",
+    foot: "所有更改即时保存，无需额外确认。",
+    switchContest: "切换比赛",
+    notSetError: "尚未填写",
+  },
+  en: {
+    call: "Call", rst: "RST",
+    rcvdA: "Rcvd",
+    sentA: "Sent",
+    sentTooltip: "Fixed value · edit in Settings › Contest & station › My station",
+    sentTooltipRunning: "Locked while the contest runs; stop to edit",
+    notSet: "—",
+    autoUpper: "upper",
+    qsoTitle: "QSO log", qsoSubtitle: "Recorded in UTC order",
+    sessionTitle: "This session", running: "Running",
+    score: "Verified score", unit: "pts", kQso: "QSOs", kMult: "Mult", kCor: "Fixes",
+    sessionNote: "Timing · stop anytime", stop: "Stop training",
+    rules: "Contest rules",
+    phaseIdle: "Listening — copy his call, then Enter",
+    phaseSending: "Sending your report…",
+    phaseWaiting: "Your report is sent — type his exchange, then Enter",
+    phaseSignoff: "QSO complete — starting the next one",
+    abandon: "Abandon (F1)",
+    settings: "Settings", tabContest: "Contest & station", tabTraining: "Training", tabAudio: "Audio", tabSystem: "System",
+    contestSection: "Contest", contestName: "Contest", contestExchange: "Contest exchange", rulesLink: "Contest rules",
+    stationSection: "My station", callsign: "Callsign",
+    lockedNote: "Settings are locked while the contest runs. Stop this session first.",
+    derivedHelper: "Default from callsign",
+    serialNote: "The serial is generated automatically from your QSOs.",
+    previewK: "Transmitted", previewHint: "RST fixed at 59",
+    previewSub: (v, f) => f + " comes from the field above; the console shows " + v + " (read-only).",
+    previewSubSerial: (v) => "The serial follows your QSO count; the console shows " + v + ".",
+    previewEmpty: "Not set",
+    previewEmptySub: "Fill the required field in My station; a run cannot start without it.",
+    foot: "Changes save instantly.",
+    switchContest: "Switch contest",
+    notSetError: "Not set",
+  },
+  ja: {
+    call: "コールサイン", rst: "RST",
+    rcvdA: "受信交換",
+    sentA: "送信交換",
+    sentTooltip: "固定値 · 設定 › コンテストと局 › 自局 で変更",
+    sentTooltipRunning: "コンテスト中は変更できません。停止後に変更",
+    notSet: "—",
+    autoUpper: "自動大文字",
+    qsoTitle: "QSO ログ", qsoSubtitle: "UTC 順に自動記録",
+    sessionTitle: "今回の練習", running: "進行中",
+    score: "検証済みスコア", unit: "点", kQso: "QSO", kMult: "マルチ", kCor: "修正",
+    sessionNote: "計測中 · いつでも停止可", stop: "練習を停止",
+    rules: "コンテスト規則",
+    phaseIdle: "受信中 — 相手のコールをコピーして Enter",
+    phaseSending: "レポート送信中…",
+    phaseWaiting: "レポート送信済み — 相手の交換を入力して Enter",
+    phaseSignoff: "QSO 完了 — 次のラウンドへ",
+    abandon: "放棄 (F1)",
+    settings: "設定", tabContest: "コンテストと局", tabTraining: "トレーニング", tabAudio: "オーディオ", tabSystem: "システム",
+    contestSection: "コンテスト", contestName: "コンテスト", contestExchange: "交換内容", rulesLink: "コンテスト規則",
+    stationSection: "自局", callsign: "コールサイン",
+    lockedNote: "コンテスト進行中は設定を変更できません。先に停止してください。",
+    derivedHelper: "コールサインから自動入力",
+    serialNote: "シリアルは QSO 数から自動生成されます。設定は不要です。",
+    previewK: "送信内容", previewHint: "RST は 59 固定",
+    previewSub: (v, f) => "上の " + f + " を使用。コンソールは " + v + " を読み取り専用で表示。",
+    previewSubSerial: (v) => "シリアルは QSO 数に追従。コンソールは " + v + " を表示。",
+    previewEmpty: "未設定",
+    previewEmptySub: "自局で必須項目を入力してください。未入力では開始できません。",
+    foot: "変更はすぐ保存されます。",
+    switchContest: "コンテストを切替",
+    notSetError: "未入力",
+  },
+};
+
+const CONTESTS = {
+  "CQ-WW-SSB": {
+    name: "CQ WW",
+    exchangeLabel: { zh: "59 分区", en: "59 Zone", ja: "59 ゾーン" },
+    rules: { zh: "我方发送：59 + CQ 分区", en: "You send: 59 + CQ zone", ja: "送信：59 + CQ ゾーン" },
+    their: { zh: "对方发送：呼号 + CQ 分区", en: "They send: call + CQ zone", ja: "受信：コール + CQ ゾーン" },
+    field: {
+      id: "cqZone",
+      label: { zh: "CQ 分区", en: "CQ Zone", ja: "CQ ゾーン" },
+      digits: 2,
+      helper: { zh: "根据呼号自动填写", en: "Default from callsign", ja: "コールサインから自動入力" },
+    },
+    his: ["05", "14", "23"],
+    calls: ["K1ABC", "JA1ABC", "DL1ABC", "VK2ABC"],
+  },
+  "CQ-WPX": {
+    name: "CQ WPX",
+    serial: true,
+    exchangeLabel: { zh: "59 序号", en: "59 #", ja: "59 シリアル" },
+    rules: { zh: "我方发送：59 + 3 位序号", en: "You send: 59 + 3-digit serial", ja: "送信：59 + 3桁シリアル" },
+    their: { zh: "对方发送：呼号 + 序号", en: "They send: call + serial", ja: "受信：コール + シリアル" },
+    his: ["001", "012", "045"],
+    calls: ["K1ABC", "JA1ABC", "UA0ABC", "PY2ABC"],
+  },
+  "IARU-HF": {
+    name: "IARU HF",
+    exchangeLabel: { zh: "59 ITU 分区", en: "59 ITU Zone", ja: "59 ITU ゾーン" },
+    rules: { zh: "我方发送：59 + ITU 分区", en: "You send: 59 + ITU zone", ja: "送信：59 + ITU ゾーン" },
+    their: { zh: "对方发送：呼号 + ITU 分区", en: "They send: call + ITU zone", ja: "受信：コール + ITU ゾーン" },
+    field: {
+      id: "ituZone",
+      label: { zh: "ITU 分区", en: "ITU Zone", ja: "ITU ゾーン" },
+      digits: 2,
+      helper: { zh: "需手动填写（素材无默认）", en: "Enter manually (no default)", ja: "手動入力（既定値なし）" },
+    },
+    his: ["08", "28", "39"],
+    calls: ["K1ABC", "DL1ABC", "JA1ABC", "ZL1ABC"],
+  },
+  "ARRL-DX": {
+    name: "ARRL DX",
+    exchangeLabel: { zh: "59 功率 (DX) / 59 州省 (W/VE)", en: "59 Power (DX) / 59 State (W/VE)", ja: "59 出力 / 59 州・省" },
+    rules: { zh: "我方发送：DX 台 59 + 功率", en: "You send: DX — 59 + power", ja: "送信：DX 局 59 + 出力" },
+    their: { zh: "对方发送：按其身份对应", en: "They send: matching their role", ja: "受信：相手の区分に応じて" },
+    field: {
+      id: "power",
+      label: { zh: "功率", en: "Power", ja: "出力" },
+      digits: 0,
+      helper: { zh: "发射机输出功率（瓦）", en: "Transmitter output in watts", ja: "送信機の出力（W）" },
+    },
+    his: ["100", "TX", "500"],
+    calls: ["W1ABC", "K1ABC", "VE3ABC", "DL1ABC"],
+  },
+  "JIDX-SSB": {
+    name: "JIDX",
+    exchangeLabel: { zh: "59 都道府县 / CQ 分区", en: "59 Prefecture / CQ Zone", ja: "59 都道府県 / CQ ゾーン" },
+    rules: { zh: "我方发送：JA 台 59 + 都道府县", en: "You send: JA — 59 + prefecture", ja: "送信：JA 局 59 + 都道府県" },
+    their: { zh: "对方发送：按其身份对应", en: "They send: matching their role", ja: "受信：相手の区分に応じて" },
+    field: {
+      id: "prefecture",
+      label: { zh: "都道府县", en: "Prefecture", ja: "都道府県" },
+      digits: 2,
+      helper: { zh: "当前呼号区的都道府县编号", en: "Prefecture number for your call area", ja: "自局のエリアの都道府県番号" },
+    },
+    his: ["10", "24", "45"],
+    calls: ["JA1ABC", "JA2ABC", "K1ABC", "UA9ABC"],
+  },
+};
+
+/* ───────────────────────── state ───────────────────────── */
+const state = {
+  contest: "CQ-WW-SSB",
+  lang: "zh",
+  theme: "light",
+  phase: "idle",
+  qsoCount: 2,
+  fields: { cqZone: "24", ituZone: "8", power: "100", prefecture: "10" },
+  missing: false,
+  drawer: false,
+  rows: [],
+  his: "",
+};
+
+const START_UTC = 41;      // seconds
+const ROW_STEP = 63;       // seconds
+
+/* ───────────────────────── helpers ───────────────────────── */
+const $ = (id) => document.getElementById(id);
+const txt = (lang, dict) => (dict && (dict[lang] || dict.zh)) || "";
+const l = () => I18N[state.lang];
+
+function pad(value, digits) {
+  if (!digits) return String(value);
+  const s = String(value).replace(/^0+(?=.)/, "");
+  return s.padStart(digits, "0");
+}
+
+function currentContest() { return CONTESTS[state.contest]; }
+function currentField() { return CONTESTS[state.contest].field || null; }
+function hisSample() { return currentContest().his[Math.floor(state.qsoCount) % currentContest().his.length]; }
+
+function sentValue() {
+  const c = currentContest();
+  if (c.serial) {
+    // D3 已定：不冻结，始终显示下一个 QSO 的序号（与 _myExchange() 同口径）
+    return pad(state.qsoCount + 1, 3);
+  }
+  if (state.missing) return "";
+  const f = c.field;
+  const raw = state.fields[f.id] || "";
+  return raw ? pad(raw, f.digits) : "";
+}
+
+function rcvdLabel() { return l().rcvdA; }
+function sentLabel() { return l().sentA; }
+
+function fmtUtc(seconds) {
+  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const s = String(seconds % 60).padStart(2, "0");
+  return h + ":" + m + ":" + s;
+}
+
+function lockIcon(size) {
+  const s = size || 12;
+  return '<svg viewBox="0 0 16 16" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">' +
+    '<rect x="3.2" y="7" width="9.6" height="7" rx="1.6"/><path d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7"/></svg>';
+}
+
+/* ───────────────────────── render: chrome ───────────────────────── */
+function renderChrome() {
+  const t = l();
+  document.body.dataset.theme = state.theme;
+
+  $("topContest").textContent = currentContest().name;
+  $("topMeta").textContent = "Run · Standard · BI1QJQ";
+
+  $("logTitle").textContent = t.qsoTitle;
+  $("logSubtitle").textContent = t.qsoSubtitle;
+  $("hdrCall").textContent = t.call;
+  $("hdrEx").textContent = rcvdLabel();
+  $("hdrCor").textContent = state.lang === "zh" ? "更正" : state.lang === "ja" ? "修正" : "Fixes";
+
+  $("lblCall").textContent = t.call;
+  $("lblRst").textContent = t.rst;
+  $("lblRcvd").textContent = rcvdLabel();
+  $("lblSent").textContent = sentLabel();
+  $("sfxCall").textContent = t.autoUpper;
+
+  $("phaseText").textContent =
+    state.phase === "sending" ? t.phaseSending
+    : state.phase === "waiting" ? t.phaseWaiting
+    : state.phase === "signoff" ? t.phaseSignoff
+    : t.phaseIdle;
+  $("phaseAbandon").textContent = t.abandon;
+  $("phaseAbandon").style.opacity = state.phase === "sending" || state.phase === "waiting" ? ".85" : "0";
+  $("valRst").textContent = "59";
+  $("valRst").className = "field-value";
+
+  $("sessTitle").textContent = t.sessionTitle;
+  $("sessStatus").textContent = t.running;
+  $("scoreK").textContent = t.score;
+  $("scoreUnit").textContent = t.unit;
+  $("kQso").textContent = t.kQso;
+  $("kMult").textContent = t.kMult;
+  $("kCor").textContent = t.kCor;
+  $("sessNote").textContent = t.sessionNote;
+  $("btnStop").textContent = t.stop;
+  $("rulesTitle").textContent = t.rules;
+
+  $("rulesLine1").textContent = txt(state.lang, currentContest().rules);
+  $("rulesLine2").textContent = txt(state.lang, currentContest().their);
+
+  $("logCount").textContent = state.rows.length + (state.lang === "zh" ? " 条" : state.lang === "ja" ? " 件" : " rows");
+  $("vQso").textContent = String(state.qsoCount);
+  $("vMult").textContent = String(Math.max(1, Math.min(state.qsoCount, 4)));
+  $("vCor").textContent = "0";
+  const score = state.qsoCount * 3 * 3;
+  $("scoreNum").textContent = String(score).padStart(3, "0");
+
+  $("lblSent").textContent = sentLabel();
+  $("tipSent").textContent =
+    state.phase === "idle" ? t.sentTooltip : t.sentTooltipRunning;
+}
+
+/* ───────────────────────── render: mock body ───────────────────────── */
+let lastSent = "";
+
+function renderMock() {
+  // values
+  $("valCall").textContent = state.phase === "idle" ? "" : state.rows.length ? state.rows[state.rows.length - 1].call : "JA1ABC";
+  $("valCall").className = state.phase === "idle" ? "field-placeholder" : "field-value";
+
+  const his = state.phase === "idle" ? "" : (state.his || hisSample());
+  $("valRcvd").textContent = his || "—";
+  $("valRcvd").className = his ? "field-value" : "field-placeholder";
+
+  const raw = sentValue();
+  const shown = raw ? raw : l().notSet;
+
+  $("valSent").textContent = shown;
+  $("valSent").className = raw ? "field-value" : "field-placeholder";
+  $("sfxSent").innerHTML = lockIcon(13);
+
+  // D5：运行中禁用跳设置，仅待机可点击
+  const canEdit = state.phase === "idle";
+  $("fieldSent").classList.toggle("clickable", canEdit);
+  $("fieldSent").style.cursor = canEdit ? "pointer" : "default";
+
+  // subtle pulse when the value changes
+  if (lastSent && lastSent !== shown && $("valSent").animate) {
+    $("valSent").animate(
+      [{ opacity: 0.3, transform: "translateY(-2px)" }, { opacity: 1, transform: "translateY(0)" }],
+      { duration: 300, easing: "ease-out" }
+    );
+  }
+  lastSent = shown;
+
+  renderLog();
+  renderCaption();
+  highlightPhase();
+}
+
+function renderLog() {
+  const rows = state.rows.map((r, i) => {
+    const latest = i === state.rows.length - 1;
+    return '<div class="log-row' + (latest ? " latest" : "") + '">' +
+      '<div class="c-utc">' + r.utc + "</div>" +
+      '<div class="c-call">' + r.call + "</div>" +
+      '<div class="c-rst">59</div>' +
+      '<div class="c-ex">' + r.ex + "</div>" +
+      '<div class="c-cor">' + (r.cor || "—") + "</div>" +
+      "</div>";
+  }).join("");
+  const box = $("logRows");
+  box.innerHTML = rows || '<div class="log-empty">—</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderCaption() {
+  const c = currentContest();
+  const raw = sentValue();
+  $("capA").textContent = "比赛 " + c.name;
+  if (c.serial) {
+    $("capB").textContent = "序号模式（无 station 字段）";
+    $("capC").textContent = "播报 " + (raw || "—");
+    $("capD").textContent = "本局行数 " + state.qsoCount;
+  } else {
+    const f = c.field;
+    $("capB").textContent = "设置 " + txt(state.lang, f.label) + " " + (state.missing ? "（未配置）" : (state.fields[f.id] || "—"));
+    $("capC").textContent = "播报 " + (raw || "—");
+    $("capD").textContent = "序号 不适用";
+  }
+}
+
+function highlightPhase() {
+  document.querySelectorAll("#phaseTable tr").forEach((tr) => {
+    tr.classList.toggle("is-active", tr.dataset.phase === state.phase);
+  });
+}
+
+/* ───────────────────────── render: drawer ───────────────────────── */
+let drawerFieldSig = "";
+
+function renderDrawer() {
+  const t = l();
+  const c = currentContest();
+  const running = state.phase !== "idle";
+
+  $("drawerTitle").textContent = t.settings;
+  $("tabContest").textContent = t.tabContest;
+  $("drawerLockNote").style.display = running ? "flex" : "none";
+  $("drawerLockText").textContent = t.lockedNote;
+
+  $("contestSectionTitle").textContent = t.contestSection;
+  $("contestNameLbl").textContent = t.contestName;
+  $("contestExchLbl").textContent = t.contestExchange;
+  $("drawerContestName").textContent = c.name;
+  $("drawerContestExch").textContent = txt(state.lang, c.exchangeLabel);
+  $("drawerRulesLink").textContent = t.rulesLink + " · " + txt(state.lang, c.rules);
+
+  $("stationSectionTitle").textContent = t.stationSection;
+  $("callLbl").textContent = t.callsign;
+  $("drawerCall").disabled = running;
+  $("drawerFoot").textContent = t.foot;
+
+  // 比赛规则行的中文后缀由 renderDrawer 重新拼接，避免与 renderChrome 的元素冲突
+  $("rulesLine1").textContent = txt(state.lang, c.rules);
+
+  const sig = state.contest + "|" + state.missing + "|" + state.lang + "|" + running;
+  const wrap = $("stationFieldWrap");
+  if (sig !== drawerFieldSig) {
+    drawerFieldSig = sig;
+    if (c.serial) {
+      wrap.innerHTML = '<div class="info-note">' + lockIcon(13) + "<span>" + t.serialNote + "</span></div>";
+    } else {
+      const f = c.field;
+      const value = state.missing ? "" : (state.fields[f.id] || "");
+      wrap.innerHTML =
+        '<div class="dfield">' +
+          '<div class="lbl">' + txt(state.lang, f.label) + "</div>" +
+          '<div class="dinput' + (state.missing ? " error" : "") + '">' +
+            '<input id="drawerField" value="' + value + '" spellcheck="false" autocomplete="off" ' + (running ? "disabled" : "") + " />" +
+          "</div>" +
+          '<div class="dhelper' + (state.missing ? " error" : "") + '">' +
+            (state.missing ? t.notSetError : txt(state.lang, f.helper)) +
+          "</div>" +
+        "</div>";
+      const input = $("drawerField");
+      input.addEventListener("input", (e) => {
+        state.fields[f.id] = e.target.value.trim();
+        renderMock();
+        renderPreview();
+      });
+      if (!running) {
+        setTimeout(() => { if (state.drawer) input.focus(); }, 80);
+      }
+    }
+  }
+
+  renderPreview();
+}
+
+function renderPreview() {
+  const t = l();
+  const c = currentContest();
+  $("settingsPreviewWrap").style.display = "block";
+  $("previewK").textContent = t.previewK;
+
+  const raw = sentValue();
+  const full = raw ? "59 " + raw : t.previewEmpty;
+  $("previewNum").textContent = full;
+  $("previewNum").style.color = raw ? "var(--primary)" : "var(--muted)";
+  $("previewHint").textContent = raw ? t.previewHint : "";
+
+  if (!raw) {
+    $("previewSub").textContent = t.previewEmptySub;
+  } else if (c.serial) {
+    $("previewSub").textContent = t.previewSubSerial(raw);
+  } else {
+    $("previewSub").textContent = t.previewSub(raw, txt(state.lang, c.field.label));
+  }
+}
+
+/* ───────────────────────── render all ───────────────────────── */
+function render() {
+  renderChrome();
+  renderMock();
+  renderToolbar();
+  renderDrawer();
+}
+
+function renderToolbar() {
+  document.querySelectorAll("[data-group]").forEach((btn) => {
+    const group = btn.dataset.group;
+    const value = btn.dataset.value;
+    const active =
+      group === "contest" ? state.contest === value
+      : group === "lang" ? state.lang === value
+      : group === "theme" ? state.theme === value
+      : group === "phase" ? state.phase === value
+      : false;
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  $("swMissing").checked = state.missing;
+}
+
+/* ───────────────────────── interactions ───────────────────────── */
+document.querySelectorAll("[data-group]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const group = btn.dataset.group;
+    const value = btn.dataset.value;
+    if (group === "contest") {
+      if (state.contest === value) return;
+      state.contest = value;
+      resetDemoData();
+    } else if (group === "theme") {
+      state.theme = value;
+    } else if (group === "phase") {
+      state.phase = value;
+      if (value !== "idle") state.his = hisSample();
+    } else {
+      state[group] = value;
+    }
+    render();
+  });
+});
+
+$("swMissing").addEventListener("change", (e) => {
+  state.missing = e.target.checked;
+  drawerFieldSig = "";
+  render();
+});
+$("btnRecord").addEventListener("click", () => {
+  state.qsoCount += 1;
+  const c = currentContest();
+  state.rows.push({
+    utc: fmtUtc(START_UTC + (state.rows.length + 1) * ROW_STEP),
+    call: c.calls[state.rows.length % c.calls.length],
+    ex: c.his[state.rows.length % c.his.length],
+    cor: "",
+  });
+  state.his = "";
+  render();
+});
+
+$("btnReset").addEventListener("click", () => {
+  resetDemoData();
+  state.phase = "idle";
+  state.missing = false;
+  drawerFieldSig = "";
+  render();
+});
+
+$("btnTheme").addEventListener("click", () => {
+  state.theme = state.theme === "light" ? "dark" : "light";
+  render();
+});
+
+function openDrawer() {
+  state.drawer = true;
+  $("drawer").classList.add("open");
+  $("drawer").setAttribute("aria-hidden", "false");
+  $("backdrop").classList.add("show");
+  drawerFieldSig = "";
+  renderDrawer();
+  if (currentField()) {
+    setTimeout(() => { const el = $("stationFieldWrap"); if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 120);
+  }
+}
+function closeDrawer() {
+  state.drawer = false;
+  $("drawer").classList.remove("open");
+  $("drawer").setAttribute("aria-hidden", "true");
+  $("backdrop").classList.remove("show");
+}
+
+$("btnOpenSettings").addEventListener("click", openDrawer);
+$("btnSettingsIcon").addEventListener("click", openDrawer);
+$("btnCloseDrawer").addEventListener("click", closeDrawer);
+$("backdrop").addEventListener("click", closeDrawer);
+
+$("fieldSent").addEventListener("click", () => {
+  // D5：运行中禁用跳设置
+  if (state.phase !== "idle") return;
+  openDrawer();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeDrawer();
+});
+
+/* ───────────────────────── init ───────────────────────── */
+function resetDemoData() {
+  state.qsoCount = 2;
+  const c = currentContest();
+  state.rows = [
+    { utc: fmtUtc(START_UTC), call: c.calls[0], ex: c.his[0], cor: "" },
+    { utc: fmtUtc(START_UTC + ROW_STEP), call: c.calls[1], ex: c.his[1 % c.his.length], cor: "" },
+  ];
+  state.his = "";
+  lastSent = "";
+  drawerFieldSig = "";
+}
+
+resetDemoData();
+render();
+</script>
+</body>
+</html>

@@ -202,9 +202,19 @@
   "keyTipSubmit": "submit your record",
   "keyTipClearInput": "clear the input fields",
   "keyTipStopSending": "stop sending (does not abandon the round)",
+  "phaseHintListening": "Listening — copy his call, then Enter",
+  "phaseHintCallNotCopied": "Call not copied — F5 to submit, F7 to repeat",
+  "phaseHintHeWantsSerial": "He wants his serial — type it, Enter to send; F1 abandons this round",
+  "phaseHintReportSent": "Your report is sent — type his serial, then Enter; F5/F7 repeats",
+  "phaseHintSendingReport": "Sending your report…",
+  "phaseHintQsoComplete": "QSO complete — starting the next one",
+  "phaseHintSpListening": "Listening — Enter to pounce, F1 for another CQ",
+  "phaseHintSpHeAnswered": "He answered — copy his serial, then Enter; F5/F7 repeats",
+  "phaseHintSpSigningOff": "Signing off — the next CQ follows",
+  "abandonRound": "Abandon (F1)",
   "callLabel": "Call",
   "rstLabel": "RST",
-  "exchangeFieldLabel": "Exchange",
+  "exchangeFieldLabel": "Rcvd",
   "sendTooltip": "Send {text}",
   "@sendTooltip": {
     "placeholders": {
@@ -213,6 +223,33 @@
       }
     }
   },
+  "sentExchangeLabel": "Sent",
+  "sentExchangeLockedTooltip": "Fixed value · edit in Settings › Contest & station › My station",
+  "sentExchangeLockedRunningTooltip": "Locked while the contest runs; stop to edit",
+  "sentExchangeNotSet": "—",
+  "stationSentPreviewTitle": "Transmitted",
+  "stationSentPreviewRstHint": "RST fixed at 59",
+  "stationSentPreviewNotSet": "Not set",
+  "stationSentPreviewNotSetHint": "Fill {field} in My station; a run cannot start without it.",
+  "@stationSentPreviewNotSetHint": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "stationSentPreviewHint": "{value} comes from {field} above; the console shows it read-only.",
+  "@stationSentPreviewHint": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "stationSentPreviewSerialHint": "The serial follows your QSO count; the console shows it read-only.",
   "scorePoint": "Point",
   "scoreMult": "Mult",
   "scoreScore": "Score",
@@ -221,7 +258,7 @@
   "tableUtc": "UTC",
   "tableCall": "Call",
   "tableRst": "Rst",
-  "tableExchange": "Exchange",
+  "tableExchange": "Rcvd",
   "tableCorrections": "Corrections",
   "sessionReviewTitle": "Session review",
   "trainingReviewSemantics": "Training review",
@@ -266,5 +303,113 @@
   "fieldPrefecture": "Prefecture",
   "helperStateProvince": "Two-letter state or province code",
   "helperPower": "Transmitter output in watts",
-  "helperPrefecture": "Prefecture number for your call area"
+  "helperPrefecture": "Prefecture number for your call area",
+  "toggleTheme": "Toggle theme",
+  "logSubtitle": "Logged automatically in UTC order",
+  "logCount": "{count} entries",
+  "@logCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logCorrections": "{count} corrections",
+  "@logCorrections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoLabel": "Auto",
+  "autoUppercase": "Auto uppercase",
+  "sessionTitle": "This session",
+  "sessionStatusRunning": "Running",
+  "sessionStatusReady": "Ready",
+  "sessionStatusPending": "{count, plural, =1{1 to fix} other{{count} to fix}}",
+  "@sessionStatusPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionRunningNote": "Timer running · stop any time",
+  "sessionIdleNote": "Stopped · data is kept",
+  "startTraining": "Start training",
+  "stopTraining": "Stop training",
+  "elapsedLabel": "Elapsed",
+  "remainingLabel": "Remaining",
+  "verifiedScoreLabel": "Verified score",
+  "rawScoreLabel": "Raw",
+  "correctionsLabel": "corrections",
+  "scoreUnit": "pts",
+  "statMultiplier": "Mult",
+  "rateSuffix": "/h",
+  "settingsTitle": "Settings",
+  "settingsTabContestStation": "Contest & station",
+  "settingsTabTraining": "Training",
+  "settingsTabAudio": "Audio",
+  "settingsTabSystem": "System",
+  "settingsContestSection": "Contest",
+  "myStation": "My station",
+  "stationSerialAutoHint": "The serial is generated automatically from your completed QSOs.",
+  "settingsRunningLock": "Settings can't be changed while a session runs. Stop it first.",
+  "settingsFunctionKeysRowSubtitle": "View bindings · customize F1–F12",
+  "settingsHistoryRowSubtitle": "Review, replay and import practice seeds",
+  "settingsAutoSaveNote": "Changes are saved automatically.",
+  "keyReferenceTitle": "Keyboard reference",
+  "keyReferenceFunctions": "Function keys",
+  "keyReferenceShortcuts": "Shortcuts",
+  "keyReferenceSpare": "Unassigned",
+  "functionKeysRunningLock": "Function keys can't be changed while a session runs.",
+  "readinessTitle": "Cannot start yet",
+  "readinessIncomplete": "{count, plural, =1{1 setting needs attention} other{{count} settings need attention}}",
+  "@readinessIncomplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessOpenSettings": "Open settings",
+  "settingsPath": "Settings › {tab}",
+  "@settingsPath": {
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPathWithSection": "Settings › {tab} › {section}",
+  "@settingsPathWithSection": {
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      },
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "readinessTabBadge": "{tab}, {count, plural, =1{1 item to fix} other{{count} items to fix}}",
+  "@readinessTabBadge": {
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessCurrentValue": "Current value: {value}",
+  "@readinessCurrentValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  }
 }
