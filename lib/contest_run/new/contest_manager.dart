@@ -13,6 +13,7 @@ import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_run/qso_duplicates.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
+import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
@@ -363,6 +364,33 @@ class ContestManager {
     );
     _contestDataManager.appSettings.saveSessionReview(review);
     _reviewStreamController.add(review);
+  }
+
+  /// The operator's own exchange for the 1-based [qsoNumber].
+  ///
+  /// While a session runs it uses the contest type frozen at start (identical
+  /// to what is actually transmitted); on standby it previews the next session
+  /// from the current contest, callsign and station settings.
+  String myExchangeFor(int qsoNumber) {
+    final active = _activeContestType;
+    if (_isContestRunning && active != null) {
+      return active.buildMyExchange(qsoNumber);
+    }
+
+    final settings = _contestDataManager.appSettings;
+    final dxccManager = _contestDataManager.dxccManager;
+    final definition = ContestRegistry.byId(settings.contestId);
+    final plan = definition.myExchangePlan(
+      stationCallsign: settings.stationCallsign,
+      dxccManager: dxccManager,
+    );
+    return buildMyExchangeText(
+      plan: plan,
+      config: settings.stationExchangeConfig(definition.id),
+      stationCallsign: settings.stationCallsign,
+      dxccManager: dxccManager,
+      qsoNumber: qsoNumber,
+    );
   }
 
   Future<int> countCurrentRunQso() async {

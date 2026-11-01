@@ -11,10 +11,16 @@ import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
+import 'package:ssb_runner/contest_type/contest_definition.dart';
+import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 import 'package:ssb_runner/ui/main_page/key_reference_dialog.dart';
+import 'package:ssb_runner/ui/main_page/settings_sheet.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
 
 import '../../contest_type/contest_type.dart';
@@ -281,7 +287,9 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   final _callSignFocusNode = FocusNode();
 
   final _callSignEditorController = TextEditingController();
-  final _rstEditorController = TextEditingController();
+  // RST is always 59 in this app; it is shown greyed out instead of being
+  // filled in by F2.
+  final _rstEditorController = TextEditingController(text: '59');
   final _exchangeEditorController = TextEditingController();
 
   late final Map<int, void Function()> _inputControlMap;
@@ -303,13 +311,12 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   }
 
   void _fillRst() {
-    _rstEditorController.text = '59';
+    // RST is fixed at 59, so F2 only moves the caret to the received exchange.
     _exchangeFocusNode.requestFocus();
   }
 
   void _clearInput() {
     _callSignEditorController.clear();
-    _rstEditorController.clear();
     _exchangeEditorController.clear();
 
     _callSignFocusNode.requestFocus();
@@ -335,8 +342,9 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
       spacing: 10,
       children: [
         Expanded(
-          flex: 27,
+          flex: 34,
           child: _QsoField(
+            fieldKey: const Key('call-field'),
             height: widget.fieldHeight,
             controller: _callSignEditorController,
             focusNode: _callSignFocusNode,
@@ -353,24 +361,31 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
           ),
         ),
         Expanded(
-          flex: 12,
+          flex: 9,
           child: _QsoField(
+            fieldKey: const Key('rst-field'),
             height: widget.fieldHeight,
             controller: _rstEditorController,
             label: l10n.rstLabel,
-            suffix: l10n.autoLabel,
             readOnly: true,
+            focusable: false,
+            striped: true,
             fillColor: scheme.surfaceContainerHighest,
             onChanged: null,
           ),
         ),
         Expanded(
-          flex: 27,
+          flex: 14,
+          child: _SentExchangeField(height: widget.fieldHeight),
+        ),
+        Expanded(
+          flex: 34,
           child: BlocBuilder<_ContestTypeCubit, RegExp?>(
             builder: (context, allowRegex) {
               final allowRegexVal = allowRegex ?? RegExp('[A-Za-z0-9/]');
 
               return _QsoField(
+                fieldKey: const Key('received-exchange-field'),
                 height: widget.fieldHeight,
                 controller: _exchangeEditorController,
                 focusNode: _exchangeFocusNode,
@@ -407,10 +422,14 @@ class _QsoField extends StatelessWidget {
     required this.height,
     required this.controller,
     required this.label,
+    this.fieldKey,
     this.focusNode,
     this.readOnly = false,
+    this.focusable = true,
+    this.striped = false,
     this.fillColor,
     this.suffix,
+    this.suffixIcon,
     this.inputFormatters,
     this.onChanged,
   });
@@ -418,62 +437,272 @@ class _QsoField extends StatelessWidget {
   final double height;
   final TextEditingController controller;
   final String label;
+  final Key? fieldKey;
   final FocusNode? focusNode;
   final bool readOnly;
+
+  /// Read-only projections (RST, sent exchange) must not join the Tab order or
+  /// steal focus from the F2 → received-exchange flow.
+  final bool focusable;
+
+  /// Fixed-value cells use the prototype's faint diagonal hatch so the
+  /// "cannot edit this here" affordance reads before the lock icon is noticed.
+  final bool striped;
   final Color? fillColor;
   final String? suffix;
+  final Widget? suffixIcon;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final fill = fillColor ?? scheme.surfaceContainerLowest;
+    // The prototype gives fixed cells a stronger outline than editable ones.
+    final borderColor = striped
+        ? scheme.outline.withValues(alpha: 0.42)
+        : scheme.outlineVariant;
 
-    return SizedBox(
+    final field = SizedBox(
       height: height,
-      child: TextField(
-        textInputAction: TextInputAction.none,
-        controller: controller,
-        focusNode: focusNode,
-        readOnly: readOnly,
-        inputFormatters: inputFormatters,
-        onChanged: onChanged,
-        style: AppDataText.style(
-          context,
-          fontSize: height <= 58 ? 20 : 22,
-          letterSpacing: 1.2,
-          color: readOnly ? scheme.onSurfaceVariant : scheme.onSurface,
-        ),
-        textAlignVertical: TextAlignVertical.center,
-        decoration: InputDecoration(
-          labelText: label,
-          suffixText: suffix,
-          suffixStyle: Theme.of(context).textTheme.bodySmall,
-          filled: true,
-          fillColor: fillColor ?? scheme.surfaceContainerLowest,
-          isDense: true,
-          contentPadding: const EdgeInsets.fromLTRB(13, 20, 13, 8),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.outlineVariant),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (striped)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CustomPaint(
+                painter: _DiagonalHatchPainter(
+                  background: fill,
+                  hatch: scheme.onSurface.withValues(
+                    alpha: scheme.brightness == Brightness.dark ? 0.05 : 0.034,
+                  ),
+                ),
+              ),
+            ),
+          TextField(
+            key: fieldKey,
+            textInputAction: TextInputAction.none,
+            controller: controller,
+            focusNode: focusNode,
+            readOnly: readOnly,
+            canRequestFocus: focusable,
+            inputFormatters: inputFormatters,
+            onChanged: onChanged,
+            style: AppDataText.style(
+              context,
+              fontSize: height <= 58 ? 20 : 22,
+              letterSpacing: 1.2,
+              color: readOnly ? scheme.onSurfaceVariant : scheme.onSurface,
+            ),
+            textAlignVertical: TextAlignVertical.center,
+            decoration: InputDecoration(
+              labelText: label,
+              suffixText: suffix,
+              suffixIcon: suffixIcon,
+              suffixIconConstraints: const BoxConstraints(
+                minWidth: 24,
+                minHeight: 24,
+              ),
+              suffixStyle: Theme.of(context).textTheme.bodySmall,
+              // The striped cell paints its own background so the hatch shows
+              // through; the plain cells keep the decorated fill.
+              filled: !striped,
+              fillColor: striped ? null : fill,
+              isDense: true,
+              contentPadding: const EdgeInsets.fromLTRB(13, 20, 13, 8),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: scheme.primary, width: 2),
+              ),
+              labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                letterSpacing: 0.4,
+              ),
+              floatingLabelStyle: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(
+                    color: readOnly ? scheme.onSurfaceVariant : scheme.primary,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                    backgroundColor: fill,
+                  ),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.outlineVariant),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.primary, width: 2),
-          ),
-          labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        ],
+      ),
+    );
+
+    return ExcludeFocus(excluding: !focusable, child: field);
+  }
+}
+
+/// Faint 45° stripes behind fixed-value cells, matching the prototype's
+/// `repeating-linear-gradient(45deg, … 6px, hatch 6px 7px)`.
+class _DiagonalHatchPainter extends CustomPainter {
+  const _DiagonalHatchPainter({required this.background, required this.hatch});
+
+  final Color background;
+  final Color hatch;
+
+  /// 7px spacing measured perpendicular to the stripes = 7·√2 along x.
+  static const _step = 9.9;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = background);
+
+    final paint = Paint()
+      ..color = hatch
+      ..strokeWidth = 1;
+    for (var offset = -size.height; offset < size.width; offset += _step) {
+      canvas.drawLine(
+        Offset(offset, 0),
+        Offset(offset + size.height, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DiagonalHatchPainter oldDelegate) =>
+      oldDelegate.background != background || oldDelegate.hatch != hatch;
+}
+
+/// Read-only projection of the operator's own exchange (N1MM's `SentNr`).
+/// Its value always points at the next QSO and comes from the same builder as
+/// the audio (`ContestManager.myExchangeFor`).
+class _SentExchangeField extends StatefulWidget {
+  const _SentExchangeField({required this.height});
+
+  final double height;
+
+  @override
+  State<_SentExchangeField> createState() => _SentExchangeFieldState();
+}
+
+class _SentExchangeFieldState extends State<_SentExchangeField> {
+  final _controller = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final manager = context.read<ContestManager>();
+    final settings = context.read<AppSettings>();
+
+    return ValueListenableBuilder<int>(
+      valueListenable: settings.settingsRevision,
+      builder: (context, _, _) {
+        return BlocBuilder<QsoConsoleCubit, SingleCallRunState?>(
+          builder: (context, state) {
+            // Keep one stable subtree for standby and running: swapping the
+            // field out would leave a defunct EditableText listening to the
+            // controller while the text is updated during build.
+            return BlocBuilder<QsoRecordListCubit, List<QsoResult>>(
+              builder: (context, records) {
+                final isRunning = state != null;
+                // Standby previews the first QSO of the next session; while
+                // running the raw row count (DUPE rows included) matches
+                // `_myExchange()`.
+                final qsoNumber = isRunning ? records.length + 1 : 1;
+                return _buildField(
+                  l10n,
+                  manager.myExchangeFor(qsoNumber),
+                  isRunning: isRunning,
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildField(
+    AppLocalizations l10n,
+    String exchange, {
+    required bool isRunning,
+  }) {
+    final display = exchange.isEmpty ? l10n.sentExchangeNotSet : exchange;
+    if (_controller.text != display) _controller.text = display;
+
+    return _QsoField(
+      fieldKey: const Key('sent-exchange-field'),
+      height: widget.height,
+      controller: _controller,
+      label: l10n.sentExchangeLabel,
+      readOnly: true,
+      focusable: false,
+      striped: true,
+      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      suffixIcon: _SentExchangeLock(
+        isRunning: isRunning,
+        onPressed: _openSettings,
+      ),
+      onChanged: null,
+    );
+  }
+
+  void _openSettings() {
+    // Only reachable on standby: a running session is locked by the settings
+    // drawer itself, so the icon is disabled then.
+    final settings = context.read<AppSettings>();
+    final definition = ContestRegistry.byId(settings.contestId);
+    final plan = definition.myExchangePlan(
+      stationCallsign: settings.stationCallsign,
+      dxccManager: context.read<DxccManager>(),
+    );
+    final fieldId = plan.sendsSerial || plan.fields.isEmpty
+        ? null
+        : plan.fields.first.id;
+
+    showSettingsSheet(
+      context,
+      initialTab: SettingsTab.contestStation,
+      focusFieldKey: fieldId == null
+          ? null
+          : SettingsFocusKeys.exchangeField(fieldId),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
+class _SentExchangeLock extends StatelessWidget {
+  const _SentExchangeLock({required this.isRunning, required this.onPressed});
+
+  final bool isRunning;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: isRunning
+          ? l10n.sentExchangeLockedRunningTooltip
+          : l10n.sentExchangeLockedTooltip,
+      child: GestureDetector(
+        onTap: isRunning ? null : onPressed,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 2, right: 6),
+          child: Icon(
+            Icons.lock_outline,
+            size: 14,
             color: scheme.onSurfaceVariant,
-            letterSpacing: 0.4,
-          ),
-          floatingLabelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: scheme.primary,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
-            backgroundColor: fillColor ?? scheme.surfaceContainerLowest,
           ),
         ),
       ),
@@ -586,7 +815,9 @@ class _ActionRow extends StatelessWidget {
 /// a row, so nine actions become 5 + 4 instead of one long, hard-to-scan row on
 /// a wide console; the counts differ by one, so the last row never holds a
 /// single button while the rows above it are full.
-List<List<FunctionKeyBinding>> _balancedRows(List<FunctionKeyBinding> bindings) {
+List<List<FunctionKeyBinding>> _balancedRows(
+  List<FunctionKeyBinding> bindings,
+) {
   if (bindings.isEmpty) {
     return const [];
   }
@@ -609,10 +840,7 @@ List<List<FunctionKeyBinding>> _balancedRows(List<FunctionKeyBinding> bindings) 
 /// One shared cell width for every row, so the rows line up as a grid. The
 /// width is the narrowest cell that still fits the fullest row, capped at
 /// [_ActionRow._maxButtonWidth].
-double _buttonWidth(
-  double available,
-  List<List<FunctionKeyBinding>> rows,
-) {
+double _buttonWidth(double available, List<List<FunctionKeyBinding>> rows) {
   var width = double.infinity;
 
   for (final row in rows) {

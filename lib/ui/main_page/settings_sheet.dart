@@ -21,6 +21,7 @@ import 'package:ssb_runner/training/training_profile.dart';
 import 'package:ssb_runner/ui/main_page/key_reference_dialog.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_settings/contest_rules_dialog.dart';
+import 'package:ssb_runner/ui/theme/app_theme.dart';
 import 'package:toastification/toastification.dart';
 
 Future<void> showSettingsSheet(
@@ -957,7 +958,136 @@ class _StationFields extends StatelessWidget {
                   : null,
             ),
           ),
+        // Connects the configured value (`5`) to what is actually read out
+        // (`05`), so the console preview does not look like a bug.
+        Padding(
+          // 12px column spacing + 4px keeps the MD3 16px rhythm.
+          padding: const EdgeInsets.only(top: 4),
+          child: _StationSentPreview(
+            definitionId: definition.id,
+            plan: plan,
+            callsign: callsign,
+            dxccManager: dxccManager,
+          ),
+        ),
       ],
+    );
+  }
+}
+
+/// Read-only "Sending: 59 05" preview under the station fields (D4).
+class _StationSentPreview extends StatelessWidget {
+  const _StationSentPreview({
+    required this.definitionId,
+    required this.plan,
+    required this.callsign,
+    required this.dxccManager,
+  });
+
+  final String definitionId;
+  final MyExchangePlan plan;
+  final String callsign;
+  final DxccManager dxccManager;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final settings = context.read<AppSettings>();
+
+    return ValueListenableBuilder<int>(
+      // Station values are written straight to storage; this keeps the preview
+      // in step while the operator types.
+      valueListenable: settings.settingsRevision,
+      builder: (context, _, _) {
+        final scheme = Theme.of(context).colorScheme;
+        final exchange = buildMyExchangeText(
+          plan: plan,
+          config: settings.stationExchangeConfig(definitionId),
+          stationCallsign: callsign,
+          dxccManager: dxccManager,
+          qsoNumber: 1,
+        );
+        final fieldLabel = plan.fields.isEmpty
+            ? ''
+            : l10n.stationFieldLabel(
+                plan.fields.first.id,
+                plan.fields.first.label,
+              );
+
+        final hasExchange = exchange.isNotEmpty;
+        final value = hasExchange
+            ? '59 $exchange'
+            : l10n.stationSentPreviewNotSet;
+        final sub = !hasExchange
+            ? l10n.stationSentPreviewNotSetHint(fieldLabel)
+            : plan.sendsSerial
+            ? l10n.stationSentPreviewSerialHint
+            : l10n.stationSentPreviewHint(exchange, fieldLabel);
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+            // The prototype's primary-tinted "what goes out" card.
+            color: Color.alphaBlend(
+              scheme.primaryContainer.withValues(alpha: 0.42),
+              scheme.surface,
+            ),
+            border: Border.all(
+              color: Color.alphaBlend(
+                scheme.primary.withValues(alpha: 0.26),
+                scheme.outlineVariant,
+              ),
+            ),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.stationSentPreviewTitle,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  letterSpacing: 0.7,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    value,
+                    style: AppDataText.style(
+                      context,
+                      fontSize: 24,
+                      letterSpacing: 1.4,
+                      color: hasExchange
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (hasExchange) ...[
+                    const SizedBox(width: 9),
+                    Text(
+                      l10n.stationSentPreviewRstHint,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                sub,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

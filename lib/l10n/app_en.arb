@@ -214,7 +214,7 @@
   "abandonRound": "Abandon (F1)",
   "callLabel": "Call",
   "rstLabel": "RST",
-  "exchangeFieldLabel": "Exchange",
+  "exchangeFieldLabel": "Rcvd",
   "sendTooltip": "Send {text}",
   "@sendTooltip": {
     "placeholders": {
@@ -223,6 +223,33 @@
       }
     }
   },
+  "sentExchangeLabel": "Sent",
+  "sentExchangeLockedTooltip": "Fixed value · edit in Settings › Contest & station › My station",
+  "sentExchangeLockedRunningTooltip": "Locked while the contest runs; stop to edit",
+  "sentExchangeNotSet": "—",
+  "stationSentPreviewTitle": "Transmitted",
+  "stationSentPreviewRstHint": "RST fixed at 59",
+  "stationSentPreviewNotSet": "Not set",
+  "stationSentPreviewNotSetHint": "Fill {field} in My station; a run cannot start without it.",
+  "@stationSentPreviewNotSetHint": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "stationSentPreviewHint": "{value} comes from {field} above; the console shows it read-only.",
+  "@stationSentPreviewHint": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "stationSentPreviewSerialHint": "The serial follows your QSO count; the console shows it read-only.",
   "scorePoint": "Point",
   "scoreMult": "Mult",
   "scoreScore": "Score",
@@ -231,7 +258,7 @@
   "tableUtc": "UTC",
   "tableCall": "Call",
   "tableRst": "Rst",
-  "tableExchange": "Exchange",
+  "tableExchange": "Rcvd",
   "tableCorrections": "Corrections",
   "sessionReviewTitle": "Session review",
   "trainingReviewSemantics": "Training review",

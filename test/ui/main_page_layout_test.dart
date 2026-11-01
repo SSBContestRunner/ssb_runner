@@ -41,6 +41,9 @@ void main() {
         expect(find.byKey(const Key('appBrandMark')), findsOneWidget);
         expect(find.text('CQ WPX'), findsOneWidget);
         expect(find.text('QSO Records'), findsOneWidget);
+        // The console and the log header both name the received exchange.
+        expect(find.text('Rcvd'), findsNWidgets(2));
+        expect(find.text('Sent'), findsOneWidget);
         expect(find.text('This session'), findsOneWidget);
         expect(find.text('Contest rules'), findsOneWidget);
         expect(find.text('Start training'), findsOneWidget);

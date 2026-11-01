@@ -202,6 +202,37 @@ StationExchangeValidationError? _validateField(
   return null;
 }
 
+/// The exchange the operator transmits for the 1-based [qsoNumber], after the
+/// RST and already normalised to the spoken form (leading zeros included).
+///
+/// Shared by [StationExchangeBuilder] and the console's read-only preview so
+/// the displayed value and the transmitted value can never drift apart.
+String buildMyExchangeText({
+  required MyExchangePlan plan,
+  required StationExchangeConfig config,
+  required String stationCallsign,
+  required DxccManager dxccManager,
+  required int qsoNumber,
+}) {
+  if (plan.sendsSerial) {
+    return formatExchangeNumber(qsoNumber.toString(), plan.serialDigits);
+  }
+  final parts = <String>[];
+  for (final field in plan.fields) {
+    final value = resolveExchangeValue(
+      field,
+      config,
+      stationCallsign,
+      dxccManager,
+    );
+    if (value == null || value.isEmpty) continue;
+    parts.add(
+      field.numeric ? formatExchangeNumber(value, field.audioDigits) : value,
+    );
+  }
+  return parts.join(' ');
+}
+
 /// Builds the operator's own exchange and normalises the received exchange for
 /// over-the-air playback (per-contest leading-zero policy).
 class StationExchangeBuilder {
@@ -222,25 +253,13 @@ class StationExchangeBuilder {
   final int exchangeAudioDigits;
 
   /// The exchange the operator transmits for the 1-based [qsoNumber].
-  String buildMyExchange(int qsoNumber) {
-    if (plan.sendsSerial) {
-      return formatExchangeNumber(qsoNumber.toString(), plan.serialDigits);
-    }
-    final parts = <String>[];
-    for (final field in plan.fields) {
-      final value = resolveExchangeValue(
-        field,
-        config,
-        stationCallsign,
-        dxccManager,
-      );
-      if (value == null || value.isEmpty) continue;
-      parts.add(
-        field.numeric ? formatExchangeNumber(value, field.audioDigits) : value,
-      );
-    }
-    return parts.join(' ');
-  }
+  String buildMyExchange(int qsoNumber) => buildMyExchangeText(
+    plan: plan,
+    config: config,
+    stationCallsign: stationCallsign,
+    dxccManager: dxccManager,
+    qsoNumber: qsoNumber,
+  );
 
   /// Received exchange -> spoken form. Letters pass through untouched.
   String formatExchangeForAudio(String exchange) {

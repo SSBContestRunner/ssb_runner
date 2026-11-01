@@ -125,6 +125,60 @@ void main() {
     );
     // Only the contest exchange line still shows "59 #".
     expect(find.text('59 #'), findsOneWidget);
+    // The preview connects the upcoming serial to the fixed RST.
+    expect(find.text('Transmitted'), findsOneWidget);
+    expect(find.text('59 001'), findsOneWidget);
+    expect(find.text('RST fixed at 59'), findsOneWidget);
+    expect(
+      find.text(
+        'The serial follows your QSO count; the console shows it read-only.',
+      ),
+      findsOneWidget,
+    );
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('the station panel previews the configured exchange as spoken', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(
+      tester,
+      configure: (settings) {
+        settings
+          ..contestId = 'CQ-WW-SSB'
+          ..setStationExchangeValue('CQ-WW-SSB', 'cqZone', '5');
+      },
+    );
+
+    expect(find.text('59 05'), findsOneWidget);
+    expect(find.text('RST fixed at 59'), findsOneWidget);
+    expect(
+      find.text('05 comes from CQ Zone above; the console shows it read-only.'),
+      findsOneWidget,
+    );
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('the preview follows the field while typing', (tester) async {
+    final harness = await _pumpSheet(
+      tester,
+      configure: (settings) => settings.contestId = 'CQ-WW-SSB',
+    );
+
+    expect(find.text('Not set'), findsOneWidget);
+    expect(
+      find.text('Fill CQ Zone in My station; a run cannot start without it.'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.widgetWithText(TextField, 'CQ Zone'), '24');
+    await tester.pump();
+
+    expect(find.text('59 24'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
     harness.dispose();
