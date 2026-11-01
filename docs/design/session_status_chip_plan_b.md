@@ -7,7 +7,7 @@
 - 纵向信息过密，主操作（开始训练）被向上推移；
 - 就绪横幅与「运行中」状态都使用 success 色系，语义不清晰。
 
-已通过 HTML 原型（`docs/design/session_footer_prototype.html`）对比 5 个方案，最终选定：
+已通过临时 HTML 原型对比 5 个方案，最终选定：
 
 - **方案 B**：删除底部横幅，就绪信息并入标题栏右上角状态 chip；
 - **V2 配色**：就绪 chip 使用主色容器（蓝底 + 勾），与「运行中」的绿色实底区分。
@@ -261,6 +261,5 @@ final label = isRunning
 
 ## 11. 参考
 
-- HTML 原型：`docs/design/session_footer_prototype.html`（双态对照 + 「状态 chip」V2）
-- 现有实现：`lib/ui/main_page/session_panel.dart`（`_StatusChip` / `_RunSection` / `_ReadinessBar`）
+- 现有实现：`lib/ui/main_page/session_panel.dart`（`_StatusChip` / `_RunSection`）
 - 校验来源：`lib/settings/settings_readiness.dart`
