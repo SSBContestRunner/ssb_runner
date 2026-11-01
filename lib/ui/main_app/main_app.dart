@@ -154,10 +154,10 @@ class _MainAppState extends State<MainApp> {
     try {
       // macOS binds the native window to the plugin only during this call.
       await windowManager.ensureInitialized();
-      await windowManager.setSize(const Size(1280, 720));
-      await windowManager.center();
       await windowManager.setResizable(true);
       await windowManager.setMinimumSize(const Size(1024, 650));
+      await windowManager.setSize(const Size(1024, 650));
+      await windowManager.center();
     } catch (error, stackTrace) {
       log.warn(
         'window configure failed',
