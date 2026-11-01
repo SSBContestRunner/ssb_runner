@@ -209,5 +209,6 @@
   "settingsPath": "设置 › {tab}",
   "settingsPathWithSection": "设置 › {tab} › {section}",
   "readinessTabBadge": "{tab}，{count} 项待处理",
-  "readinessCurrentValue": "当前值 {value}"
+  "readinessCurrentValue": "当前值 {value}",
+  "hintNothingToSend": "现在不需要发送呼号和序号"
 }

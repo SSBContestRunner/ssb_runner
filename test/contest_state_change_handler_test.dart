@@ -500,6 +500,219 @@ void main() {
       await rig.dispose();
     });
   });
+
+  group('分号键：他的呼号 + 我的序号', () {
+    test('WaitingSubmitCall：抄到呼号后一次发射并进入 ReportMyExchange', () async {
+      final loader = _CountingAudioLoader();
+      final transitions = <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: _waitingSubmitCall('B100IARU'),
+        audioLoader: loader,
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      final handled = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(handled, isTrue, reason: '被接受的分号按键要报告已执行');
+      final current = rig.machine.currentState;
+      expect(current, isA<ReportMyExchange>());
+      expect((current as ReportMyExchange).submitCall, 'B100IARU');
+      expect(current.isOperateInput, isFalse);
+      expect(loader.calls, 2, reason: '他的呼号 + 我的序号 两段音频');
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+
+    test('HeRepeatCorrectCallAnswer：纠正后继续推进，不再静默', () async {
+      // 回归用例：日志里 `operation event hisCallAndMyExchange` 之后没有任何
+      // onTransition，分号键在这个状态下被整个吞掉。
+      final loader = _CountingAudioLoader();
+      final transitions = <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: HeRepeatCorrectCallAnswer(
+          currentCallAnswer: 'B100IARU',
+          currentExchangeAnswer: '59 001',
+          submitCall: 'B10',
+        ),
+        audioLoader: loader,
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      final current = rig.machine.currentState;
+      expect(current, isA<ReportMyExchange>());
+      expect((current as ReportMyExchange).submitCall, 'B100IARU');
+      expect(loader.calls, 2);
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+
+    test('WaitingSubmitCall：空输入时重播，不播组合音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _waitingSubmitCall('B100IARU'),
+        audioLoader: loader,
+      );
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(rig.machine.currentState, isA<WaitingSubmitCall>());
+      expect(loader.calls, 0);
+      await rig.dispose();
+    });
+
+    test('WaitingSubmitMyExchange：重播他的序号', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _inFlightStateBuilders[2]('B100IARU'),
+        audioLoader: loader,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(rig.machine.currentState, isA<WaitingSubmitMyExchange>());
+      expect(loader.calls, 2);
+      await rig.dispose();
+    });
+
+    test('HeAskForExchange：只让他重发，不播组合音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _heAskForExchange('B100IARU'),
+        audioLoader: loader,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(rig.machine.currentState, isA<HeAskForExchange>());
+      expect(loader.calls, 0, reason: '他在要序号，组合音频会盖住他');
+      await rig.dispose();
+    });
+
+    test('ReportMyExchange / QsoEnd：不迁移也不播音频', () async {
+      for (final state in [_inFlightStateBuilders[3]('B100IARU'), _qsoEnd()]) {
+        final loader = _CountingAudioLoader();
+        final rig = await _rig(initialState: state, audioLoader: loader);
+        rig.input.onCallEdit('B100IARU');
+        final before = rig.machine.currentState;
+
+        final handled = await rig.operationHandler.handleOperationEvent(
+          OperationEvent.hisCallAndMyExchange,
+        );
+
+        expect(handled, isFalse, reason: '无动作时要让界面能提示');
+        expect(rig.machine.currentState, same(before));
+        expect(loader.calls, 0, reason: '${state.runtimeType} 不该发射');
+        await rig.dispose();
+      }
+    });
+
+    test('S&P：等价 Enter，不播组合音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _spListeningCq(),
+        searchAndPounce: true,
+        audioLoader: loader,
+      );
+      rig.input.onCallEdit('A1AAA');
+
+      final first = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(first, isTrue);
+      expect(rig.machine.currentState, isA<SpWaitingHisExchange>());
+      expect(loader.calls, 0);
+
+      // 第二次等价回车：抄到序号后提交并进入签字态。
+      rig.input.onExchangeEdit('007');
+      final second = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(second, isTrue);
+      expect(rig.machine.currentState, isA<SpQsoEnd>());
+      expect(loader.calls, 0);
+      await rig.dispose();
+    });
+
+    test('SpQsoEnd：不迁移也不播音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _spListeningCq(),
+        searchAndPounce: true,
+        audioLoader: loader,
+      );
+      _advanceToSpQsoEnd(rig.machine);
+      rig.input.onCallEdit('A1AAA');
+      final before = rig.machine.currentState;
+
+      final handled = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(handled, isFalse);
+      expect(rig.machine.currentState, same(before));
+      expect(loader.calls, 0);
+      await rig.dispose();
+    });
+  });
+
+  group('回车提交的遗留黑洞', () {
+    test('WaitingSubmitMyExchange 未抄序号时重播而不是 dropped', () async {
+      final transitions = <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: _inFlightStateBuilders[2]('B100IARU'),
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+
+      expect(rig.machine.currentState, isA<WaitingSubmitMyExchange>());
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+
+    test('WaitingSubmitCall 两框都填仍然提交呼号 + 序号', () async {
+      final transitions = <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: _waitingSubmitCall('B100IARU'),
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+      rig.input.onExchangeEdit('59 001');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+
+      expect(rig.machine.currentState, isA<ReportMyExchange>());
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+  });
+}
+
+bool _isValidTransition(
+  Transition<SingleCallRunState, SingleCallRunEvent, Null> transition,
+) {
+  return transition is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>;
 }
 
 void _advanceToSpQsoEnd(
@@ -596,6 +809,8 @@ Future<_Rig> _rig({
   AnswerSource? answerSource,
   CallsignLoader? callsignLoader,
   void Function(String reason)? onAnswersExhausted,
+  TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>?
+  transitionListener,
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
   final input = ContestInputHandler();
@@ -608,11 +823,11 @@ Future<_Rig> _rig({
   final machine = searchAndPounce
       ? initSearchAndPounceRunStateMachine(
           initialState: initialState as SpListeningCq,
-          transitionListener: (_) {},
+          transitionListener: transitionListener ?? (_) {},
         )
       : initSingleCallRunStateMachine(
           initialState: initialState,
-          transitionListener: (_) {},
+          transitionListener: transitionListener ?? (_) {},
         );
 
   final contestType = _FixedContestType();

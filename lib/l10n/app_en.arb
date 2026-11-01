@@ -411,5 +411,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "hintNothingToSend": "Nothing to send right now"
 }

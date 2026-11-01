@@ -209,5 +209,6 @@
   "settingsPath": "設定 › {tab}",
   "settingsPathWithSection": "設定 › {tab} › {section}",
   "readinessTabBadge": "{tab}、未完了 {count} 件",
-  "readinessCurrentValue": "現在の値: {value}"
+  "readinessCurrentValue": "現在の値: {value}",
+  "hintNothingToSend": "今は送信するものはありません"
 }
