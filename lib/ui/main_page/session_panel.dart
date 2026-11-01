@@ -12,10 +12,12 @@ import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/settings/settings_readiness.dart';
+import 'package:ssb_runner/ui/main_page/replay_armed_banner.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_issues_dialog.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
+import 'package:toastification/toastification.dart';
 
 class SessionPanel extends StatelessWidget {
   const SessionPanel({super.key});
@@ -71,6 +73,7 @@ class _SessionCard extends StatelessWidget {
                     settings: settings,
                     dxccManager: dxccManager,
                   );
+            final pendingReplay = isRunning ? null : settings.pendingReplay;
 
             return Container(
               decoration: BoxDecoration(
@@ -124,6 +127,10 @@ class _SessionCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (pendingReplay != null) ...[
+                            ReplayArmedBanner(pending: pendingReplay),
+                            const SizedBox(height: 12),
+                          ],
                           _TimerBlock(compact: isCompact),
                           const SizedBox(height: 10),
                           _ProgressBlock(duration: options.duration),
@@ -645,12 +652,30 @@ class _RunButton extends StatelessWidget {
             context,
           ).textTheme.labelLarge?.copyWith(fontSize: 15, letterSpacing: 0.5),
         ),
-        onPressed: () {
+        onPressed: () async {
           if (!isRunning && issues.isNotEmpty) {
             showSettingsIssuesDialog(context, issues: issues);
             return;
           }
-          context.read<_RunBtnCubit>().toggle();
+          final manager = context.read<ContestManager>();
+          if (isRunning) {
+            manager.stopContest();
+            return;
+          }
+          final result = await manager.startContest();
+          if (!context.mounted) return;
+          // An abandoned replay started a fresh session instead; say so
+          // explicitly rather than silently changing what RUN did.
+          if (result.started && result.abortedReason != null) {
+            toastification.show(
+              title: Text(
+                l10n.replayAbortedToast(result.replayContestName ?? '—'),
+              ),
+              autoCloseDuration: const Duration(seconds: 3),
+              type: ToastificationType.warning,
+              style: ToastificationStyle.fillColored,
+            );
+          }
         },
         icon: Icon(
           isRunning ? Icons.stop_circle_outlined : Icons.play_arrow,
@@ -823,21 +848,11 @@ class _QsoSpeedCubit extends Cubit<double?> {
 }
 
 class _RunBtnCubit extends Cubit<bool> {
-  final ContestManager _contestManager;
   late final StreamSubscription<bool> _subscription;
 
   _RunBtnCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super(contestManager.isContestRunning) {
+    : super(contestManager.isContestRunning) {
     _subscription = contestManager.isContestRunningStream.listen(emit);
-  }
-
-  void toggle() {
-    if (state) {
-      _contestManager.stopContest();
-    } else {
-      _contestManager.startContest();
-    }
   }
 
   @override

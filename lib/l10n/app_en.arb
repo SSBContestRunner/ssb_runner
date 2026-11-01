@@ -412,5 +412,36 @@
       }
     }
   },
-  "hintNothingToSend": "Nothing to send right now"
+  "hintNothingToSend": "Nothing to send right now",
+  "replayArmedTitle": "Replay armed",
+  "replayArmedDetail": "Replaying {contest} · {mode} · {difficulty} · {time}",
+  "@replayArmedDetail": {
+    "placeholders": {
+      "contest": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      },
+      "difficulty": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "replayArmedStationHint": "Replay only reproduces incoming stations; you transmit with your current station settings.",
+  "replayLockedHint": "Contest, mode and difficulty are locked until the replay is cancelled.",
+  "cancelReplay": "Cancel replay",
+  "replayCancelledToast": "Replay cancelled",
+  "replayAbortedToast": "Replay of {contest} could not start; a new session uses your current settings.",
+  "@replayAbortedToast": {
+    "placeholders": {
+      "contest": {
+        "type": "String"
+      }
+    }
+  },
+  "pastSessionsUnavailableWhileRunning": "Past sessions can't be opened while a session runs."
 }

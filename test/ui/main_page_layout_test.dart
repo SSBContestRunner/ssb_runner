@@ -13,6 +13,7 @@ import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/training/pending_replay.dart';
 import 'package:ssb_runner/ui/main_page/main_page.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
 // ignore: depend_on_referenced_packages
@@ -190,6 +191,50 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('Cannot start yet'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an armed replay drives the topbar, rules and sent preview', (
+    tester,
+  ) async {
+    final settings = await _pumpMainPage(tester, const Size(1280, 720));
+    settings
+      ..contestId = 'CQ-WW-SSB'
+      ..stationCallsign = 'BI1QJQ'
+      ..contestDuration = 30
+      ..setStationExchangeValue('CQ-WW-SSB', 'cqZone', '5');
+    await tester.pump();
+
+    settings.armReplay(
+      PendingReplay(
+        runId: 'wpx-run',
+        contestId: 'CQ-WPX',
+        contestName: 'CQ WPX',
+        modeId: 'run',
+        difficultyId: 'standard',
+        questionSeed: 42,
+        audioSeed: 43,
+        armedAtUtc: DateTime.utc(2026, 1, 1, 10, 30),
+      ),
+    );
+    await tester.pump();
+
+    // The ordinary setting is still CQ WW; the whole UI shows the snapshot.
+    expect(settings.contestId, 'CQ-WW-SSB');
+    expect(find.text('CQ WPX'), findsOneWidget);
+    expect(find.text('Replay armed'), findsOneWidget);
+    expect(
+      find.textContaining('You send: 59 + 3-digit serial number'),
+      findsOneWidget,
+    );
+    expect(find.text('001'), findsOneWidget);
+
+    settings.clearPendingReplay();
+    await tester.pump();
+
+    expect(find.text('CQ WW'), findsOneWidget);
+    expect(find.text('Replay armed'), findsNothing);
+    expect(find.text('05'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

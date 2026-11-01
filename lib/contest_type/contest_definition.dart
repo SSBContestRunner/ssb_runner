@@ -47,10 +47,29 @@ class ContestRegistry {
     JidxSsbDefinition(),
   ];
 
-  static ContestDefinition byId(String? id) => all.firstWhere(
-    (definition) => definition.id == id,
-    orElse: () => all.first,
-  );
+  /// Legacy ids accepted when reading persisted data. Add entries here when a
+  /// contest id is renamed so old reviews and recordings still resolve.
+  static const legacyAliases = <String, String>{};
+
+  static ContestDefinition? byIdOrNull(String? id) {
+    for (final definition in all) {
+      if (definition.id == id) return definition;
+    }
+    return null;
+  }
+
+  /// Canonical contest id for a persisted value, or `null` when unknown.
+  /// Resolving through this function keeps a faded legacy id from silently
+  /// falling back to the first registry entry.
+  static String? canonicalId(String? id) {
+    if (id == null || id.isEmpty) return null;
+    final mapped = legacyAliases[id] ?? id;
+    return byIdOrNull(mapped)?.id;
+  }
+
+  /// UI-facing lookup. Unknown ids keep the historical default; persisted ids
+  /// go through [canonicalId] in the run-plan resolver instead.
+  static ContestDefinition byId(String? id) => byIdOrNull(id) ?? all.first;
 }
 
 StationExchangeField _cqZoneField() => StationExchangeField(

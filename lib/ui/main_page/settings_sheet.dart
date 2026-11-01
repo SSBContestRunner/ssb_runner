@@ -17,8 +17,10 @@ import 'package:ssb_runner/logging/log_export.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/settings/settings_readiness.dart';
+import 'package:ssb_runner/training/pending_replay.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 import 'package:ssb_runner/ui/main_page/key_reference_dialog.dart';
+import 'package:ssb_runner/ui/main_page/replay_armed_banner.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_settings/contest_rules_dialog.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
@@ -369,14 +371,21 @@ class _ContestStationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final settings = context.read<AppSettings>();
     final isRunning = context.watch<MainSettingsCubit>().state;
+    final pendingReplay = settings.pendingReplay;
     final enabled = !isRunning;
+    final contestLocked = isRunning || pendingReplay != null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (pendingReplay != null) ...[
+            ReplayArmedBanner(pending: pendingReplay, showLockHint: true),
+            const SizedBox(height: 16),
+          ],
           if (isRunning) ...[
             _PanelNote(
               icon: Icons.info_outline,
@@ -386,7 +395,7 @@ class _ContestStationPanel extends StatelessWidget {
           ],
           _SectionTitle(l10n.settingsContestSection),
           const SizedBox(height: 10),
-          _ContestFields(enabled: enabled),
+          _ContestFields(enabled: !contestLocked),
           const SizedBox(height: 12),
           _ContestRulesRow(enabled: true),
           const SizedBox(height: 20),
@@ -411,7 +420,10 @@ class _TrainingPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final settings = context.read<AppSettings>();
     final cubit = context.watch<TrainingOptionsCubit>();
+    final pendingReplay = settings.pendingReplay;
     final enabled = !context.watch<MainSettingsCubit>().state;
+    final replayLocked = pendingReplay != null;
+    final modeEnabled = enabled && !replayLocked;
     final scheme = Theme.of(context).colorScheme;
     final durationIssue =
         focusedIssue?.focusKey == SettingsFocusKeys.trainingDuration
@@ -423,6 +435,10 @@ class _TrainingPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (pendingReplay != null) ...[
+            ReplayArmedBanner(pending: pendingReplay, showLockHint: true),
+            const SizedBox(height: 16),
+          ],
           _SectionTitle(l10n.trainingModeFieldLabel),
           const SizedBox(height: 10),
           SegmentedButton<TrainingMode>(
@@ -435,7 +451,7 @@ class _TrainingPanel extends StatelessWidget {
                 ),
             ],
             selected: {cubit.state.mode},
-            onSelectionChanged: enabled
+            onSelectionChanged: modeEnabled
                 ? (selection) => cubit.setMode(selection.first)
                 : null,
             style: SegmentedButton.styleFrom(
@@ -482,7 +498,7 @@ class _TrainingPanel extends StatelessWidget {
               Expanded(
                 child: _menu<TrainingDifficulty>(
                   context: context,
-                  enabled: enabled,
+                  enabled: modeEnabled,
                   label: l10n.difficultyFieldLabel,
                   value: cubit.state.difficulty,
                   entries: TrainingDifficulty.values
@@ -690,11 +706,16 @@ class _SystemPanelState extends State<_SystemPanel> {
           _ListRow(
             icon: Icons.history,
             title: l10n.pastSessionsTitle,
-            subtitle: l10n.settingsHistoryRowSubtitle,
-            onTap: () => showDialog<void>(
-              context: context,
-              builder: (_) => _SessionHistoryDialog(settings: settings),
-            ),
+            subtitle: isRunning
+                ? l10n.pastSessionsUnavailableWhileRunning
+                : l10n.settingsHistoryRowSubtitle,
+            enabled: !isRunning,
+            onTap: isRunning
+                ? null
+                : () => showDialog<void>(
+                    context: context,
+                    builder: (_) => _SessionHistoryDialog(settings: settings),
+                  ),
           ),
           const SizedBox(height: 12),
           Divider(color: scheme.outlineVariant),
@@ -1498,6 +1519,7 @@ class _SessionHistoryDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final sessions = settings.sessionHistory;
+    final running = settings.contestRunningCheck?.call() ?? false;
     return AlertDialog(
       title: Text(l10n.pastSessionsTitle),
       content: SizedBox(
@@ -1517,17 +1539,12 @@ class _SessionHistoryDialog extends StatelessWidget {
                       accuracy,
                     ),
                     child: ListTile(
+                      enabled: !running,
                       onTap: () {
                         final messenger = ScaffoldMessenger.of(context);
-                        settings
-                          ..pendingQuestionSeed = review.metadata.questionSeed
-                          ..pendingAudioSeed = review.metadata.audioSeed
-                          ..pendingReplayRunId = review.metadata.runId
-                          ..contestId = review.metadata.contestId
-                          ..contestModeId = review.metadata.modeId
-                          ..difficulty = TrainingDifficulty.fromId(
-                            review.metadata.difficultyId,
-                          );
+                        // Arming replaces the snapshot only; ordinary settings
+                        // stay exactly as they were until a run really starts.
+                        settings.armReplay(PendingReplay.fromReview(review));
                         Navigator.pop(context);
                         messenger.showSnackBar(
                           SnackBar(

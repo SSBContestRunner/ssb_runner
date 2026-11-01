@@ -700,7 +700,9 @@ class _SentExchangeFieldState extends State<_SentExchangeField> {
     // Only reachable on standby: a running session is locked by the settings
     // drawer itself, so the icon is disabled then.
     final settings = context.read<AppSettings>();
-    final definition = ContestRegistry.byId(settings.contestId);
+    // Follow the effective contest so an armed replay opens the field the
+    // upcoming session actually needs.
+    final definition = ContestRegistry.byId(settings.effectiveContestId);
     final plan = definition.myExchangePlan(
       stationCallsign: settings.stationCallsign,
       dxccManager: context.read<DxccManager>(),
