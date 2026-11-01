@@ -15,13 +15,19 @@ import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/logging/log_export.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/settings/settings_issue.dart';
+import 'package:ssb_runner/settings/settings_readiness.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 import 'package:ssb_runner/ui/main_page/key_reference_dialog.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_settings/contest_rules_dialog.dart';
 import 'package:toastification/toastification.dart';
 
-Future<void> showSettingsSheet(BuildContext context) {
+Future<void> showSettingsSheet(
+  BuildContext context, {
+  SettingsTab initialTab = SettingsTab.contestStation,
+  String? focusFieldKey,
+}) {
   final settings = context.read<AppSettings>();
   final contestCubit = context.read<ContestSettingCubit>();
   final stationCubit = context.read<StationCallsignCubit>();
@@ -53,7 +59,10 @@ Future<void> showSettingsSheet(BuildContext context) {
             BlocProvider<StationCallsignCubit>.value(value: stationCubit),
             BlocProvider<TrainingOptionsCubit>.value(value: optionsCubit),
           ],
-          child: const SettingsSheet(),
+          child: SettingsSheet(
+            initialTab: initialTab,
+            focusFieldKey: focusFieldKey,
+          ),
         ),
       );
     },
@@ -77,7 +86,18 @@ Future<void> showSettingsSheet(BuildContext context) {
 }
 
 class SettingsSheet extends StatefulWidget {
-  const SettingsSheet({super.key});
+  const SettingsSheet({
+    super.key,
+    this.initialTab = SettingsTab.contestStation,
+    this.focusFieldKey,
+  });
+
+  /// Tab the drawer opens on. Used by the "cannot start" checklist so the
+  /// operator lands on the page that owns the problem.
+  final SettingsTab initialTab;
+
+  /// Field to scroll to and focus once the drawer is laid out.
+  final String? focusFieldKey;
 
   @override
   State<SettingsSheet> createState() => _SettingsSheetState();
@@ -87,15 +107,50 @@ class _SettingsSheetState extends State<SettingsSheet>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
+  /// Stable anchors for the fields that can be the target of a deep link.
+  final Map<String, GlobalKey> _fieldKeys = {};
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this)
-      ..addListener(() {
-        if (!_tabController.indexIsChanging) {
-          setState(() {});
-        }
-      });
+    _tabController =
+        TabController(
+          length: SettingsTab.values.length,
+          initialIndex: widget.initialTab.index,
+          vsync: this,
+        )..addListener(() {
+          if (!_tabController.indexIsChanging) {
+            setState(() {});
+          }
+        });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _revealFocusedField());
+  }
+
+  GlobalKey _keyFor(String focusKey) =>
+      _fieldKeys.putIfAbsent(focusKey, () => GlobalKey());
+
+  void _revealFocusedField() {
+    if (!mounted) return;
+    final focusKey = widget.focusFieldKey;
+    if (focusKey == null) return;
+    final target = _fieldKeys[focusKey]?.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      alignment: 0.12,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  SettingsIssue? _focusedIssue(List<SettingsIssue> issues) {
+    final focusKey = widget.focusFieldKey;
+    if (focusKey == null) return null;
+    for (final issue in issues) {
+      if (issue.focusKey == focusKey) return issue;
+    }
+    return null;
   }
 
   @override
@@ -109,6 +164,8 @@ class _SettingsSheetState extends State<SettingsSheet>
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final size = MediaQuery.sizeOf(context);
+    final settings = context.read<AppSettings>();
+    final dxccManager = context.read<DxccManager>();
 
     return CallbackShortcuts(
       bindings: {
@@ -136,30 +193,53 @@ class _SettingsSheetState extends State<SettingsSheet>
               child: SizedBox(
                 width: min(480, size.width * 0.94),
                 height: size.height,
-                child: Column(
-                  children: [
-                    _SheetHeader(onClose: () => Navigator.of(context).pop()),
-                    TabBar(
-                      controller: _tabController,
-                      tabs: [
-                        Tab(text: l10n.settingsTabContestStation),
-                        Tab(text: l10n.settingsTabTraining),
-                        Tab(text: l10n.settingsTabAudio),
-                        Tab(text: l10n.settingsTabSystem),
+                // Exchange values are written straight to storage, so the
+                // revision notifier is the single signal that keeps both the
+                // tab badges and the focused-field error in sync.
+                child: ValueListenableBuilder<int>(
+                  valueListenable: settings.settingsRevision,
+                  builder: (context, _, _) {
+                    final issues = checkSettingsReadiness(
+                      settings: settings,
+                      dxccManager: dxccManager,
+                    );
+                    final counts = settingsIssueCountsByTab(issues);
+                    final focusedIssue = _focusedIssue(issues);
+
+                    return Column(
+                      children: [
+                        _SheetHeader(
+                          onClose: () => Navigator.of(context).pop(),
+                        ),
+                        TabBar(
+                          controller: _tabController,
+                          tabs: [
+                            for (final tab in SettingsTab.values)
+                              _SettingsTab(
+                                label: l10n.settingsTabLabel(tab),
+                                issueCount: counts[tab] ?? 0,
+                              ),
+                          ],
+                        ),
+                        Expanded(
+                          child: _SettingsFocusRegistry(
+                            keyFor: _keyFor,
+                            child: IndexedStack(
+                              index: _tabController.index,
+                              children: [
+                                _ContestStationPanel(
+                                  focusedIssue: focusedIssue,
+                                ),
+                                _TrainingPanel(focusedIssue: focusedIssue),
+                                const _AudioPanel(),
+                                const _SystemPanel(),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
-                    ),
-                    Expanded(
-                      child: IndexedStack(
-                        index: _tabController.index,
-                        children: const [
-                          _ContestStationPanel(),
-                          _TrainingPanel(),
-                          _AudioPanel(),
-                          _SystemPanel(),
-                        ],
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -167,6 +247,72 @@ class _SettingsSheetState extends State<SettingsSheet>
         ),
       ),
     );
+  }
+}
+
+/// A tab label that shows a dot when the page still has issues.
+class _SettingsTab extends StatelessWidget {
+  const _SettingsTab({required this.label, required this.issueCount});
+
+  final String label;
+  final int issueCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Tab(
+      child: Semantics(
+        excludeSemantics: true,
+        label: issueCount == 0
+            ? label
+            : AppLocalizations.of(context).readinessTabBadge(label, issueCount),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(label, softWrap: false, overflow: TextOverflow.fade),
+            ),
+            if (issueCount > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Exposes the field anchors so a deep link can scroll to its target.
+class _SettingsFocusRegistry extends InheritedWidget {
+  const _SettingsFocusRegistry({required this.keyFor, required super.child});
+
+  final GlobalKey Function(String focusKey) keyFor;
+
+  @override
+  bool updateShouldNotify(_SettingsFocusRegistry oldWidget) => false;
+}
+
+class _FieldAnchor extends StatelessWidget {
+  const _FieldAnchor({required this.focusKey, required this.child});
+
+  final String focusKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final registry = context
+        .dependOnInheritedWidgetOfExactType<_SettingsFocusRegistry>();
+    if (registry == null) return child;
+    return KeyedSubtree(key: registry.keyFor(focusKey), child: child);
   }
 }
 
@@ -215,7 +361,9 @@ class _SheetHeader extends StatelessWidget {
 }
 
 class _ContestStationPanel extends StatelessWidget {
-  const _ContestStationPanel();
+  const _ContestStationPanel({required this.focusedIssue});
+
+  final SettingsIssue? focusedIssue;
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +393,7 @@ class _ContestStationPanel extends StatelessWidget {
           const SizedBox(height: 20),
           _SectionTitle(l10n.myStation),
           const SizedBox(height: 10),
-          _StationFields(enabled: enabled),
+          _StationFields(enabled: enabled, focusedIssue: focusedIssue),
         ],
       ),
     );
@@ -253,7 +401,9 @@ class _ContestStationPanel extends StatelessWidget {
 }
 
 class _TrainingPanel extends StatelessWidget {
-  const _TrainingPanel();
+  const _TrainingPanel({required this.focusedIssue});
+
+  final SettingsIssue? focusedIssue;
 
   @override
   Widget build(BuildContext context) {
@@ -262,6 +412,10 @@ class _TrainingPanel extends StatelessWidget {
     final cubit = context.watch<TrainingOptionsCubit>();
     final enabled = !context.watch<MainSettingsCubit>().state;
     final scheme = Theme.of(context).colorScheme;
+    final durationIssue =
+        focusedIssue?.focusKey == SettingsFocusKeys.trainingDuration
+        ? focusedIssue
+        : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -300,18 +454,25 @@ class _TrainingPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Semantics(
-                  label: l10n.practiceDurationSemantics,
-                  child: TextFormField(
-                    enabled: enabled,
-                    controller: cubit.durationController,
-                    focusNode: cubit.durationFocusNode,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) => cubit.setDuration(value, l10n),
-                    decoration: InputDecoration(
-                      labelText: l10n.durationLabel,
-                      suffixText: l10n.durationUnit,
+                child: _FieldAnchor(
+                  focusKey: SettingsFocusKeys.trainingDuration,
+                  child: Semantics(
+                    label: l10n.practiceDurationSemantics,
+                    child: TextFormField(
+                      enabled: enabled,
+                      autofocus: durationIssue != null,
+                      controller: cubit.durationController,
+                      focusNode: cubit.durationFocusNode,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) => cubit.setDuration(value, l10n),
+                      decoration: InputDecoration(
+                        labelText: l10n.durationLabel,
+                        suffixText: l10n.durationUnit,
+                        errorText: durationIssue == null
+                            ? null
+                            : l10n.settingsIssueMessage(durationIssue),
+                      ),
                     ),
                   ),
                 ),
@@ -741,9 +902,10 @@ class _ContestRulesRow extends StatelessWidget {
 }
 
 class _StationFields extends StatelessWidget {
-  const _StationFields({required this.enabled});
+  const _StationFields({required this.enabled, required this.focusedIssue});
 
   final bool enabled;
+  final SettingsIssue? focusedIssue;
 
   @override
   Widget build(BuildContext context) {
@@ -763,7 +925,16 @@ class _StationFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 12,
       children: [
-        _CallsignField(enabled: enabled),
+        _FieldAnchor(
+          focusKey: SettingsFocusKeys.stationCallsign,
+          child: _CallsignField(
+            enabled: enabled,
+            focusedIssue:
+                focusedIssue?.focusKey == SettingsFocusKeys.stationCallsign
+                ? focusedIssue
+                : null,
+          ),
+        ),
         // CQ WPX derives the serial from completed QSOs, so it has no field to
         // configure; an input-shaped read-only box was mistaken for one.
         if (plan.sendsSerial)
@@ -772,11 +943,19 @@ class _StationFields extends StatelessWidget {
             text: l10n.stationSerialAutoHint,
           ),
         for (final field in plan.fields)
-          _StationExchangeFieldInput(
-            key: ValueKey('${definition.id}-${field.id}-$callsign'),
-            definitionId: definition.id,
-            field: field,
-            enabled: enabled,
+          _FieldAnchor(
+            focusKey: SettingsFocusKeys.exchangeField(field.id),
+            child: _StationExchangeFieldInput(
+              key: ValueKey('${definition.id}-${field.id}-$callsign'),
+              definitionId: definition.id,
+              field: field,
+              enabled: enabled,
+              focusedIssue:
+                  focusedIssue?.focusKey ==
+                      SettingsFocusKeys.exchangeField(field.id)
+                  ? focusedIssue
+                  : null,
+            ),
           ),
       ],
     );
@@ -784,9 +963,10 @@ class _StationFields extends StatelessWidget {
 }
 
 class _CallsignField extends StatefulWidget {
-  const _CallsignField({required this.enabled});
+  const _CallsignField({required this.enabled, this.focusedIssue});
 
   final bool enabled;
+  final SettingsIssue? focusedIssue;
 
   @override
   State<_CallsignField> createState() => _CallsignFieldState();
@@ -797,6 +977,8 @@ class _CallsignFieldState extends State<_CallsignField> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final issue = widget.focusedIssue;
     final callsign = context.watch<StationCallsignCubit>().state;
     if (_controller.text != callsign) {
       _controller.text = callsign;
@@ -805,6 +987,7 @@ class _CallsignFieldState extends State<_CallsignField> {
     return TextField(
       key: const Key('station-callsign'),
       enabled: widget.enabled,
+      autofocus: issue != null && widget.enabled,
       controller: _controller,
       inputFormatters: [
         UpperCaseTextFormatter(),
@@ -812,7 +995,8 @@ class _CallsignFieldState extends State<_CallsignField> {
         FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
       ],
       decoration: InputDecoration(
-        labelText: AppLocalizations.of(context).stationCallsignLabel,
+        labelText: l10n.stationCallsignLabel,
+        errorText: issue == null ? null : l10n.settingsIssueMessage(issue),
       ),
       onChanged: (value) {
         context.read<StationCallsignCubit>().onCallSignChange(value);
@@ -835,11 +1019,13 @@ class _StationExchangeFieldInput extends StatefulWidget {
     required this.definitionId,
     required this.field,
     required this.enabled,
+    this.focusedIssue,
   });
 
   final String definitionId;
   final StationExchangeField field;
   final bool enabled;
+  final SettingsIssue? focusedIssue;
 
   @override
   State<_StationExchangeFieldInput> createState() =>
@@ -874,8 +1060,11 @@ class _StationExchangeFieldInputState
             .isEmpty ??
         true;
 
+    final issue = widget.focusedIssue;
+
     return TextField(
       enabled: widget.enabled,
+      autofocus: issue != null && widget.enabled,
       controller: _controller,
       keyboardType: field.numeric ? TextInputType.number : TextInputType.text,
       inputFormatters: [
@@ -892,6 +1081,7 @@ class _StationExchangeFieldInputState
             l10n.stationFieldHelper(field.id) ??
             field.helperText ??
             (isDerived ? l10n.defaultFromCallsign : null),
+        errorText: issue == null ? null : l10n.settingsIssueMessage(issue),
       ),
       onChanged: (value) {
         _appSettings.setStationExchangeValue(

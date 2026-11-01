@@ -148,35 +148,56 @@ StationExchangeValidationError? validateStationExchange({
   required String stationCallsign,
   required DxccManager dxccManager,
 }) {
-  if (plan.sendsSerial) return null;
+  final errors = validateStationExchangeAll(
+    plan: plan,
+    config: config,
+    stationCallsign: stationCallsign,
+    dxccManager: dxccManager,
+  );
+  return errors.isEmpty ? null : errors.first;
+}
+
+/// Returns every problem with a required plan field, so the settings UI can
+/// show all incomplete items at once instead of one per start attempt.
+List<StationExchangeValidationError> validateStationExchangeAll({
+  required MyExchangePlan plan,
+  required StationExchangeConfig config,
+  required String stationCallsign,
+  required DxccManager dxccManager,
+}) {
+  if (plan.sendsSerial) return const [];
+  final errors = <StationExchangeValidationError>[];
   for (final field in plan.fields) {
-    final value = resolveExchangeValue(
-      field,
-      config,
-      stationCallsign,
-      dxccManager,
-    );
-    if (value == null || value.isEmpty) return StationExchangeMissing(field);
-    if (field.numeric) {
-      final parsed = int.tryParse(value);
-      if (parsed == null) return StationExchangeInvalid(field);
-      if (field.min != null && parsed < field.min!) {
-        return StationExchangeOutOfRange(
-          field,
-          min: field.min!,
-          max: field.max!,
-        );
-      }
-      if (field.max != null && parsed > field.max!) {
-        return StationExchangeOutOfRange(
-          field,
-          min: field.min!,
-          max: field.max!,
-        );
-      }
-    } else if (field.validator != null && !field.validator!(value)) {
-      return StationExchangeInvalid(field);
+    final error = _validateField(field, config, stationCallsign, dxccManager);
+    if (error != null) errors.add(error);
+  }
+  return errors;
+}
+
+StationExchangeValidationError? _validateField(
+  StationExchangeField field,
+  StationExchangeConfig config,
+  String stationCallsign,
+  DxccManager dxccManager,
+) {
+  final value = resolveExchangeValue(
+    field,
+    config,
+    stationCallsign,
+    dxccManager,
+  );
+  if (value == null || value.isEmpty) return StationExchangeMissing(field);
+  if (field.numeric) {
+    final parsed = int.tryParse(value);
+    if (parsed == null) return StationExchangeInvalid(field);
+    if (field.min != null && parsed < field.min!) {
+      return StationExchangeOutOfRange(field, min: field.min!, max: field.max!);
     }
+    if (field.max != null && parsed > field.max!) {
+      return StationExchangeOutOfRange(field, min: field.min!, max: field.max!);
+    }
+  } else if (field.validator != null && !field.validator!(value)) {
+    return StationExchangeInvalid(field);
   }
   return null;
 }

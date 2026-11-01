@@ -67,9 +67,69 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('fixing the gaps flips the bar to ready and clears the badge', (
+    tester,
+  ) async {
+    final settings = await _pumpMainPage(tester, const Size(1280, 720));
+
+    expect(find.text('2 settings need attention'), findsOneWidget);
+    expect(find.byKey(const Key('settingsIssueBadge')), findsOneWidget);
+
+    settings
+      ..stationCallsign = 'BI1QJQ'
+      ..contestDuration = 30;
+    await tester.pump();
+
+    // CQ WPX needs no exchange field, so these two values make it ready.
+    expect(find.text('Settings ready'), findsOneWidget);
+    expect(find.text('2 settings need attention'), findsNothing);
+    expect(find.byKey(const Key('settingsIssueBadge')), findsNothing);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('start shows a checklist that links into the settings drawer', (
+    tester,
+  ) async {
+    await _pumpMainPage(tester, const Size(1280, 720));
+
+    expect(find.text('2 settings need attention'), findsOneWidget);
+    expect(find.text('Settings ready'), findsNothing);
+
+    await tester.tap(find.text('Start training'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Cannot start yet'), findsOneWidget);
+    expect(find.text('Please set station callsign'), findsOneWidget);
+    expect(
+      find.text('Duration must be set and greater than 0'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Settings › Contest & station › My station'),
+      findsOneWidget,
+    );
+    expect(find.text('Settings › Training'), findsOneWidget);
+
+    // A row is a deep link: the dialog closes and the drawer opens on the tab
+    // that owns the field, with the issue shown inline.
+    await tester.tap(find.text('Please set station callsign'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Cannot start yet'), findsNothing);
+    expect(find.text('My station'), findsOneWidget);
+    expect(find.text('Please set station callsign'), findsOneWidget);
+    expect(find.text('Duration must be set and greater than 0'), findsNothing);
+
+    expect(tester.takeException(), isNull);
+  });
 }
 
-Future<void> _pumpMainPage(
+Future<AppSettings> _pumpMainPage(
   WidgetTester tester,
   Size size, {
   Locale locale = const Locale('en'),
@@ -120,6 +180,7 @@ Future<void> _pumpMainPage(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
+  return settings;
 }
 
 AppDatabase? _neverOpenedDatabase;

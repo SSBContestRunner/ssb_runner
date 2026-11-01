@@ -28,6 +28,11 @@ class AppSettings {
   /// reference refresh while they stay open.
   final ValueNotifier<int> functionKeysRevision = ValueNotifier(0);
 
+  /// Bumped when a persisted setting that affects whether a run can start
+  /// changes. Station exchange values are written straight to storage without a
+  /// cubit, so the readiness views need their own signal to stay in sync.
+  final ValueNotifier<int> settingsRevision = ValueNotifier(0);
+
   AppSettings({
     required SharedPreferencesWithCache prefs,
     ValueNotifier<AppLanguage>? languageNotifier,
@@ -64,18 +69,25 @@ class AppSettings {
   String get contestId =>
       _prefs.getString(_settingContestId) ?? ContestRegistry.all.first.id;
 
-  set contestId(String value) => _prefs.setString(_settingContestId, value);
+  set contestId(String value) {
+    _prefs.setString(_settingContestId, value);
+    _bumpSettingsRevision();
+  }
 
   String get contestModeId =>
       _prefs.getString(_settingContestMode) ?? TrainingMode.run.id;
 
-  set contestModeId(String value) =>
-      _prefs.setString(_settingContestMode, value);
+  set contestModeId(String value) {
+    _prefs.setString(_settingContestMode, value);
+    _bumpSettingsRevision();
+  }
 
   String get stationCallsign => _prefs.getString(_settingStationCallsign) ?? '';
 
-  set stationCallsign(String value) =>
-      _prefs.setString(_settingStationCallsign, value);
+  set stationCallsign(String value) {
+    _prefs.setString(_settingStationCallsign, value);
+    _bumpSettingsRevision();
+  }
 
   /// Per-contest station exchange values. Only values the operator entered are
   /// stored; derived defaults are resolved at use time (design 3.3).
@@ -101,6 +113,7 @@ class AppSettings {
       '$_settingStationExchangePrefix$contestId',
       jsonEncode(updated.toJson()),
     );
+    _bumpSettingsRevision();
   }
 
   int get contestDuration {
@@ -108,8 +121,10 @@ class AppSettings {
     return _limitContestDuration(durationInMinutes);
   }
 
-  set contestDuration(int value) =>
-      _prefs.setInt(_settingContestDuration, _limitContestDuration(value));
+  set contestDuration(int value) {
+    _prefs.setInt(_settingContestDuration, _limitContestDuration(value));
+    _bumpSettingsRevision();
+  }
 
   PhonicType get phonicType =>
       _parsePhonicType(_prefs.getInt(_settingPhonicType));
@@ -316,6 +331,8 @@ class AppSettings {
     _prefs.setBool(_settingVerboseLogging, value);
     log.setVerbose(value);
   }
+
+  void _bumpSettingsRevision() => settingsRevision.value++;
 
   int _limitContestDuration(int durationInMinutes) {
     return min(durationInMinutes, maxDurationInMinutesPerRun);

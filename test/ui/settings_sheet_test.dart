@@ -13,6 +13,7 @@ import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_sheet.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
@@ -276,6 +277,117 @@ void main() {
     harness.dispose();
   });
 
+  testWidgets('a deep link opens the drawer on the requested tab', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(tester, initialTab: SettingsTab.training);
+
+    expect(find.text('Training mode'), findsOneWidget);
+    expect(find.text('Duration'), findsOneWidget);
+    // The contest/station page stays offstage.
+    expect(find.text('My station'), findsNothing);
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('a deep link marks the offending field with its issue', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(
+      tester,
+      focusFieldKey: SettingsFocusKeys.stationCallsign,
+    );
+
+    expect(find.text('Please set station callsign'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('station-callsign')))
+          .autofocus,
+      isTrue,
+    );
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('an exchange deep link marks and focuses the station field', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(
+      tester,
+      configure: (settings) => settings
+        ..contestId = 'CQ-WW-SSB'
+        ..stationCallsign = 'BI1QJQ'
+        ..contestDuration = 30,
+      focusFieldKey: SettingsFocusKeys.exchangeField('cqZone'),
+    );
+
+    expect(find.text('59 Zone'), findsOneWidget);
+    expect(find.text('Please set CQ Zone'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('a deep link stays read-only while a session runs', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(
+      tester,
+      running: true,
+      focusFieldKey: SettingsFocusKeys.stationCallsign,
+    );
+
+    final field = tester.widget<TextField>(
+      find.byKey(const Key('station-callsign')),
+    );
+    expect(field.enabled, isFalse);
+    expect(field.autofocus, isFalse);
+    expect(find.text('Please set station callsign'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('tabs with unfinished settings are labelled for screen readers', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final harness = await _pumpSheet(tester);
+
+    expect(
+      find.bySemanticsLabel(RegExp('Contest & station.*1 item to fix')),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(RegExp('Training.*1 item to fix')),
+      findsOneWidget,
+    );
+
+    semantics.dispose();
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('the duration deep link lands on the training error', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(
+      tester,
+      initialTab: SettingsTab.training,
+      focusFieldKey: SettingsFocusKeys.trainingDuration,
+    );
+
+    expect(
+      find.text('Duration must be set and greater than 0'),
+      findsOneWidget,
+    );
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
   testWidgets('practice seed and history dialogs open from the drawer', (
     tester,
   ) async {
@@ -333,11 +445,15 @@ Future<_Harness> _pumpSheet(
   WidgetTester tester, {
   bool running = false,
   Locale locale = const Locale('en'),
+  SettingsTab initialTab = SettingsTab.contestStation,
+  String? focusFieldKey,
+  void Function(AppSettings settings)? configure,
 }) async {
   final prefs = await SharedPreferencesWithCache.create(
     cacheOptions: const SharedPreferencesWithCacheOptions(),
   );
   final settings = AppSettings(prefs: prefs);
+  configure?.call(settings);
   final database = _createNeverOpenedDatabase();
   final dxccManager = DxccManager(database: database);
   final inputHandler = ContestInputHandler();
@@ -379,7 +495,12 @@ Future<_Harness> _pumpSheet(
               BlocProvider<StationCallsignCubit>.value(value: stationCubit),
               BlocProvider<TrainingOptionsCubit>.value(value: optionsCubit),
             ],
-            child: const Scaffold(body: SettingsSheet()),
+            child: Scaffold(
+              body: SettingsSheet(
+                initialTab: initialTab,
+                focusFieldKey: focusFieldKey,
+              ),
+            ),
           ),
         ),
       ),

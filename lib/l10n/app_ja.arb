@@ -191,5 +191,14 @@
   "keyReferenceFunctions": "ファンクションキー",
   "keyReferenceShortcuts": "ショートカット",
   "keyReferenceSpare": "未割り当て",
-  "functionKeysRunningLock": "練習中はファンクションキーを変更できません。"
+  "functionKeysRunningLock": "練習中はファンクションキーを変更できません。",
+  "readinessTitle": "まだ開始できません",
+  "readinessIncomplete": "未完了の設定が {count} 件あります",
+  "readinessReady": "設定は準備完了",
+  "readinessReview": "確認",
+  "readinessOpenSettings": "設定を開く",
+  "settingsPath": "設定 › {tab}",
+  "settingsPathWithSection": "設定 › {tab} › {section}",
+  "readinessTabBadge": "{tab}、未完了 {count} 件",
+  "readinessCurrentValue": "現在の値: {value}"
 }

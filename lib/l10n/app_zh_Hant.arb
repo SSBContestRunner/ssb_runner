@@ -191,5 +191,14 @@
   "keyReferenceFunctions": "功能鍵",
   "keyReferenceShortcuts": "快速鍵",
   "keyReferenceSpare": "未分配",
-  "functionKeysRunningLock": "比賽進行中無法修改功能鍵。"
+  "functionKeysRunningLock": "比賽進行中無法修改功能鍵。",
+  "readinessTitle": "還不能開始",
+  "readinessIncomplete": "還有 {count} 項設定未完成",
+  "readinessReady": "設定已就緒",
+  "readinessReview": "查看",
+  "readinessOpenSettings": "開啟設定",
+  "settingsPath": "設定 › {tab}",
+  "settingsPathWithSection": "設定 › {tab} › {section}",
+  "readinessTabBadge": "{tab}，{count} 項待處理",
+  "readinessCurrentValue": "目前值 {value}"
 }

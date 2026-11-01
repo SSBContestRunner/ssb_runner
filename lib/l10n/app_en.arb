@@ -328,5 +328,55 @@
   "keyReferenceFunctions": "Function keys",
   "keyReferenceShortcuts": "Shortcuts",
   "keyReferenceSpare": "Unassigned",
-  "functionKeysRunningLock": "Function keys can't be changed while a session runs."
+  "functionKeysRunningLock": "Function keys can't be changed while a session runs.",
+  "readinessTitle": "Cannot start yet",
+  "readinessIncomplete": "{count, plural, =1{1 setting needs attention} other{{count} settings need attention}}",
+  "@readinessIncomplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessReady": "Settings ready",
+  "readinessReview": "Review",
+  "readinessOpenSettings": "Open settings",
+  "settingsPath": "Settings › {tab}",
+  "@settingsPath": {
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPathWithSection": "Settings › {tab} › {section}",
+  "@settingsPathWithSection": {
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      },
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "readinessTabBadge": "{tab}, {count, plural, =1{1 item to fix} other{{count} items to fix}}",
+  "@readinessTabBadge": {
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessCurrentValue": "Current value: {value}",
+  "@readinessCurrentValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  }
 }

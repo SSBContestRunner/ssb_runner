@@ -7,16 +7,15 @@ import 'package:ssb_runner/contest_run/data/score_data.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
-import 'package:ssb_runner/contest_type/contest_definition.dart';
-import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
-import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/settings/settings_issue.dart';
+import 'package:ssb_runner/settings/settings_readiness.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
+import 'package:ssb_runner/ui/main_page/settings_issues_dialog.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
-import 'package:toastification/toastification.dart';
 
 class SessionPanel extends StatelessWidget {
   const SessionPanel({super.key});
@@ -36,11 +35,7 @@ class SessionPanel extends StatelessWidget {
           ),
         ),
         BlocProvider(
-          create: (context) => _RunBtnCubit(
-            contestManager: context.read(),
-            appSettings: context.read(),
-            dxccManager: context.read(),
-          ),
+          create: (context) => _RunBtnCubit(contestManager: context.read()),
         ),
       ],
       child: const _SessionCard(),
@@ -116,11 +111,9 @@ class _SessionCard extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-            child: Column(
-              children: const [_RunButton(), SizedBox(height: 8), _RunNote()],
-            ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 18),
+            child: _RunSection(),
           ),
         ],
       ),
@@ -538,8 +531,121 @@ class _SideStat extends StatelessWidget {
   }
 }
 
+/// Readiness is computed once per settings revision and shared by the status
+/// bar and the start button, so clicking start always explains the same set of
+/// blockers the bar is showing.
+class _RunSection extends StatelessWidget {
+  const _RunSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.read<AppSettings>();
+    final dxccManager = context.read<DxccManager>();
+
+    return BlocBuilder<_RunBtnCubit, bool>(
+      builder: (context, isRunning) {
+        return ValueListenableBuilder<int>(
+          valueListenable: settings.settingsRevision,
+          builder: (context, _, _) {
+            final issues = isRunning
+                ? const <SettingsIssue>[]
+                : checkSettingsReadiness(
+                    settings: settings,
+                    dxccManager: dxccManager,
+                  );
+
+            return Column(
+              children: [
+                if (!isRunning) ...[
+                  _ReadinessBar(issues: issues),
+                  const SizedBox(height: 8),
+                ],
+                _RunButton(isRunning: isRunning, issues: issues),
+                const SizedBox(height: 8),
+                _RunNote(isRunning: isRunning),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ReadinessBar extends StatelessWidget {
+  const _ReadinessBar({required this.issues});
+
+  final List<SettingsIssue> issues;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final ready = issues.isEmpty;
+    final background = ready
+        ? context.semanticColors.successContainer
+        : scheme.errorContainer;
+    final foreground = ready
+        ? context.semanticColors.onSuccessContainer
+        : scheme.onErrorContainer;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: ready
+            ? null
+            : () => showSettingsIssuesDialog(context, issues: issues),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                ready ? Icons.check_circle_outline : Icons.error_outline,
+                size: 16,
+                color: foreground,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ready
+                      ? l10n.readinessReady
+                      : l10n.readinessIncomplete(issues.length),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (!ready) ...[
+                const SizedBox(width: 8),
+                Text(
+                  l10n.readinessReview,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: foreground),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _RunButton extends StatelessWidget {
-  const _RunButton();
+  const _RunButton({required this.isRunning, required this.issues});
+
+  final bool isRunning;
+  final List<SettingsIssue> issues;
 
   @override
   Widget build(BuildContext context) {
@@ -549,50 +655,47 @@ class _RunButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: BlocBuilder<_RunBtnCubit, bool>(
-        builder: (context, isRunning) {
-          return FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: scheme.primary,
-              foregroundColor: scheme.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontSize: 15,
-                letterSpacing: 0.5,
-              ),
-            ),
-            onPressed: () {
-              context.read<_RunBtnCubit>().toggleContestRunning(l10n);
-            },
-            icon: Icon(
-              isRunning ? Icons.stop_circle_outlined : Icons.play_arrow,
-              size: 20,
-            ),
-            label: Text(isRunning ? l10n.stopTraining : l10n.startTraining),
-          );
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontSize: 15, letterSpacing: 0.5),
+        ),
+        onPressed: () {
+          if (!isRunning && issues.isNotEmpty) {
+            showSettingsIssuesDialog(context, issues: issues);
+            return;
+          }
+          context.read<_RunBtnCubit>().toggle();
         },
+        icon: Icon(
+          isRunning ? Icons.stop_circle_outlined : Icons.play_arrow,
+          size: 20,
+        ),
+        label: Text(isRunning ? l10n.stopTraining : l10n.startTraining),
       ),
     );
   }
 }
 
 class _RunNote extends StatelessWidget {
-  const _RunNote();
+  const _RunNote({required this.isRunning});
+
+  final bool isRunning;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
-    return BlocBuilder<_RunBtnCubit, bool>(
-      builder: (context, isRunning) {
-        return Text(
-          isRunning ? l10n.sessionRunningNote : l10n.sessionIdleNote,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
-        );
-      },
+    return Text(
+      isRunning ? l10n.sessionRunningNote : l10n.sessionIdleNote,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodySmall,
     );
   }
 }
@@ -742,80 +845,20 @@ class _QsoSpeedCubit extends Cubit<double?> {
 
 class _RunBtnCubit extends Cubit<bool> {
   final ContestManager _contestManager;
-  final AppSettings _appSettings;
-  final DxccManager _dxccManager;
   late final StreamSubscription<bool> _subscription;
 
-  _RunBtnCubit({
-    required ContestManager contestManager,
-    required AppSettings appSettings,
-    required DxccManager dxccManager,
-  }) : _contestManager = contestManager,
-       _appSettings = appSettings,
-       _dxccManager = dxccManager,
-       super(contestManager.isContestRunning) {
+  _RunBtnCubit({required ContestManager contestManager})
+    : _contestManager = contestManager,
+      super(contestManager.isContestRunning) {
     _subscription = contestManager.isContestRunningStream.listen(emit);
   }
 
-  void toggleContestRunning(AppLocalizations l10n) {
-    final errorMessage = _checkSettingComplete(l10n);
-
-    if (errorMessage.isNotEmpty) {
-      toastification.show(
-        title: Text(errorMessage),
-        autoCloseDuration: const Duration(seconds: 5),
-        type: ToastificationType.error,
-        style: ToastificationStyle.fillColored,
-      );
-      return;
-    }
-
-    final isRunning = state;
-    if (isRunning) {
+  void toggle() {
+    if (state) {
       _contestManager.stopContest();
     } else {
       _contestManager.startContest();
     }
-  }
-
-  String _checkSettingComplete(AppLocalizations l10n) {
-    if (_appSettings.stationCallsign.isEmpty) {
-      return l10n.callsignRequired;
-    }
-
-    if (_appSettings.contestDuration <= 0) {
-      return l10n.durationRequired;
-    }
-
-    // Station exchange must be complete before a run starts (design 3.3/6.8).
-    final definition = ContestRegistry.byId(_appSettings.contestId);
-    final plan = definition.myExchangePlan(
-      stationCallsign: _appSettings.stationCallsign,
-      dxccManager: _dxccManager,
-    );
-    final exchangeError = validateStationExchange(
-      plan: plan,
-      config: _appSettings.stationExchangeConfig(definition.id),
-      stationCallsign: _appSettings.stationCallsign,
-      dxccManager: _dxccManager,
-    );
-    if (exchangeError != null) {
-      final label = l10n.stationFieldLabel(
-        exchangeError.field.id,
-        exchangeError.field.label,
-      );
-      return switch (exchangeError) {
-        StationExchangeMissing() => l10n.fieldRequired(label),
-        StationExchangeInvalid() => l10n.fieldInvalid(label),
-        StationExchangeOutOfRange(:final min, :final max) => l10n.fieldRange(
-          label,
-          min,
-          max,
-        ),
-      };
-    }
-
-    return '';
   }
 
   @override

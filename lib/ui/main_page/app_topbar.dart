@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
+import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/settings/settings_readiness.dart';
 import 'package:ssb_runner/ui/main_page/key_reference_dialog.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_sheet.dart';
@@ -84,17 +86,50 @@ class AppTopbar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            IconButton.filledTonal(
-              tooltip: l10n.settingsTitle,
-              style: IconButton.styleFrom(
-                backgroundColor: scheme.secondaryContainer,
-                foregroundColor: scheme.onSecondaryContainer,
-                minimumSize: const Size(40, 40),
-                fixedSize: const Size(40, 40),
-                shape: const CircleBorder(),
-              ),
-              onPressed: () => showSettingsSheet(context),
-              icon: const Icon(Icons.settings_outlined, size: 20),
+            // Settings live in a drawer now, so the entry point itself carries
+            // the "something still needs attention" signal.
+            ValueListenableBuilder<int>(
+              valueListenable: settings.settingsRevision,
+              builder: (context, _, _) {
+                final hasIssues = checkSettingsReadiness(
+                  settings: settings,
+                  dxccManager: context.read<DxccManager>(),
+                ).isNotEmpty;
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton.filledTonal(
+                      tooltip: l10n.settingsTitle,
+                      style: IconButton.styleFrom(
+                        backgroundColor: scheme.secondaryContainer,
+                        foregroundColor: scheme.onSecondaryContainer,
+                        minimumSize: const Size(40, 40),
+                        fixedSize: const Size(40, 40),
+                        shape: const CircleBorder(),
+                      ),
+                      onPressed: () => showSettingsSheet(context),
+                      icon: const Icon(Icons.settings_outlined, size: 20),
+                    ),
+                    if (hasIssues)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: IgnorePointer(
+                          child: Container(
+                            key: const Key('settingsIssueBadge'),
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: scheme.error,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         ),
