@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
-import 'package:ssb_runner/ui/main_settings/contest_rules_dialog.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
 
 class RulesCard extends StatelessWidget {
@@ -29,39 +28,26 @@ class RulesCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline,
-                size: 16,
-                color: scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.contestRulesTooltip,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: scheme.onSurfaceVariant,
                 ),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.contestRulesTooltip,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
-                onPressed: () {
-                  showDialog<void>(
-                    context: context,
-                    builder: (_) => ContestRulesDialog(contest: contest),
-                  );
-                },
-                child: Text(l10n.rulesView),
-              ),
-            ],
+              ],
+            ),
           ),
           for (final line in lines)
             Container(
