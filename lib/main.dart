@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:catcher_2/catcher_2.dart';
 import 'package:flutter/material.dart';
+import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/error_handling.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/logging_bootstrap.dart';
@@ -15,6 +16,7 @@ void main() {
 
       // Logging first: everything after this point is persisted to disk.
       await bootstrapLogging();
+      await AppInfo.load();
       await _hideWindowUntilFirstFrame();
 
       final (debugOptions, releaseOptions) = await initErrorHandling();

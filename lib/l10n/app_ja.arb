@@ -154,7 +154,6 @@
   "helperStateProvince": "2 文字の州または省コード",
   "helperPower": "送信機の出力（ワット）",
   "helperPrefecture": "現在のコールエリアの都道府県番号",
-  "appSubtitle": "SSB コンテストトレーナー",
   "toggleTheme": "テーマを切り替え",
   "logSubtitle": "UTC 順に自動記録",
   "logCount": "{count} 件",

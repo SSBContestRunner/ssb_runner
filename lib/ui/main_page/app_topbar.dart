@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
@@ -108,7 +109,6 @@ class _BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -142,10 +142,16 @@ class _BrandMark extends StatelessWidget {
             ),
             const SizedBox(height: 1),
             Text(
-              l10n.appSubtitle,
+              AppInfo.display,
+              key: const Key('appVersionLabel'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: AppDataText.style(
+                context,
+                fontSize: 12,
+                color: scheme.onSurfaceVariant,
+                letterSpacing: 0.4,
+              ),
             ),
           ],
         ),

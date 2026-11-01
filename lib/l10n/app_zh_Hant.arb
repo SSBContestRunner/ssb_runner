@@ -154,7 +154,6 @@
   "helperStateProvince": "兩位的州或省代碼",
   "helperPower": "發射機輸出功率（瓦）",
   "helperPrefecture": "目前呼號區的都道府縣編號",
-  "appSubtitle": "SSB 比賽訓練器",
   "toggleTheme": "切換主題",
   "logSubtitle": "按 UTC 順序自動記錄",
   "logCount": "{count} 條",

@@ -277,7 +277,6 @@
   "helperStateProvince": "Two-letter state or province code",
   "helperPower": "Transmitter output in watts",
   "helperPrefecture": "Prefecture number for your call area",
-  "appSubtitle": "SSB contest trainer",
   "toggleTheme": "Toggle theme",
   "logSubtitle": "Logged automatically in UTC order",
   "logCount": "{count} entries",
