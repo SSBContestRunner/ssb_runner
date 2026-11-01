@@ -299,7 +299,15 @@
   "autoUppercase": "Auto uppercase",
   "sessionTitle": "This session",
   "sessionStatusRunning": "Running",
-  "sessionStatusIdle": "Stopped",
+  "sessionStatusReady": "Ready",
+  "sessionStatusPending": "{count, plural, =1{1 to fix} other{{count} to fix}}",
+  "@sessionStatusPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sessionRunningNote": "Timer running · stop any time",
   "sessionIdleNote": "Stopped · data is kept",
   "startTraining": "Start training",
@@ -338,8 +346,6 @@
       }
     }
   },
-  "readinessReady": "Settings ready",
-  "readinessReview": "Review",
   "readinessOpenSettings": "Open settings",
   "settingsPath": "Settings › {tab}",
   "@settingsPath": {

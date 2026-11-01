@@ -68,12 +68,12 @@ void main() {
     });
   }
 
-  testWidgets('fixing the gaps flips the bar to ready and clears the badge', (
+  testWidgets('fixing the gaps flips the chip to ready and clears the badge', (
     tester,
   ) async {
     final settings = await _pumpMainPage(tester, const Size(1280, 720));
 
-    expect(find.text('2 settings need attention'), findsOneWidget);
+    expect(find.text('2 to fix'), findsOneWidget);
     expect(find.byKey(const Key('settingsIssueBadge')), findsOneWidget);
 
     settings
@@ -82,8 +82,8 @@ void main() {
     await tester.pump();
 
     // CQ WPX needs no exchange field, so these two values make it ready.
-    expect(find.text('Settings ready'), findsOneWidget);
-    expect(find.text('2 settings need attention'), findsNothing);
+    expect(find.text('Ready'), findsOneWidget);
+    expect(find.text('2 to fix'), findsNothing);
     expect(find.byKey(const Key('settingsIssueBadge')), findsNothing);
 
     expect(tester.takeException(), isNull);
@@ -94,8 +94,8 @@ void main() {
   ) async {
     await _pumpMainPage(tester, const Size(1280, 720));
 
-    expect(find.text('2 settings need attention'), findsOneWidget);
-    expect(find.text('Settings ready'), findsNothing);
+    expect(find.text('2 to fix'), findsOneWidget);
+    expect(find.text('Ready'), findsNothing);
 
     await tester.tap(find.text('Start training'));
     await tester.pump();
@@ -125,6 +125,54 @@ void main() {
     expect(find.text('Please set station callsign'), findsOneWidget);
     expect(find.text('Duration must be set and greater than 0'), findsNothing);
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the pending chip opens the checklist without pressing start', (
+    tester,
+  ) async {
+    await _pumpMainPage(tester, const Size(1280, 720));
+
+    expect(find.text('2 to fix'), findsOneWidget);
+    expect(find.text('Cannot start yet'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('sessionStatusChip')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Cannot start yet'), findsOneWidget);
+    expect(find.text('Please set station callsign'), findsOneWidget);
+    expect(
+      find.text('Duration must be set and greater than 0'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Close'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Cannot start yet'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the ready chip is inert and the footer has no banner', (
+    tester,
+  ) async {
+    final settings = await _pumpMainPage(tester, const Size(1280, 720));
+
+    settings
+      ..stationCallsign = 'BI1QJQ'
+      ..contestDuration = 30;
+    await tester.pump();
+
+    expect(find.text('Ready'), findsOneWidget);
+    expect(find.text('2 to fix'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('sessionStatusChip')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Cannot start yet'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

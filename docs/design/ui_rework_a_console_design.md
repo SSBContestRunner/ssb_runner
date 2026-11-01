@@ -278,8 +278,9 @@ v2 原型通过覆盖 `:root` / `[data-theme="dark"]` 的颜色令牌实现，�
 ### 5.4 本次练习 / 成绩卡（替换 `QsoSpeedArea` + `TimeAndScoreArea`）
 
 - 复用 `ScoreAreaCubit`、`_QsoRecordSpeedCubit` 的滚动 5 条速率算法、`ContestTimer.elapseTimeStream` 和现有开始/停止校验逻辑。
-- 内容顺序：状态 chip → 已用时间/剩余时间 → 进度条 → 已验证总分 → 原始分/更正数/系数 → QSO/系数/速率 → 运行按钮（开始/停止）→ 运行提示。
-- 已验证总分标签的星标使用 tertiary 色，每张卡只出现一处暖色强调；运行状态 chip 使用 success-container，两者语义不互换。
+- 内容顺序：状态 chip → 已用时间/剩余时间 → 进度条 → 已验证总分 → 原始分/更正数/系数 → QSO/系数/速率 → 运行按钮（开始/停止）→ 运行提示；底部不再有就绪横幅。
+- 已验证总分标签的星标使用 tertiary 色，每张卡只出现一处暖色强调；状态 chip 与星标语义不互换。
+- 状态 chip 三态：已就绪为 primary-container 底 + 勾，进行中为 success-container 底 + 圆点，存在未完成项时为 error-container 底 + 圆点（即「N 项待处理」，点击打开清单）。就绪态不使用 success 色，避免与进行中混淆。
 - 已验证总分绑定 `verifiedScore.score`；原始分绑定 `rawScore.score`；系数绑定 `verifiedScore.multiple`；QSO 数绑定 `verifiedScore.count`；速率沿用滚动 5 条算法。
 - 剩余时间 = `AppSettings.contestDuration` 分钟 - `ContestTimer.elapseTime`，进度按同一时长计算；比赛结束后收敛为 0。
 - 运行控制只有开始/停止，不引入暂停：按钮文案「开始训练」/「停止训练」，运行中提示「计时中 · 随时可停止」，空闲「已停止 · 数据会保留」；不提供暂停按钮、暂停快捷键或「随时可暂停」文案。

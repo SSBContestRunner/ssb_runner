@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>训练会话卡片 · 底部区域原型</title>
+<style>
+/* ===== 配色取自 lib/ui/theme/app_theme.dart（Clear Sky） ===== */
+:root {
+  color-scheme: light;
+  --primary: #0059BA;
+  --on-primary: #FFFFFF;
+  --primary-container: #D5E6FF;
+  --error: #BA1A1A;
+  --on-error: #FFFFFF;
+  --error-container: #FFDAD6;
+  --on-error-container: #410002;
+  --success: #177D4B;
+  --success-container: #C6F2DC;
+  --on-success-container: #00391F;
+  --surface: #F4F8FE;
+  --on-surface: #182030;
+  --on-surface-variant: #4D5E73;
+  --surface-lowest: #FFFFFF;
+  --surface-low: #FBFDFF;
+  --surface-container: #EAF1FA;
+  --surface-high: #E1EAF6;
+  --surface-highest: #D5E2F1;
+  --outline: #6C7E93;
+  --outline-variant: #C3D2E2;
+  --tertiary: #8A5200;
+  --page: #EEF3FB;
+  --font-sans: "Iosevka", "PingFang SC", "Noto Sans SC", -apple-system, "Microsoft YaHei", sans-serif;
+  --font-data: "Iosevka", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #A7CCFF;
+  --on-primary: #00315E;
+  --primary-container: #00498C;
+  --error: #FFB4AB;
+  --on-error: #690005;
+  --error-container: #93000A;
+  --on-error-container: #FFDAD6;
+  --success: #6FDFAC;
+  --success-container: #0C4A32;
+  --on-success-container: #B0F5D0;
+  --surface: #0B1526;
+  --on-surface: #E4ECF9;
+  --on-surface-variant: #B6C7DD;
+  --surface-lowest: #070F1C;
+  --surface-low: #111E32;
+  --surface-container: #16253C;
+  --surface-high: #1E304A;
+  --surface-highest: #273B58;
+  --outline: #8497AE;
+  --outline-variant: #394C66;
+  --tertiary: #FFD08A;
+  --page: #070F1C;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 24px 28px 64px;
+  background: var(--page);
+  color: var(--on-surface);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+h1 { margin: 0 0 4px; font-size: 20px; line-height: 28px; font-weight: 600; }
+.sub { margin: 0; font-size: 12px; line-height: 18px; color: var(--on-surface-variant); }
+.controls { display: flex; gap: 12px; flex-wrap: wrap; }
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface-high);
+  border-radius: 12px;
+}
+.seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--on-surface-variant);
+  font: 500 12px/18px var(--font-sans);
+  padding: 6px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg button.on { background: var(--surface-lowest); color: var(--on-surface); box-shadow: 0 1px 2px rgba(13, 42, 82, .12); }
+.seg-label { font-size: 12px; color: var(--on-surface-variant); align-self: center; margin-right: 2px; }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--outline-variant);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--on-surface-variant);
+  font: 500 13px/18px var(--font-sans);
+  padding: 10px 16px 12px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.tabs button.on { color: var(--primary); border-bottom-color: var(--primary); }
+
+.view { display: none; }
+.view.on { display: block; }
+
+/* ===== 会话卡片还原 ===== */
+.card {
+  width: var(--card-w, 360px);
+  background: var(--surface-low);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 60%, transparent);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.card-head { height: 56px; padding: 0 20px; display: flex; align-items: center; gap: 8px; }
+.head-text { flex: 1; min-width: 0; }
+.head-text .t { font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: .1px; white-space: nowrap; }
+.head-text .s { font-size: 12px; line-height: 17px; letter-spacing: .2px; color: var(--on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip {
+  height: 26px; flex: none; padding: 0 10px; border-radius: 8px;
+  background: var(--surface-highest); color: var(--on-surface-variant);
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 600 12px/17px var(--font-sans); letter-spacing: .5px;
+  border: 0; cursor: default;
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--on-surface-variant); }
+.chip.running { background: var(--success-container); color: var(--on-success-container); }
+.chip.running .dot { background: var(--on-success-container); }
+.chip.ready-v1 { background: var(--surface-highest); color: var(--on-surface); }
+.chip.ready-v1 .ic { color: var(--success); }
+.chip.ready-v2 { background: var(--primary-container); color: var(--primary); }
+.chip.ready-v3 { background: transparent; border: 1px solid var(--success); color: var(--success); }
+.chip .ic { flex: none; }
+.chip.plan-b.issues { background: var(--error-container); color: var(--on-error-container); cursor: pointer; }
+.chip.plan-b.issues .dot { background: var(--on-error-container); }
+
+.card-body { padding: 0 20px 16px; display: flex; flex-direction: column; }
+.timer { display: flex; align-items: flex-end; gap: 8px; }
+.timer-main {
+  flex: 3; min-width: 0;
+  font: 400 42px/48px var(--font-data);
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.timer-side {
+  flex: 2; min-width: 0; padding-bottom: 5px;
+  display: flex; flex-direction: column; align-items: flex-end;
+  font: 400 12px/17px var(--font-data);
+  color: var(--on-surface-variant);
+  letter-spacing: .3px;
+}
+.progress { margin-top: 10px; }
+.bar { height: 6px; border-radius: 3px; background: var(--surface-highest); overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 3px; background: var(--primary); width: 0; }
+.bar-labels { display: flex; justify-content: space-between; margin-top: 6px; font: 400 12px/17px var(--font-data); color: var(--on-surface-variant); letter-spacing: .3px; }
+
+.stats { margin-top: 14px; }
+.score-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; font: 400 12.5px/18px var(--font-data); }
+.score-left, .score-right { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
+.score-left .ic { color: var(--tertiary); font-size: 12px; line-height: 1; }
+.score-row .k { font-size: 11px; letter-spacing: .4px; color: var(--on-surface-variant); }
+.score-row .v { font-size: 12.5px; letter-spacing: .3px; }
+.stat-body { border-top: 1px solid var(--outline-variant); padding-top: 12px; display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+.rate { flex: 1; min-width: 0; }
+.rate .k { font: 400 11px/16px var(--font-data); letter-spacing: .5px; color: var(--on-surface-variant); }
+.rate .v { display: flex; align-items: baseline; gap: 3px; }
+.rate .v b { font: 400 30px/38px var(--font-data); font-variant-numeric: tabular-nums; }
+.rate .v span { font: 400 11px/16px var(--font-data); color: var(--on-surface-variant); }
+.side { min-width: 104px; border-left: 1px solid var(--outline-variant); padding-left: 14px; display: flex; flex-direction: column; gap: 6px; }
+.side .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.side .k { font: 400 10.5px/15px var(--font-data); letter-spacing: .4px; color: var(--on-surface-variant); }
+.side .v { font: 400 17px/22px var(--font-data); font-variant-numeric: tabular-nums; }
+
+/* ===== 底部区域：五个方案 ===== */
+.footer { padding: 0 20px 18px; display: flex; flex-direction: column; gap: 8px; }
+.banner {
+  display: flex; align-items: center; gap: 8px;
+  height: 33px; padding: 0 12px; border-radius: 12px;
+  font: 600 12px/17px var(--font-sans);
+  width: 100%; text-align: left; border: 0;
+}
+.banner .txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.banner .act { font: 500 12px/17px var(--font-sans); letter-spacing: .5px; opacity: .85; }
+.banner.ready { background: var(--success-container); color: var(--on-success-container); }
+.banner.issues { background: var(--error-container); color: var(--on-error-container); cursor: pointer; }
+.banner.soft {
+  background: transparent; border: 0;
+  color: var(--on-surface-variant); font-weight: 400;
+  height: 17px; padding: 0; justify-content: flex-start; gap: 4px;
+}
+.banner.soft .ok { color: var(--success); display: inline-flex; }
+.banner.soft .ok svg { width: 12px; height: 12px; }
+.run-btn {
+  height: 52px; width: 100%; border: 0; border-radius: 16px;
+  background: var(--primary); color: var(--on-primary);
+  font: 500 15px/18px var(--font-sans); letter-spacing: .5px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer;
+}
+.run-btn svg { flex: none; }
+.note { font: 400 12px/17px var(--font-sans); color: var(--on-surface-variant); text-align: center; letter-spacing: .2px; margin: 0; }
+.merged {
+  border: 0; background: transparent; padding: 0; height: 17px;
+  font: 400 12px/17px var(--font-sans); text-align: center; letter-spacing: .2px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  color: var(--on-surface-variant); cursor: default;
+}
+.merged svg { width: 12px; height: 12px; }
+.merged > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { white-space: nowrap; }
+.merged.ready { color: var(--success); }
+.merged.issues { color: var(--error); cursor: pointer; }
+.merged .ic { flex: none; }
+
+/* ===== 全览 ===== */
+.compare { display: flex; flex-direction: column; gap: 0; }
+.crow {
+  display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;
+  padding: 20px 0; border-top: 1px solid var(--outline-variant);
+}
+.crow:first-child { border-top: 0; padding-top: 0; }
+.clabel { flex: 0 0 152px; display: flex; flex-direction: column; gap: 4px; }
+.crow-head { display: flex; align-items: center; gap: 8px; }
+.cname { font-size: 14px; line-height: 20px; font-weight: 600; }
+.csub { font-size: 12px; line-height: 17px; color: var(--on-surface-variant); }
+.ccards { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.ccell { display: flex; flex-direction: column; gap: 6px; }
+.ccap {
+  font: 500 11px/16px var(--font-sans); letter-spacing: .5px;
+  color: var(--on-surface-variant);
+  display: flex; align-items: center; gap: 6px;
+}
+.ccap .swatch { width: 8px; height: 8px; border-radius: 2px; background: var(--success); }
+.ccap.bad .swatch { background: var(--error); }
+.cdelta { flex: 0 0 128px; display: flex; flex-direction: column; gap: 2px; padding-top: 22px; }
+.cdelta .dv { font: 500 14px/20px var(--font-data); font-variant-numeric: tabular-nums; }
+.cdelta .dk { font-size: 11px; line-height: 16px; color: var(--on-surface-variant); }
+.tag {
+  font: 500 11px/16px var(--font-sans); letter-spacing: .3px;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--primary-container); color: var(--primary);
+}
+.measure { font: 400 12px/17px var(--font-data); color: var(--on-surface-variant); }
+.seg.disabled { opacity: .45; pointer-events: none; }
+
+/* ===== 状态 chip 变体 ===== */
+.lab { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+.lab-col {
+  flex: 1 1 300px; max-width: 430px;
+  background: var(--surface-low); border: 1px solid var(--outline-variant);
+  border-radius: 16px; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px; cursor: pointer;
+}
+.lab-col.sel { border: 2px solid var(--primary); padding: 15px; }
+.lab-head { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; }
+.lab-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hp {
+  height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--surface-low); border: 1px solid var(--outline-variant);
+  border-radius: 12px; padding: 0 16px;
+}
+.hp .t { font-size: 15px; line-height: 20px; font-weight: 600; white-space: nowrap; }
+.hp-cap { font: 400 11px/16px var(--font-sans); letter-spacing: .4px; color: var(--on-surface-variant); margin-top: 4px; }
+.lab-note { margin: 0; font-size: 12px; line-height: 18px; color: var(--on-surface-variant); }
+
+/* ===== 单方案 ===== */
+.single { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+.host { display: flex; flex-direction: column; gap: 12px; }
+.width-ctl { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--on-surface-variant); }
+.width-ctl input { width: 180px; accent-color: var(--primary); }
+.notes {
+  flex: 1 1 340px; min-width: 320px; max-width: 520px;
+  background: var(--surface-low); border: 1px solid var(--outline-variant);
+  border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px;
+}
+.notes h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
+.notes .desc { margin: 0; font-size: 13px; line-height: 20px; color: var(--on-surface); }
+.sec-title { font: 500 11px/16px var(--font-sans); letter-spacing: .6px; color: var(--on-surface-variant); text-transform: uppercase; margin-bottom: 6px; }
+.kv { display: flex; flex-direction: column; gap: 6px; }
+.kv .row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 18px; }
+.kv .row .k { color: var(--on-surface-variant); }
+.kv .row .v { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 21px; }
+.list li { margin-bottom: 3px; }
+pre {
+  margin: 0; padding: 12px; overflow-x: auto;
+  background: var(--surface-container); border-radius: 10px;
+  font: 400 12px/19px var(--font-data); color: var(--on-surface);
+}
+pre .add { color: var(--success); }
+pre .del { color: var(--error); }
+pre .cm { color: var(--on-surface-variant); }
+
+/* ===== 弹窗 ===== */
+.backdrop {
+  position: fixed; inset: 0; background: rgba(4, 12, 26, .5);
+  display: none; align-items: center; justify-content: center; padding: 24px; z-index: 20;
+}
+.backdrop.on { display: flex; }
+.dialog {
+  width: 100%; max-width: 440px; background: var(--surface-high);
+  border-radius: 28px; padding: 24px; display: flex; flex-direction: column; gap: 16px;
+}
+.dialog h3 { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; }
+.dialog .lead { margin: 0; font-size: 14px; line-height: 20px; }
+.issue { display: flex; gap: 12px; padding: 10px 8px; border-radius: 12px; align-items: flex-start; }
+.issue:hover { background: var(--surface-container); }
+.issue .ic { color: var(--error); font-size: 16px; line-height: 20px; flex: none; }
+.issue .msg { font-size: 13px; line-height: 19px; font-weight: 600; }
+.issue .path { font-size: 12px; line-height: 17px; color: var(--on-surface-variant); }
+.dialog .actions { display: flex; justify-content: flex-end; gap: 8px; }
+.btn-ghost { appearance: none; border: 0; background: transparent; color: var(--primary); font: 500 13px/18px var(--font-sans); padding: 10px 14px; border-radius: 12px; cursor: pointer; }
+.btn-fill { appearance: none; border: 0; background: var(--primary); color: var(--on-primary); font: 500 13px/18px var(--font-sans); padding: 10px 18px; border-radius: 16px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <h1>训练会话卡片 · 底部区域原型</h1>
+    <p class="sub">按 session_panel.dart 还原；尾部高度由浏览器实测。「状态 chip」页可切换就绪态配色，并直接影响方案 B 的展示</p>
+  </div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="主题">
+      <button data-theme-btn="light" class="on">浅色</button>
+      <button data-theme-btn="dark">深色</button>
+    </div>
+    <div class="seg" id="stateSeg" role="group" aria-label="单方案视图的状态">
+      <span class="seg-label">单方案状态</span>
+      <button data-state-btn="ready" class="on">就绪</button>
+      <button data-state-btn="issues">3 项未完成</button>
+      <button data-state-btn="running">运行中</button>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="all" class="on">双态对照</button>
+  <button data-tab="chip">状态 chip</button>
+  <button data-tab="current">现状</button>
+  <button data-tab="A">方案 A</button>
+  <button data-tab="B">方案 B</button>
+  <button data-tab="C">方案 C</button>
+  <button data-tab="D">方案 D</button>
+</nav>
+
+<section class="view on" id="view-all">
+  <div class="compare" id="allGrid"></div>
+</section>
+
+<section class="view" id="view-chip">
+  <div class="lab" id="labHost"></div>
+</section>
+
+<section class="view" id="view-single">
+  <div class="single">
+    <div class="host">
+      <div id="singleHost"></div>
+      <div class="width-ctl">
+        <span>卡片宽度</span>
+        <input type="range" id="widthRange" min="300" max="460" step="10" value="360">
+        <span id="widthLabel" style="font-family:var(--font-data)">360px</span>
+      </div>
+    </div>
+    <aside class="notes" id="notes"></aside>
+  </div>
+</section>
+
+<div class="backdrop" id="backdrop">
+  <div class="dialog" role="dialog" aria-modal="true">
+    <h3>还不能开始</h3>
+    <p class="lead">还有 3 项设置未完成</p>
+    <div>
+      <div class="issue"><span class="ic">&#9888;</span><div><div class="msg">请设置电台呼号</div><div class="path">设置 › 电台信息</div></div></div>
+      <div class="issue"><span class="ic">&#9888;</span><div><div class="msg">请设置大于 0 的时长</div><div class="path">设置 › 训练</div></div></div>
+      <div class="issue"><span class="ic">&#9888;</span><div><div class="msg">请设置 CQ 分区</div><div class="path">设置 › 电台信息 › 交换</div></div></div>
+    </div>
+    <div class="actions">
+      <button class="btn-ghost" data-close>关闭</button>
+      <button class="btn-fill" data-close>打开设置</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const META = {
+  current: {
+    name: '现状',
+    short: '三层纵向堆叠',
+    desc: '就绪横幅整宽铺在按钮上方，按钮下方再跟一行说明。信息分三层，纵向共约 119px。',
+    diff: null,
+    pros: ['异常与就绪状态区分明显，颜色块一眼可辨', '横幅本身就是「查看」入口，点击直接弹清单'],
+    cons: ['就绪态也占一整块色块，按钮被顶上移', '与下方说明文案重复表达「当前情况」', '三行都是次要信息，抢占主操作视觉焦点'],
+  },
+  A: {
+    name: '方案 A · 仅异常时提示',
+    short: '就绪即静默',
+    desc: '就绪时完全不渲染横幅，底部只剩按钮与说明；存在未完成项时才出现红色整宽横幅，交互与现在一致。就绪态的高度与方案 B 相同，两者的差别只在于「已就绪」放在哪里。',
+    diff: [
+      { t: ' if (!isRunning) ...[', k: 'c' },
+      { t: '-  _ReadinessBar(issues: issues),', k: 'd' },
+      { t: '-  const SizedBox(height: 8),', k: 'd' },
+      { t: '+  if (issues.isNotEmpty) ...[', k: 'a' },
+      { t: '+    _ReadinessBar(issues: issues),', k: 'a' },
+      { t: '+    const SizedBox(height: 8),', k: 'a' },
+      { t: '+  ],', k: 'a' },
+      { t: ' ],', k: 'c' },
+    ],
+    pros: ['就绪态最干净，主操作回到视觉中心', '改动最小，异常态的弹窗与配色完全不动', '就绪时无额外分支，几乎无回归风险'],
+    cons: ['就绪时没有任何正向确认，只能靠按钮可点推断', '若后续需要「已就绪」感知，还得再加回来'],
+  },
+  B: {
+    name: '方案 B · 状态并入标题栏',
+    short: '横幅移到 header',
+    desc: '底部横幅删除，就绪状态并入右上角状态 chip。chip 需要承担三种状态：已就绪（中性底 + 绿勾）、进行中（绿色实底 + 实心点）、N 项待处理（红色底 + 可点击）。就绪不占用绿色整块，避免与「进行中」混淆。',
+    diff: [
+      { t: '- _ReadinessBar(issues: issues),   // 底部横幅删除', k: 'd' },
+      { t: '- const SizedBox(height: 8),', k: 'd' },
+      { t: '+ // _StatusChip 读取 checkSettingsReadiness 结果', k: 'a' },
+      { t: '+ // 运行中: successContainer + 实心点 + 「进行中」', k: 'a' },
+      { t: '+ // 就绪:   surfaceContainerHighest + 绿勾 + 「已就绪」', k: 'a' },
+      { t: '+ // 未就绪: errorContainer + 实心点 + 「N 项待处理」', k: 'a' },
+    ],
+    pros: ['底部只剩按钮与说明，最贴近「主操作区」的预期', '三种状态各有一套底色，就绪不再和进行中共用绿色整块', '异常入口常驻标题栏，滚动时也看得见'],
+    cons: ['chip 宽度随文案变化，会挤压标题与副标题空间', '异常提示离按钮更远，点击开始后的反馈路径变长', '需要改 _StatusChip，涉及 BlocBuilder 与 readiness 计算'],
+  },
+  C: {
+    name: '方案 C · 状态与说明同排',
+    short: '两层压成一层',
+    desc: '删除横幅，把就绪状态并入按钮下方那一行说明：就绪时是绿色勾加一行合并文案，异常时该行变红并可点击。',
+    diff: [
+      { t: '- _ReadinessBar(issues: issues),', k: 'd' },
+      { t: '+ // _RunNote 合并状态：', k: 'a' },
+      { t: '+ //   就绪 → ✓ 设置已就绪 · 数据会保留', k: 'a' },
+      { t: '+ //   异常 → 还有 N 项设置未完成（可点击）', k: 'a' },
+    ],
+    pros: ['纵向少一层，信息密度下降', '就绪仍有确认，异常仍有入口', '不需要新增 widget，只改文案与颜色'],
+    cons: ['「设置是否就绪」与「数据会保留」是两件事，合并后语义含混', '需要新增或改写 l10n，两种语言都要同步', '异常行没有色块，警示强度弱于现状'],
+  },
+  D: {
+    name: '方案 D · 横幅去掉底色',
+    short: '轻量化横幅',
+    desc: '保留横幅位置与文案，但就绪时改为无底色、无边框的 28px 细行，只留一个绿色勾；异常时仍用红色整宽色块。',
+    diff: [
+      { t: '// 结构不变，仅改 _ReadinessBar 的 ready 分支样式', k: 'c' },
+      { t: '- ready: 色块 + 8px 内边距 + 12px 圆角', k: 'd' },
+      { t: '+ ready: 透明底 + 1px 描边 + 5px 内边距', k: 'a' },
+    ],
+    pros: ['视觉重量明显下降，色块只在真出问题时出现', '结构零改动，回归面最小'],
+    cons: ['只省 13px，四层纵向结构仍在', '描边细行夹在按钮与说明之间，仍显多余'],
+  },
+};
+
+const READY_STATES = ['ready', 'issues', 'running'];
+let state = 'ready';
+let activePlan = 'current';
+
+const playIcon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+const stopIcon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 7h10v10H7z"/></svg>';
+const checkIcon = '<svg class="ic" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2 4.8 8.5 9.5 3.8"/></svg>';
+const errIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v6M12 17h.01"/></svg>';
+const okIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.2 11 15l5-5.4"/></svg>';
+
+const DATA = {
+  ready:   { elapsed: '00:00', remain: '60:00', progress: 0, rate: '---', qsos: '0', mult: '0', verified: '0', raw: '0', corr: '0' },
+  issues:  { elapsed: '00:00', remain: '60:00', progress: 0, rate: '---', qsos: '0', mult: '0', verified: '0', raw: '0', corr: '0' },
+  running: { elapsed: '04:35', remain: '55:25', progress: 7.6, rate: '31.2', qsos: '126', mult: '18', verified: '2268', raw: '2412', corr: '7' },
+};
+
+let bVariant = 'v1';
+
+function readyChip(variant) {
+  const v = variant || bVariant;
+  const cls = v === 'v2' ? 'ready-v2' : v === 'v3' ? 'ready-v3' : 'ready-v1';
+  return '<span class="chip ' + cls + '">' + checkIcon + '已就绪</span>';
+}
+
+function runningChip() {
+  return '<span class="chip running"><span class="dot"></span>进行中</span>';
+}
+
+function issuesChip() {
+  return '<button class="chip plan-b issues" data-action="dialog"><span class="dot"></span>3 项待处理</button>';
+}
+
+function headerChip(plan, st) {
+  if (st === 'running') return runningChip();
+  if (plan === 'B') {
+    return st === 'issues' ? issuesChip() : readyChip();
+  }
+  return '<span class="chip"><span class="dot"></span>已停止</span>';
+}
+
+function cardHead(plan, st) {
+  const chip = headerChip(plan, st);
+  return '<div class="card-head"><div class="head-text"><div class="t">本次练习</div><div class="s">SSB 练习 · 60 分钟</div></div>' + chip + '</div>';
+}
+
+function cardBody(st) {
+  const d = DATA[st];
+  return '<div class="card-body">' +
+    '<div class="timer"><div class="timer-main">' + d.elapsed + '</div>' +
+      '<div class="timer-side"><span>已用 ' + d.elapsed + '</span><span>剩余 ' + d.remain + '</span></div></div>' +
+    '<div class="progress"><div class="bar"><i style="width:' + d.progress + '%"></i></div>' +
+      '<div class="bar-labels"><span>0 分钟</span><span>60 分钟</span></div></div>' +
+    '<div class="stats">' +
+      '<div class="score-row"><div class="score-left"><span class="ic">&#127942;</span><span class="k">已验证总分</span><span class="v">' + d.verified + '</span><span class="k">分</span></div>' +
+        '<div class="score-right"><span class="k">原始</span><span class="v">' + d.raw + '</span><span class="k">·</span><span class="v">' + d.corr + '</span><span class="k">处更正</span></div></div>' +
+      '<div class="stat-body"><div class="rate"><div class="k">速率</div><div class="v"><b>' + d.rate + '</b><span>/小时</span></div></div>' +
+        '<div class="side"><div class="row"><span class="k">QSO 数</span><span class="v">' + d.qsos + '</span></div>' +
+        '<div class="row"><span class="k">系数</span><span class="v">' + d.mult + '</span></div></div></div>' +
+    '</div></div>';
+}
+
+function runButton(st) {
+  const running = st === 'running';
+  return '<button class="run-btn" data-action="toggle-run" data-label="按钮">' + (running ? stopIcon + '停止训练' : playIcon + '开始训练') + '</button>';
+}
+
+function note(st, label) {
+  const text = st === 'running' ? '计时中 · 随时可停止' : '已停止 · 数据会保留';
+  return '<p class="note" data-label="' + label + '">' + text + '</p>';
+}
+
+function readyBanner() {
+  return '<button class="banner ready" data-label="横幅"><span>' + okIcon + '</span><span class="txt">设置已就绪</span></button>';
+}
+function issueBanner() {
+  return '<button class="banner issues" data-action="dialog" data-label="横幅"><span>' + errIcon + '</span><span class="txt">还有 3 项设置未完成</span><span class="act">查看</span></button>';
+}
+
+function footer(plan, st) {
+  if (st === 'running') {
+    return '<div class="footer">' + runButton(st) + note(st, '说明') + '</div>';
+  }
+  const isIssues = st === 'issues';
+
+  if (plan === 'current') {
+    const b = isIssues ? issueBanner() : readyBanner();
+    return '<div class="footer">' + b + runButton(st) + note(st, '说明') + '</div>';
+  }
+  if (plan === 'A') {
+    const b = isIssues ? issueBanner() : '';
+    return '<div class="footer">' + b + runButton(st) + note(st, '说明') + '</div>';
+  }
+  if (plan === 'B') {
+    return '<div class="footer">' + runButton(st) + note(st, '说明') + '</div>';
+  }
+  if (plan === 'C') {
+    const merged = isIssues
+      ? '<button class="merged issues" data-action="dialog" data-label="状态行">' + errIcon + '<span>还有 3 项设置未完成 · 查看</span></button>'
+      : '<span class="merged ready" data-label="状态行">' + checkIcon + '<span>设置已就绪 · 数据会保留</span></span>';
+    return '<div class="footer">' + runButton(st) + merged + '</div>';
+  }
+  // D
+  const b = isIssues
+    ? issueBanner()
+    : '<div class="banner soft" data-label="横幅"><span class="ok">' + okIcon + '</span><span class="txt">设置已就绪</span></div>';
+  return '<div class="footer">' + b + runButton(st) + note(st, '说明') + '</div>';
+}
+
+function cardHTML(plan, st) {
+  return '<div class="card" data-plan="' + plan + '">' + cardHead(plan, st) + cardBody(st) + footer(plan, st) + '</div>';
+}
+
+function shortName(plan) {
+  return META[plan].name.split('·')[0].trim();
+}
+
+function compareCell(plan, st, label) {
+  return '<div class="ccell" style="--card-w:320px">' +
+    '<div class="ccap ' + (st === 'issues' ? 'bad' : 'ok') + '"><span class="swatch"></span>' + label + '</div>' +
+    cardHTML(plan, st) +
+    '<div class="measure" data-measure="' + plan + '-' + st + '">—</div>' +
+  '</div>';
+}
+
+function renderAll() {
+  const host = document.getElementById('allGrid');
+  host.innerHTML = Object.keys(META).map(function (plan) {
+    const tag = plan === 'A' ? '<span class="tag">推荐</span>' : '';
+    return '<div class="crow">' +
+      '<div class="clabel">' +
+        '<div class="crow-head"><span class="cname">' + shortName(plan) + '</span>' + tag + '</div>' +
+        '<div class="csub">' + META[plan].short + '</div>' +
+      '</div>' +
+      '<div class="ccards">' +
+        compareCell(plan, 'ready', '就绪') +
+        compareCell(plan, 'issues', '3 项未完成') +
+      '</div>' +
+      '<div class="cdelta"><div class="dv">—</div><div class="dk">异常态相对就绪态</div></div>' +
+    '</div>';
+  }).join('');
+  measureCards();
+}
+
+function measureCards() {
+  requestAnimationFrame(function () {
+    document.querySelectorAll('[data-measure]').forEach(function (el) {
+      const card = el.parentElement.querySelector('.card');
+      if (!card) return;
+      const f = card.querySelector('.footer');
+      if (!f) return;
+      el.textContent = '底部 ' + Math.round(f.getBoundingClientRect().height) + 'px';
+    });
+    document.querySelectorAll('.crow').forEach(function (row) {
+      const footers = row.querySelectorAll('.ccell .footer');
+      if (footers.length < 2) return;
+      const ready = Math.round(footers[0].getBoundingClientRect().height);
+      const issues = Math.round(footers[1].getBoundingClientRect().height);
+      const d = issues - ready;
+      row.querySelector('.cdelta .dv').textContent = d > 0 ? '+' + d + 'px' : '±0px';
+    });
+  });
+}
+
+const VARIANTS = [
+  { id: 'v1', name: 'V1 中性底 + 绿勾', note: '底色与「已停止」同一层中性色，绿色只留在勾上。进行中仍是整块绿色，两者一眼可分，也符合「就绪只是准备好了，还没在跑」。' },
+  { id: 'v2', name: 'V2 蓝底 + 蓝勾', note: '借用主色容器，读作「可以开始」。与主按钮同色系，强调可用性；与绿色运行态差异最大，但会比运行中的状态更抢眼。' },
+  { id: 'v3', name: 'V3 绿色描边', note: '保持绿色语义，用「填充 vs 描边」区分：就绪是描边绿，进行中是实心绿。对色觉差异用户也能靠填充区别。' },
+];
+
+function renderLab() {
+  const host = document.getElementById('labHost');
+  host.innerHTML = VARIANTS.map(function (v) {
+    const sel = bVariant === v.id;
+    return '<div class="lab-col' + (sel ? ' sel' : '') + '" data-variant="' + v.id + '">' +
+      '<div class="lab-head"><span>' + v.name + '</span>' + (sel ? '<span class="tag">当前选用</span>' : '') + '</div>' +
+      '<div class="lab-chips">' + readyChip(v.id) + runningChip() + issuesChip() + '</div>' +
+      '<div><div class="hp"><span class="t">本次练习</span>' + readyChip(v.id) + '</div>' +
+      '<div class="hp-cap">就绪态 · 标题栏</div></div>' +
+      '<div><div class="hp"><span class="t">本次练习</span>' + runningChip() + '</div>' +
+      '<div class="hp-cap">运行态 · 标题栏</div></div>' +
+      '<p class="lab-note">' + v.note + '</p>' +
+    '</div>';
+  }).join('');
+}
+
+function renderSingle() {
+  const host = document.getElementById('singleHost');
+  host.innerHTML = '<div class="card" data-plan="' + activePlan + '" style="--card-w:' + widthValue + 'px">' + cardHead(activePlan, state) + cardBody(state) + footer(activePlan, state) + '</div>';
+  renderNotes();
+}
+
+function renderNotes() {
+  const m = META[activePlan];
+  const card = document.querySelector('#singleHost .card');
+  const f = card.querySelector('.footer');
+
+  const layers = Array.prototype.map.call(f.children, function (el) {
+    return { label: el.dataset.label || '层', h: el.offsetHeight };
+  });
+  const gaps = (layers.length - 1) * 8;
+
+  const diffBlock = m.diff
+    ? '<div><div class="sec-title">改动位置</div><pre>' + m.diff.map(function (l) {
+        const cls = l.k === 'a' ? 'add' : l.k === 'd' ? 'del' : 'cm';
+        return '<span class="' + cls + '">' + l.t.replace(/</g, '&lt;') + '</span>';
+      }).join('\n') + '</pre></div>'
+    : '<div><div class="sec-title">改动位置</div><p class="desc">基线版本，未做任何改动。</p></div>';
+
+  const breakdown = layers.map(function (l) {
+    return '<div class="row"><span class="k">' + l.label + '</span><span class="v">' + l.h + 'px</span></div>';
+  }).join('') +
+    '<div class="row"><span class="k">层间距 × ' + Math.max(0, layers.length - 1) + '</span><span class="v">' + gaps + 'px</span></div>' +
+    '<div class="row"><span class="k">下边距</span><span class="v">18px</span></div>' +
+    '<div class="row" style="border-top:1px solid var(--outline-variant);padding-top:6px"><span class="k"><b>底部合计</b></span><span class="v"><b>' + f.offsetHeight + 'px</b></span></div>';
+
+  document.getElementById('notes').innerHTML =
+    '<h2>' + m.name + '</h2>' +
+    '<p class="desc">' + m.desc + '</p>' +
+    diffBlock +
+    '<div><div class="sec-title">实测高度（当前状态：' + stateLabel() + '）</div><div class="kv">' + breakdown + '</div></div>' +
+    '<div><div class="sec-title">收益</div><ul class="list">' + m.pros.map(function (p) { return '<li>' + p + '</li>'; }).join('') + '</ul></div>' +
+    '<div><div class="sec-title">代价</div><ul class="list">' + m.cons.map(function (c) { return '<li>' + c + '</li>'; }).join('') + '</ul></div>' +
+    (state === 'running'
+      ? '<div class="sec-title" style="margin:0">运行中：五个方案的底部结构一致，仅按钮文案与图标切换。</div>'
+      : '');
+}
+
+function stateLabel() {
+  return state === 'ready' ? '就绪' : state === 'issues' ? '3 项未完成' : '运行中';
+}
+
+let widthValue = 360;
+
+/* ===== 交互 ===== */
+document.addEventListener('click', function (e) {
+  const t = e.target.closest('[data-action]');
+  if (t) {
+    const action = t.dataset.action;
+    if (action === 'dialog') { openDialog(); return; }
+    if (action === 'toggle-run') {
+      if (state === 'issues') { openDialog(); return; }
+      state = state === 'running' ? 'ready' : 'running';
+      syncStateButtons();
+      rerender();
+      return;
+    }
+  }
+  if (e.target.closest('[data-close]')) { closeDialog(); return; }
+  const themeBtn = e.target.closest('[data-theme-btn]');
+  if (themeBtn) {
+    document.documentElement.dataset.theme = themeBtn.dataset.themeBtn;
+    document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+      b.classList.toggle('on', b === themeBtn);
+    });
+    return;
+  }
+  const stateBtn = e.target.closest('[data-state-btn]');
+  if (stateBtn) {
+    state = stateBtn.dataset.stateBtn;
+    syncStateButtons();
+    rerender();
+    return;
+  }
+  const variantCol = e.target.closest('[data-variant]');
+  if (variantCol) {
+    bVariant = variantCol.dataset.variant;
+    renderLab();
+    if (document.getElementById('view-all').classList.contains('on')) renderAll();
+    if (document.getElementById('view-single').classList.contains('on')) renderSingle();
+    return;
+  }
+  const tabBtn = e.target.closest('[data-tab]');
+  if (tabBtn) {
+    const tab = tabBtn.dataset.tab;
+    document.querySelectorAll('[data-tab]').forEach(function (b) { b.classList.toggle('on', b === tabBtn); });
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('on'); });
+    setStateEnabled(tab !== 'all' && tab !== 'chip');
+    if (tab === 'all') {
+      document.getElementById('view-all').classList.add('on');
+      renderAll();
+    } else if (tab === 'chip') {
+      document.getElementById('view-chip').classList.add('on');
+      renderLab();
+    } else {
+      activePlan = tab;
+      document.getElementById('view-single').classList.add('on');
+      renderSingle();
+    }
+  }
+});
+
+document.getElementById('backdrop').addEventListener('click', function (e) {
+  if (e.target === this) closeDialog();
+});
+
+document.getElementById('widthRange').addEventListener('input', function (e) {
+  widthValue = Number(e.target.value);
+  document.getElementById('widthLabel').textContent = widthValue + 'px';
+  const card = document.querySelector('#singleHost .card');
+  if (card) card.style.setProperty('--card-w', widthValue + 'px');
+  renderNotes();
+});
+
+function openDialog() { document.getElementById('backdrop').classList.add('on'); }
+function closeDialog() { document.getElementById('backdrop').classList.remove('on'); }
+
+function syncStateButtons() {
+  document.querySelectorAll('[data-state-btn]').forEach(function (b) {
+    b.classList.toggle('on', b.dataset.stateBtn === state);
+  });
+}
+
+function setStateEnabled(on) {
+  document.getElementById('stateSeg').classList.toggle('disabled', !on);
+}
+
+function rerender() {
+  if (document.getElementById('view-all').classList.contains('on')) renderAll();
+  else renderSingle();
+}
+
+renderAll();
+setStateEnabled(false);
+
+window.addEventListener('load', function () {
+  measureCards();
+  if (document.getElementById('view-single').classList.contains('on')) {
+    renderSingle();
+  }
+});
+</script>
+</body>
+</html>

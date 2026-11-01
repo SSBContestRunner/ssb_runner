@@ -50,79 +50,108 @@ class _SessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
+    final settings = context.read<AppSettings>();
+    final dxccManager = context.read<DxccManager>();
     final contest = context.watch<ContestSettingCubit>().state;
     final options = context.watch<TrainingOptionsCubit>().state;
     final isCompact = MediaQuery.sizeOf(context).height <= 700;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          SizedBox(
-            height: 56,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
+    return BlocBuilder<_RunBtnCubit, bool>(
+      builder: (context, isRunning) {
+        return ValueListenableBuilder<int>(
+          valueListenable: settings.settingsRevision,
+          builder: (context, _, _) {
+            // Readiness is computed once per settings revision and shared by
+            // the status chip and the start button, so both always describe
+            // the same set of blockers. Running sessions do not re-evaluate
+            // settings: editing them mid-run must not disturb the chip.
+            final issues = isRunning
+                ? const <SettingsIssue>[]
+                : checkSettingsReadiness(
+                    settings: settings,
+                    dxccManager: dxccManager,
+                  );
+
+            return Container(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.6),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
                 children: [
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.sessionTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          '${contest.name} · ${options.duration} '
-                          '${l10n.durationUnit}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
+                  SizedBox(
+                    height: 56,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.sessionTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  '${contest.name} · ${options.duration} '
+                                  '${l10n.durationUnit}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          _StatusChip(isRunning: isRunning, issues: issues),
+                        ],
+                      ),
                     ),
                   ),
-                  const _StatusChip(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _TimerBlock(compact: isCompact),
+                          const SizedBox(height: 10),
+                          _ProgressBlock(duration: options.duration),
+                          const SizedBox(height: 14),
+                          const _SessionStatsBlock(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                    child: _RunSection(isRunning: isRunning, issues: issues),
+                  ),
                 ],
               ),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _TimerBlock(compact: isCompact),
-                  const SizedBox(height: 10),
-                  _ProgressBlock(duration: options.duration),
-                  const SizedBox(height: 14),
-                  const _SessionStatsBlock(),
-                ],
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 18),
-            child: _RunSection(),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip();
+  const _StatusChip({required this.isRunning, required this.issues});
+
+  final bool isRunning;
+  final List<SettingsIssue> issues;
 
   @override
   Widget build(BuildContext context) {
@@ -130,44 +159,80 @@ class _StatusChip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final semantic = context.semanticColors;
 
-    return BlocBuilder<_RunBtnCubit, bool>(
-      builder: (context, isRunning) {
-        return Container(
-          height: 26,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: isRunning
-                ? semantic.successContainer
-                : scheme.surfaceContainerHighest,
+    final isPending = !isRunning && issues.isNotEmpty;
+    final background = isRunning
+        ? semantic.successContainer
+        : isPending
+        ? scheme.errorContainer
+        : scheme.primaryContainer;
+    final foreground = isRunning
+        ? semantic.onSuccessContainer
+        : isPending
+        ? scheme.onErrorContainer
+        : scheme.onPrimaryContainer;
+
+    final semanticsLabel = isPending
+        ? l10n.readinessIncomplete(issues.length)
+        : isRunning
+        ? l10n.sessionStatusRunning
+        : l10n.sessionStatusReady;
+
+    return SizedBox(
+      height: 40,
+      child: Center(
+        widthFactor: 1,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: isPending
+                ? () => showSettingsIssuesDialog(context, issues: issues)
+                : null,
             borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 7,
-                height: 7,
+            child: Semantics(
+              button: isPending,
+              label: semanticsLabel,
+              excludeSemantics: true,
+              child: Container(
+                key: const Key('sessionStatusChip'),
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isRunning
-                      ? semantic.onSuccessContainer
-                      : scheme.onSurfaceVariant,
+                  color: background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isRunning || isPending)
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: foreground,
+                        ),
+                      )
+                    else
+                      Icon(Icons.check_rounded, size: 14, color: foreground),
+                    const SizedBox(width: 6),
+                    Text(
+                      isRunning
+                          ? l10n.sessionStatusRunning
+                          : isPending
+                          ? l10n.sessionStatusPending(issues.length)
+                          : l10n.sessionStatusReady,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(
-                isRunning ? l10n.sessionStatusRunning : l10n.sessionStatusIdle,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isRunning
-                      ? semantic.onSuccessContainer
-                      : scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -531,112 +596,23 @@ class _SideStat extends StatelessWidget {
   }
 }
 
-/// Readiness is computed once per settings revision and shared by the status
-/// bar and the start button, so clicking start always explains the same set of
-/// blockers the bar is showing.
+/// Readiness is computed once per settings revision by [_SessionCard] and
+/// shared by the status chip and the start button, so clicking start always
+/// explains the same set of blockers the chip is showing.
 class _RunSection extends StatelessWidget {
-  const _RunSection();
+  const _RunSection({required this.isRunning, required this.issues});
 
-  @override
-  Widget build(BuildContext context) {
-    final settings = context.read<AppSettings>();
-    final dxccManager = context.read<DxccManager>();
-
-    return BlocBuilder<_RunBtnCubit, bool>(
-      builder: (context, isRunning) {
-        return ValueListenableBuilder<int>(
-          valueListenable: settings.settingsRevision,
-          builder: (context, _, _) {
-            final issues = isRunning
-                ? const <SettingsIssue>[]
-                : checkSettingsReadiness(
-                    settings: settings,
-                    dxccManager: dxccManager,
-                  );
-
-            return Column(
-              children: [
-                if (!isRunning) ...[
-                  _ReadinessBar(issues: issues),
-                  const SizedBox(height: 8),
-                ],
-                _RunButton(isRunning: isRunning, issues: issues),
-                const SizedBox(height: 8),
-                _RunNote(isRunning: isRunning),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _ReadinessBar extends StatelessWidget {
-  const _ReadinessBar({required this.issues});
-
+  final bool isRunning;
   final List<SettingsIssue> issues;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    final ready = issues.isEmpty;
-    final background = ready
-        ? context.semanticColors.successContainer
-        : scheme.errorContainer;
-    final foreground = ready
-        ? context.semanticColors.onSuccessContainer
-        : scheme.onErrorContainer;
-
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: ready
-            ? null
-            : () => showSettingsIssuesDialog(context, issues: issues),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                ready ? Icons.check_circle_outline : Icons.error_outline,
-                size: 16,
-                color: foreground,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  ready
-                      ? l10n.readinessReady
-                      : l10n.readinessIncomplete(issues.length),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (!ready) ...[
-                const SizedBox(width: 8),
-                Text(
-                  l10n.readinessReview,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: foreground),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return Column(
+      children: [
+        _RunButton(isRunning: isRunning, issues: issues),
+        const SizedBox(height: 8),
+        _RunNote(isRunning: isRunning),
+      ],
     );
   }
 }
