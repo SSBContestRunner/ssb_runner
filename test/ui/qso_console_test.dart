@@ -75,6 +75,80 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('nine actions split into two balanced rows of one cell width', (
+    tester,
+  ) async {
+    final harness = await _createHarness();
+    await _pumpConsole(tester, harness, width: 1024, consoleWidth: 668);
+
+    const labels = [
+      'CQ',
+      'EXCH',
+      'TU',
+      '<my>',
+      '<his>',
+      'B4',
+      'AGN',
+      'NIL',
+      'Wipe',
+    ];
+    final tops = {
+      for (final label in labels) label: tester.getRect(find.text(label)).top,
+    };
+    final firstRowTop = tops['CQ']!;
+
+    expect(
+      tops.values.where((top) => (top - firstRowTop).abs() < 1).length,
+      5,
+      reason: '9 actions must be split 5 + 4 so F12 is not left alone',
+    );
+    expect(
+      (tops['B4']! - firstRowTop).abs(),
+      closeTo(52, 0.5),
+      reason: 'row pitch is the 44px button plus the 8px gap',
+    );
+
+    final buttonSizes = {
+      for (final label in labels)
+        tester
+            .getSize(
+              find
+                  .ancestor(of: find.text(label), matching: find.byType(InkWell))
+                  .first,
+            )
+            .toString(),
+    };
+    expect(buttonSizes, hasLength(1), reason: 'every cell shares one width');
+    expect(
+      tester
+          .getSize(
+            find.ancestor(of: find.text('CQ'), matching: find.byType(InkWell)).first,
+          )
+          .height,
+      44,
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a wide console stops stretching the action cells at 280px', (
+    tester,
+  ) async {
+    final harness = await _createHarness();
+    await _pumpConsole(tester, harness, width: 1800, consoleWidth: 1600);
+
+    expect(
+      tester
+          .getSize(
+            find.ancestor(of: find.text('CQ'), matching: find.byType(InkWell)).first,
+          )
+          .width,
+      280,
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('saved bindings refresh the action row immediately', (
     tester,
   ) async {

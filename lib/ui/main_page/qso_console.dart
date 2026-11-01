@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -506,6 +507,15 @@ class _ActionRow extends StatelessWidget {
 
   final void Function(OperationEvent event) onOperationEvent;
 
+  static const _gap = 8.0;
+
+  /// Buttons keep a uniform, breathing-width cell; above this cap a wider
+  /// console only adds whitespace instead of stretching each key.
+  static const _maxButtonWidth = 280.0;
+
+  /// Width kept free for the pinned keyboard-reference icon.
+  static const _keyReferenceWidth = 32.0;
+
   @override
   Widget build(BuildContext context) {
     final settings = context.read<AppSettings>();
@@ -516,32 +526,48 @@ class _ActionRow extends StatelessWidget {
         final bindings = functionKeysFromSettings(
           settings,
         ).where((binding) => !binding.isSpare).toList();
-        final isNarrow = MediaQuery.sizeOf(context).width <= 1060;
 
-        final buttons = [
-          for (final binding in bindings)
-            _ActionButton(
-              keyLabel: binding.key.label,
-              action: binding.action!,
-              onPressed: () =>
-                  onOperationEvent(operationEventFor(binding.action!)),
-            ),
-        ];
-
-        // The shortcut icon stays pinned to the right even when the buttons
-        // wrap at narrow widths; dropping it made the action row lose the only
-        // keyboard-reference entry users look for.
+        // The shortcut icon stays pinned to the right at every width. The
+        // buttons share the rest of the row in at most two rows whose item
+        // counts differ by one, so the last row never holds a single button
+        // while the rows above it are full.
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Wrap(
-                spacing: isNarrow ? 6 : 8,
-                runSpacing: 8,
-                children: buttons,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final available =
+                      constraints.maxWidth - _gap - _keyReferenceWidth;
+                  final rows = _balancedRows(bindings);
+                  final buttonWidth = _buttonWidth(available, rows);
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: _gap,
+                    children: [
+                      for (final row in rows)
+                        Row(
+                          spacing: _gap,
+                          children: [
+                            for (final binding in row)
+                              _ActionButton(
+                                width: buttonWidth,
+                                keyLabel: binding.key.label,
+                                action: binding.action!,
+                                onPressed: () => onOperationEvent(
+                                  operationEventFor(binding.action!),
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: _gap),
             _KeyReferenceButton(
               onPressed: () => showKeyReferenceDialog(
                 context,
@@ -556,13 +582,58 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
+/// Splits the assigned actions into one or two rows. At most five actions share
+/// a row, so nine actions become 5 + 4 instead of one long, hard-to-scan row on
+/// a wide console; the counts differ by one, so the last row never holds a
+/// single button while the rows above it are full.
+List<List<FunctionKeyBinding>> _balancedRows(List<FunctionKeyBinding> bindings) {
+  if (bindings.isEmpty) {
+    return const [];
+  }
+
+  final rowCount = (bindings.length + 4) ~/ 5;
+  final perRow = bindings.length ~/ rowCount;
+  final extra = bindings.length % rowCount;
+  final rows = <List<FunctionKeyBinding>>[];
+  var index = 0;
+
+  for (var row = 0; row < rowCount; row++) {
+    final take = perRow + (row < extra ? 1 : 0);
+    rows.add(bindings.sublist(index, index + take));
+    index += take;
+  }
+
+  return rows;
+}
+
+/// One shared cell width for every row, so the rows line up as a grid. The
+/// width is the narrowest cell that still fits the fullest row, capped at
+/// [_ActionRow._maxButtonWidth].
+double _buttonWidth(
+  double available,
+  List<List<FunctionKeyBinding>> rows,
+) {
+  var width = double.infinity;
+
+  for (final row in rows) {
+    width = math.min(
+      width,
+      (available - _ActionRow._gap * (row.length - 1)) / row.length,
+    );
+  }
+
+  return math.min(width, _ActionRow._maxButtonWidth);
+}
+
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
+    required this.width,
     required this.keyLabel,
     required this.action,
     required this.onPressed,
   });
 
+  final double width;
   final String keyLabel;
   final OperationAction action;
   final VoidCallback onPressed;
@@ -574,35 +645,42 @@ class _ActionButton extends StatelessWidget {
 
     return Tooltip(
       message: l10n.sendTooltip('$keyLabel ${action.label}'),
-      child: Material(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onPressed,
-          canRequestFocus: false,
+      child: SizedBox(
+        width: width,
+        child: Material(
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
-          hoverColor: Color.alphaBlend(
-            scheme.primary.withValues(alpha: 0.12),
-            scheme.surfaceContainerHighest,
-          ),
-          child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _Kbd(label: keyLabel),
-                const SizedBox(width: 6),
-                Text(
-                  action.label,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: scheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
+          child: InkWell(
+            onTap: onPressed,
+            canRequestFocus: false,
+            borderRadius: BorderRadius.circular(12),
+            hoverColor: Color.alphaBlend(
+              scheme.primary.withValues(alpha: 0.12),
+              scheme.surfaceContainerHighest,
+            ),
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Kbd(label: keyLabel),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      action.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
