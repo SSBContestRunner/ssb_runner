@@ -15,6 +15,9 @@ migrate_working_dir/
 # Local debug logs (never commit)
 /debug/
 
+# Trae HTML share packages (generated from in-repo HTML)
+/.trae-html-share-packages/
+
 # IntelliJ related
 *.iml
 *.ipr
