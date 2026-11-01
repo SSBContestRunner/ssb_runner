@@ -21,7 +21,7 @@ abstract final class AppInfo {
     }
   }
 
-  /// `v0.2.1 · 201003`, or `—` when the metadata could not be read.
+  /// `v0.2.1·201003`, or `—` when the metadata could not be read.
   static String get display {
     final version = AppInfo.version;
     if (version == null || version.isEmpty) {
@@ -33,6 +33,6 @@ abstract final class AppInfo {
       return 'v$version';
     }
 
-    return 'v$version · $buildNumber';
+    return 'v$version·$buildNumber';
   }
 }
