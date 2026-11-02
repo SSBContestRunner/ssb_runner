@@ -432,6 +432,10 @@
     }
   },
   "replayArmedStationHint": "Replay only reproduces incoming stations; you transmit with your current station settings.",
+  "replayArmedCompactHint": "Mirrors incoming stations only",
+  "@replayArmedCompactHint": {
+    "description": "Short station hint for the compact replay strip."
+  },
   "replayLockedHint": "Contest, mode and difficulty are locked until the replay is cancelled.",
   "cancelReplay": "Cancel replay",
   "replayCancelledToast": "Replay cancelled",

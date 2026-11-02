@@ -14,12 +14,17 @@ class ReplayArmedBanner extends StatelessWidget {
     super.key,
     required this.pending,
     this.showLockHint = false,
+    this.compact = false,
   });
 
   final PendingReplay pending;
 
   /// The settings drawer also explains that contest/mode/difficulty are locked.
   final bool showLockHint;
+
+  /// The session card uses a two-line strip; the settings drawer keeps the
+  /// full explanation with the station hint and lock hint.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +45,91 @@ class ReplayArmedBanner extends StatelessWidget {
     final difficulty = pending.hasKnownDifficulty
         ? l10n.trainingDifficultyLabelById(pending.difficultyId)
         : pending.difficultyId;
+
+    void cancelReplay() {
+      settings.clearPendingReplay();
+      toastification.show(
+        title: Text(l10n.replayCancelledToast),
+        autoCloseDuration: const Duration(seconds: 2),
+        type: ToastificationType.success,
+        style: ToastificationStyle.fillColored,
+      );
+    }
+
+    if (compact) {
+      final bodySmall = Theme.of(context).textTheme.bodySmall;
+      return Container(
+        key: const Key('replayArmedBanner'),
+        padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                Icons.replay_outlined,
+                size: 16,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        l10n.replayArmedTitle,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          ' · $contest · $mode · $difficulty',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '$time · ${l10n.replayArmedCompactHint}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: cancelReplay,
+              icon: const Icon(Icons.close, size: 18),
+              tooltip: l10n.cancelReplay,
+              color: scheme.onSurfaceVariant,
+              padding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       key: const Key('replayArmedBanner'),
@@ -100,15 +190,7 @@ class ReplayArmedBanner extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-              onPressed: () {
-                settings.clearPendingReplay();
-                toastification.show(
-                  title: Text(l10n.replayCancelledToast),
-                  autoCloseDuration: const Duration(seconds: 2),
-                  type: ToastificationType.success,
-                  style: ToastificationStyle.fillColored,
-                );
-              },
+              onPressed: cancelReplay,
               icon: const Icon(Icons.close, size: 16),
               label: Text(l10n.cancelReplay),
               style: TextButton.styleFrom(

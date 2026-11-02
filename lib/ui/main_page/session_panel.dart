@@ -128,7 +128,10 @@ class _SessionCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (pendingReplay != null) ...[
-                            ReplayArmedBanner(pending: pendingReplay),
+                            ReplayArmedBanner(
+                              pending: pendingReplay,
+                              compact: true,
+                            ),
                             const SizedBox(height: 12),
                           ],
                           _TimerBlock(compact: isCompact),

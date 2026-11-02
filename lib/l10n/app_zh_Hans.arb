@@ -214,6 +214,7 @@
   "replayArmedTitle": "已安排重放",
   "replayArmedDetail": "重放 {contest} · {mode} · {difficulty} · {time}",
   "replayArmedStationHint": "重放仅复刻来台；我方按当前站台设置发送。",
+  "replayArmedCompactHint": "仅复刻来台",
   "replayLockedHint": "取消重放前，赛制、模式和难度已锁定。",
   "cancelReplay": "取消重放",
   "replayCancelledToast": "已取消重放",

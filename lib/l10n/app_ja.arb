@@ -214,6 +214,7 @@
   "replayArmedTitle": "リプレイ予約済み",
   "replayArmedDetail": "{contest} をリプレイ · {mode} · {difficulty} · {time}",
   "replayArmedStationHint": "リプレイは受信局のみ再現します。送信は現在の運用設定を使用します。",
+  "replayArmedCompactHint": "受信局のみ再現",
   "replayLockedHint": "リプレイをキャンセルするまでコンテスト・モード・難易度はロックされます。",
   "cancelReplay": "リプレイをキャンセル",
   "replayCancelledToast": "リプレイをキャンセルしました",
