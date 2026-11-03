@@ -283,7 +283,9 @@ class JidxSsbDefinition extends _NumericContestDefinition {
   ReceivedExchange get receivedExchange => receivedJidx;
   @override
   String get scoringNotice =>
-      'Training profile; Japanese-prefecture exchange practice.';
+      'Training profile; Japanese-prefecture exchange practice. '
+      'Official JIDX rules define no log-check penalty, so a busted callsign '
+      'is charged the same 2x QSO-point penalty here for training consistency.';
   @override
   String get rulesSummary =>
       'You send: JA - 59 + prefecture number; non-JA - 59 + CQ zone\n'
@@ -326,6 +328,10 @@ abstract class _NumericContestDefinition extends ContestDefinition {
   int get exchangeAudioDigits;
   int pointsFor(QsoTableData qso, DxccManager dxcc, String station);
 
+  /// Busted callsign penalty. Every supported contest removes the QSO and
+  /// charges two times its QSO point value; see each contest's log-check rule.
+  int get callsignErrorPenaltyMultiple => 2;
+
   /// Builds the exchange an incoming station sends, from its own callsign.
   ReceivedExchange get receivedExchange;
 
@@ -349,6 +355,7 @@ abstract class _NumericContestDefinition extends ContestDefinition {
     stationCallsign: stationCallsign,
     dxccManager: dxccManager,
     pointsFor: pointsFor,
+    callsignErrorPenaltyMultiple: callsignErrorPenaltyMultiple,
   );
 }
 
@@ -362,6 +369,7 @@ class _NumericContestType implements ContestType {
     required String stationCallsign,
     required DxccManager dxccManager,
     required _PointsFor pointsFor,
+    required int callsignErrorPenaltyMultiple,
   }) : _exchangeManager = _NumericExchangeManager(
          receivedExchange,
          dxccManager,
@@ -371,6 +379,7 @@ class _NumericContestType implements ContestType {
          stationCallsign,
          dxccManager,
          pointsFor,
+         callsignErrorPenaltyMultiple,
        ),
        _builder = StationExchangeBuilder(
          plan: plan,
@@ -427,17 +436,20 @@ class _NumericScoreCalculator implements ScoreCalculator {
     this.stationCallsign,
     this.dxccManager,
     this._pointsFor,
+    this._callsignErrorPenaltyMultiple,
   );
   @override
   final String stationCallsign;
   final DxccManager dxccManager;
   final _PointsFor _pointsFor;
+  final int _callsignErrorPenaltyMultiple;
 
   @override
   CorrectnessType calculateCorrectness(QsoTableData qso) =>
-      qso.callsign == qso.callsignCorrect && qso.exchange == qso.exchangeCorrect
-      ? Correct()
-      : Incorrect();
+      calculateLogCheckCorrectness(
+        qso,
+        callsignPenaltyMultiple: _callsignErrorPenaltyMultiple,
+      );
 
   @override
   ScoreData calculateScore(List<QsoTableData> qsos) {
@@ -446,9 +458,11 @@ class _NumericScoreCalculator implements ScoreCalculator {
     var points = 0;
     for (final qso in qsos) {
       points += _pointsFor(qso, dxccManager, stationCallsign);
-      multipliers
-        ..add('dxcc-${dxccManager.findCallsignDxccId(qso.callsign)}')
-        ..add('exchange-${qso.exchangeCorrect}');
+      final dxccId = dxccManager.findCallsignDxccId(qso.callsign);
+      if (dxccId >= 0) {
+        multipliers.add('dxcc-$dxccId');
+      }
+      multipliers.add('exchange-${qso.exchangeCorrect}');
     }
     return ScoreData(
       count: qsos.length,

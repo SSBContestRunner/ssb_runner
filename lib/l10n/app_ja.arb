@@ -103,7 +103,7 @@
   "phaseHintListening": "受信中 — 相手のコールサインをコピーして Enter",
   "phaseHintCallNotCopied": "コールサイン未コピー — F5 で送信、F7 でリピート",
   "phaseHintHeWantsSerial": "相手がシリアルを要求 — 入力して Enter で送信、F1 でこのラウンドを放棄",
-  "phaseHintReportSent": "レポート送信済み — 相手のシリアルを入力して Enter、F5/F7 でリピート",
+  "phaseHintReportSent": "レポート送信済み — 相手のシリアルを入力して Enter、F5/F7 でリピート（コールサインを誤ってコピーしてもそのまま記録されます）",
   "phaseHintSendingReport": "レポートを送信中…",
   "phaseHintQsoComplete": "QSO 完了 — 次のラウンドへ",
   "phaseHintSpListening": "受信中 — Enter でパンチ、F1 で新しい CQ",

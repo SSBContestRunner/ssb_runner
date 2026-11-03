@@ -55,7 +55,7 @@ S&P 模式下，对方呼号从未加入我方发射音频，签字阶段也没�
 3. `WaitingSubmitCall` 下只有呼号、没有序号时，发出 `SubmitCallAndHisExchange(call: 输入呼号)`（[`同文件`](../../lib/contest_run/new/contest_operation_event_handler.dart#L288-L295)）。
 4. 状态机把它转成 `ReportMyExchange`，音频类型为 `PlayCallExchange(call: submitCall, exchange: myExchange, isMe: true)`（[`single_call_run_state_machine.dart`](../../lib/contest_run/state_machine/single_call/single_call_run_state_machine.dart#L47-L70)）。
 5. `PlayCallExchange` 把 **呼号 + RST/EXCH + 交换** 拼成一个 `pcmData` 后一次性入队（[`contest_state_change_handler.dart`](../../lib/contest_run/new/contest_state_change_handler.dart#L402-L445)）。
-6. `_handleReportMyExchange` 等待音频播完，再延迟 500ms，然后发出 `ReceiveExchange` 或 `CallsignInvalid`（[`同文件`](../../lib/contest_run/new/contest_state_change_handler.dart#L548-L570)）。
+6. `_handleReportMyExchange` 等待音频播完，再延迟 500ms，然后无条件发出 `ReceiveExchange`（[`同文件`](../../lib/contest_run/new/contest_state_change_handler.dart#L548-L570)）。错呼号不退回重抄，而是进入序号阶段、按抄收原样落库，并在 log check 中判无效 + 2 倍 QSO 分值罚分。
 7. `ReceiveExchange` 进入 `WaitingSubmitMyExchange`，此时 `submitCall` 仍是 Enter 时的快照。
 
 ### 2.2 S&P 链路

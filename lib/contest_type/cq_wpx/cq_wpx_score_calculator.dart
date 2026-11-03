@@ -20,24 +20,15 @@ class WpxScoreCalculator implements ScoreCalculator {
   String get stationCallsign => _stationCallsign;
 
   @override
-  CorrectnessType calculateCorrectness(QsoTableData submitQso) {
-    if (submitQso.callsignCorrect == submitQso.callsign &&
-        submitQso.exchange == submitQso.exchangeCorrect) {
-      return Correct();
-    }
-
-    if (submitQso.callsign != submitQso.callsignCorrect) {
-      return Penalty(penaltyMultiple: 2);
-    }
-
-    return Incorrect();
-  }
+  CorrectnessType calculateCorrectness(QsoTableData submitQso) =>
+      calculateLogCheckCorrectness(submitQso, callsignPenaltyMultiple: 2);
 
   @override
   ScoreData calculateScore(List<QsoTableData> qsos) {
     qsos = uniqueQsos(qsos);
     final multipliers = qsos
         .map((qso) => extractPrefix(qso.callsign))
+        .where((prefix) => prefix.isNotEmpty)
         .toSet()
         .length;
 
