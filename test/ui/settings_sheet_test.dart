@@ -338,8 +338,9 @@ void main() {
         isNotNull,
       );
 
-      // Let the cancellation toast close before the test ends.
-      await tester.pump(const Duration(seconds: 3));
+      // Let the cancellation toast (and its undo offer) close before the test
+      // ends.
+      await tester.pump(const Duration(seconds: 6));
       expect(tester.takeException(), isNull);
       harness.dispose();
     },

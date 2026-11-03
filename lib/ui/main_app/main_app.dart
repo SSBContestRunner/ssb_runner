@@ -155,8 +155,15 @@ class _MainAppState extends State<MainApp> {
       // macOS binds the native window to the plugin only during this call.
       await windowManager.ensureInitialized();
       await windowManager.setResizable(true);
-      await windowManager.setMinimumSize(const Size(1024, 650));
-      await windowManager.setSize(const Size(1024, 650));
+      // The minimum is a *window frame* size: macOS applies it through
+      // `NSWindow.minSize` and Windows through WM_GETMINMAXINFO, so the
+      // content area is that much shorter by the title bar. The armed replay
+      // session card needs ~648dp of content at 1024 wide in the worst locale
+      // (Japanese); 700 leaves ~24dp after a macOS title bar (and >=13dp after
+      // a Windows one), so the card no longer scrolls in zh/en/ja while the
+      // window stays much lower than 720.
+      await windowManager.setMinimumSize(const Size(1024, 700));
+      await windowManager.setSize(const Size(1024, 700));
       await windowManager.center();
     } catch (error, stackTrace) {
       log.warn(

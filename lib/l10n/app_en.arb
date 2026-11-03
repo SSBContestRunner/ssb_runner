@@ -414,7 +414,7 @@
   },
   "hintNothingToSend": "Nothing to send right now",
   "replayArmedTitle": "Replay armed",
-  "replayArmedDetail": "Replaying {contest} · {mode} · {difficulty} · {time}",
+  "replayArmedDetail": "Replaying {contest} · {mode} · {difficulty}",
   "@replayArmedDetail": {
     "placeholders": {
       "contest": {
@@ -425,17 +425,29 @@
       },
       "difficulty": {
         "type": "String"
-      },
+      }
+    }
+  },
+  "replayArmedAt": "Armed at {time}",
+  "@replayArmedAt": {
+    "description": "Names the moment the replay was armed. It is not a scheduled start time.",
+    "placeholders": {
       "time": {
         "type": "String"
       }
     }
   },
-  "replayArmedStationHint": "Replay only reproduces incoming stations; you transmit with your current station settings.",
-  "replayArmedCompactHint": "Mirrors incoming stations only",
-  "@replayArmedCompactHint": {
-    "description": "Short station hint for the compact replay strip."
+  "replayStatusChip": "Replay armed",
+  "@replayStatusChip": {
+    "description": "Short header capsule label for an armed replay."
   },
+  "replayDetailTitle": "Replay details",
+  "replayPanelModeLabel": "Mode",
+  "replayPanelTrigger": "Trigger: replays immediately when you next start training; this is not a scheduled task.",
+  "replayPanelCollapse": "Hide",
+  "undoCancelReplay": "Undo",
+  "startReplay": "Start replay",
+  "replayArmedStationHint": "Replay only reproduces incoming stations; you transmit with your current station settings.",
   "replayLockedHint": "Contest, mode and difficulty are locked until the replay is cancelled.",
   "cancelReplay": "Cancel replay",
   "replayCancelledToast": "Replay cancelled",

@@ -31,8 +31,9 @@ class QsoLogPanel extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              SizedBox(
-                height: 56,
+              ConstrainedBox(
+                // Grows with the text scale instead of clipping the subtitle.
+                constraints: const BoxConstraints(minHeight: 56),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   child: Row(
@@ -40,6 +41,7 @@ class QsoLogPanel extends StatelessWidget {
                       Expanded(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
