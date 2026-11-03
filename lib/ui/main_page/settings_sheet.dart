@@ -1526,52 +1526,59 @@ class _SessionHistoryDialog extends StatelessWidget {
         width: 440,
         child: sessions.isEmpty
             ? Text(l10n.noCompletedSessions)
-            : ListView.separated(
-                shrinkWrap: true,
-                itemCount: sessions.length,
-                separatorBuilder: (_, _) => const Divider(),
-                itemBuilder: (_, index) {
-                  final review = sessions[index];
-                  final accuracy = (review.accuracy * 100).toStringAsFixed(1);
-                  return Semantics(
-                    label: l10n.sessionHistorySemantics(
-                      review.metadata.contestName,
-                      accuracy,
-                    ),
-                    child: ListTile(
-                      enabled: !running,
-                      onTap: () {
-                        final messenger = ScaffoldMessenger.of(context);
-                        // Arming replaces the snapshot only; ordinary settings
-                        // stay exactly as they were until a run really starts.
-                        settings.armReplay(PendingReplay.fromReview(review));
-                        Navigator.pop(context);
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              l10n.replaySeedSnack(
-                                review.metadata.questionSeed,
+            // Keep the tiles' hover/ink feedback inside the scroll viewport;
+            // otherwise it is painted on the dialog's Material and leaks under
+            // the actions row when the last tile is partially scrolled out.
+            : Material(
+                type: MaterialType.transparency,
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: sessions.length,
+                  separatorBuilder: (_, _) => const Divider(),
+                  itemBuilder: (_, index) {
+                    final review = sessions[index];
+                    final accuracy = (review.accuracy * 100).toStringAsFixed(1);
+                    return Semantics(
+                      label: l10n.sessionHistorySemantics(
+                        review.metadata.contestName,
+                        accuracy,
+                      ),
+                      child: ListTile(
+                        enabled: !running,
+                        onTap: () {
+                          final messenger = ScaffoldMessenger.of(context);
+                          // Arming replaces the snapshot only; ordinary
+                          // settings stay exactly as they were until a run
+                          // really starts.
+                          settings.armReplay(PendingReplay.fromReview(review));
+                          Navigator.pop(context);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                l10n.replaySeedSnack(
+                                  review.metadata.questionSeed,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                      title: Text(
-                        '${review.metadata.contestName} · '
-                        '${l10n.trainingModeLabelById(review.metadata.modeId)}',
-                      ),
-                      subtitle: Text(
-                        l10n.sessionHistorySubtitle(
-                          review.qsoCount,
-                          accuracy,
-                          review.qsosPerHour.toStringAsFixed(1),
-                          review.metadata.questionSeed,
+                          );
+                        },
+                        title: Text(
+                          '${review.metadata.contestName} · '
+                          '${l10n.trainingModeLabelById(review.metadata.modeId)}',
                         ),
+                        subtitle: Text(
+                          l10n.sessionHistorySubtitle(
+                            review.qsoCount,
+                            accuracy,
+                            review.qsosPerHour.toStringAsFixed(1),
+                            review.metadata.questionSeed,
+                          ),
+                        ),
+                        trailing: Text(l10n.sessionHistoryScore(review.score)),
                       ),
-                      trailing: Text(l10n.sessionHistoryScore(review.score)),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
       ),
       actions: [
