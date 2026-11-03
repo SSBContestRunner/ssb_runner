@@ -80,19 +80,19 @@ void main() {
     });
   });
 
-  group('ReportMyExchange 收到 CallsignInvalid', () {
-    test('回到可重听的等待提交状态，重试仍有音频', () {
-      final machine = _machineInReportMyExchange();
+  group('ReportMyExchange 收到 ReceiveExchange', () {
+    test('抄错呼号且差异超过阈值时，序号阶段仍重放呼号与序号', () {
+      final machine = _machineInReportMyExchange(submitCall: 'X9ZZZZ');
 
-      final toState = machine.transition(CallsignInvalid());
+      final toState = machine.transition(ReceiveExchange());
 
-      expect(toState, isA<WaitingSubmitCall>());
-      expect((toState as WaitingSubmitCall).audioPlayType, isA<PlayCall>());
-
-      final retried = machine.transition(Retry());
-
-      expect(retried, isA<WaitingSubmitCall>());
-      expect((retried as WaitingSubmitCall).audioPlayType, isA<PlayCall>());
+      expect(toState, isA<WaitingSubmitMyExchange>());
+      final waiting = toState as WaitingSubmitMyExchange;
+      expect(waiting.audioPlayType, isA<PlayCallExchange>());
+      final audio = waiting.audioPlayType as PlayCallExchange;
+      expect(audio.call, 'B100IARU');
+      expect(audio.exchangeToPlay, '59 001');
+      expect(audio.isMe, isFalse);
     });
   });
 
@@ -297,12 +297,12 @@ _machineInWaitingSubmitCall({
 }
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-_machineInReportMyExchange() {
+_machineInReportMyExchange({String submitCall = 'B10'}) {
   return initSingleCallRunStateMachine(
     initialState: ReportMyExchange(
       currentCallAnswer: 'B100IARU',
       currentExchangeAnswer: '59 001',
-      submitCall: 'B10',
+      submitCall: submitCall,
       myExchange: '59 001',
       audioPlayType: NoPlay(),
       isOperateInput: true,

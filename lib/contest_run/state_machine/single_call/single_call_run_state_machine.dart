@@ -434,5 +434,11 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
     );
   }
 
-  return NoPlay();
+  // Even when the operator copied the call wildly wrong, the exchange phase
+  // must still be audible: replay his callsign and serial rather than silence.
+  return PlayCallExchange(
+    call: answerCall,
+    exchange: answerExchange,
+    isMe: false,
+  );
 }
