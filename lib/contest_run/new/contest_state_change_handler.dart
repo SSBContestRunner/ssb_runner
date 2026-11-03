@@ -6,7 +6,6 @@ import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/audio/mix_pileup.dart';
 import 'package:ssb_runner/audio/payload_to_audio.dart';
-import 'package:ssb_runner/common/calculate_list_diff.dart';
 import 'package:ssb_runner/common/concat_bytes.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
@@ -558,15 +557,10 @@ class ContestStateChangeHandler {
     await Future.delayed(Duration(milliseconds: 500));
     if (_disposed || !identical(_stateMachine.currentState, toState)) return;
 
-    final answer = toState.currentCallAnswer;
-    final submit = toState.submitCall;
-
-    if (submit == answer ||
-        shouldRepeatCallsign(answer: answer, submit: submit)) {
-      _stateMachine.transition(ReceiveExchange());
-    } else {
-      _stateMachine.transition(CallsignInvalid());
-    }
+    // A contest simulator is unforgiving: every non-empty submission is a
+    // logged copy. A wrong callsign is not rejected here; it flows through the
+    // QSO and is scored as a busted call, just like a real log check.
+    _stateMachine.transition(ReceiveExchange());
   }
 
   Future<void> _waitAudioNotPlaying() async {

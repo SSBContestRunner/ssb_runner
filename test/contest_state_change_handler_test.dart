@@ -267,6 +267,81 @@ void main() {
     });
   });
 
+  group('Run 抄错呼号：准入放开', () {
+    test('偏差超过阈值仍进入序号阶段，不丢本轮目标', () async {
+      final rig = await _rig(
+        initialState: _reportMyExchange(submitCall: 'X9ZZZZ'),
+      );
+
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      final next = rig.machine.currentState;
+      expect(next, isA<WaitingSubmitMyExchange>());
+      final waiting = next as WaitingSubmitMyExchange;
+      expect(waiting.submitCall, 'X9ZZZZ');
+      expect(waiting.currentCallAnswer, 'B100IARU');
+      expect(waiting.currentExchangeAnswer, '59 001');
+      expect(waiting.audioPlayType, isA<PlayCallExchange>());
+      expect(rig.answers.calls, 0, reason: '本轮目标不能被换成新的 pileup');
+      await rig.dispose();
+    });
+
+    test('错呼号 + 正确序号：按错呼号落库，正确呼号留在 callsignCorrect', () async {
+      final rig = await _rig(
+        initialState: _waitingSubmitMyExchange(submitCall: 'X9ZZZZ'),
+      );
+      rig.input.onExchangeEdit('59 001');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+      expect(rig.machine.currentState, isA<QsoEnd>());
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      final qsos = await rig.database.select(rig.database.qsoTable).get();
+      expect(qsos, hasLength(1));
+      expect(qsos.single.callsign, 'X9ZZZZ');
+      expect(qsos.single.callsignCorrect, 'B100IARU');
+      expect(qsos.single.exchange, '59 001');
+      expect(qsos.single.exchangeCorrect, '59 001');
+      await rig.dispose();
+    });
+
+    test('错呼号 + 错序号：两栏都按抄收值落库', () async {
+      final rig = await _rig(
+        initialState: _waitingSubmitMyExchange(submitCall: 'X9ZZZZ'),
+      );
+      rig.input.onExchangeEdit('59 002');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+      expect(rig.machine.currentState, isA<QsoEnd>());
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      final qsos = await rig.database.select(rig.database.qsoTable).get();
+      expect(qsos, hasLength(1));
+      expect(qsos.single.callsign, 'X9ZZZZ');
+      expect(qsos.single.callsignCorrect, 'B100IARU');
+      expect(qsos.single.exchange, '59 002');
+      expect(qsos.single.exchangeCorrect, '59 001');
+      await rig.dispose();
+    });
+
+    test('F7 重放：AGN + 呼号 + RST + 序号四段，不再静音', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _waitingSubmitMyExchange(submitCall: 'X9ZZZZ'),
+        audioLoader: loader,
+      );
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.agn);
+      expect(rig.machine.currentState, isA<WaitingSubmitMyExchange>());
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      expect(loader.calls, 4, reason: 'AGN、呼号、RST、序号四段');
+      await rig.dispose();
+    });
+  });
+
   group('SpQsoEnd 提交与推进', () {
     test('完整抄收：落库一次并推进到下一台 CQ', () async {
       final rig = await _rig(
@@ -1000,6 +1075,43 @@ WaitingSubmitCall _waitingSubmitCall(String callAnswer) {
   return WaitingSubmitCall(
     currentCallAnswer: callAnswer,
     currentExchangeAnswer: '59 002',
+  );
+}
+
+ReportMyExchange _reportMyExchange({
+  String currentCallAnswer = 'B100IARU',
+  String currentExchangeAnswer = '59 001',
+  String submitCall = 'B100IARU',
+}) {
+  return ReportMyExchange(
+    currentCallAnswer: currentCallAnswer,
+    currentExchangeAnswer: currentExchangeAnswer,
+    submitCall: submitCall,
+    myExchange: '001',
+    audioPlayType: PlayCallExchange(
+      call: submitCall,
+      exchange: '001',
+      isMe: true,
+    ),
+    isOperateInput: false,
+  );
+}
+
+WaitingSubmitMyExchange _waitingSubmitMyExchange({
+  String currentCallAnswer = 'B100IARU',
+  String currentExchangeAnswer = '59 001',
+  String submitCall = 'B100IARU',
+}) {
+  return WaitingSubmitMyExchange(
+    currentCallAnswer: currentCallAnswer,
+    currentExchangeAnswer: currentExchangeAnswer,
+    submitCall: submitCall,
+    audioPlayType: PlayCallExchange(
+      call: currentCallAnswer,
+      exchange: currentExchangeAnswer,
+      isMe: false,
+    ),
+    isOperateInput: false,
   );
 }
 
