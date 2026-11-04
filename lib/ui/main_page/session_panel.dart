@@ -12,10 +12,13 @@ import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/settings/settings_readiness.dart';
+import 'package:ssb_runner/training/pending_replay.dart';
+import 'package:ssb_runner/ui/main_page/replay_armed_banner.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_issues_dialog.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
+import 'package:toastification/toastification.dart';
 
 class SessionPanel extends StatelessWidget {
   const SessionPanel({super.key});
@@ -48,7 +51,6 @@ class _SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final settings = context.read<AppSettings>();
     final dxccManager = context.read<DxccManager>();
@@ -71,6 +73,7 @@ class _SessionCard extends StatelessWidget {
                     settings: settings,
                     dxccManager: dxccManager,
                   );
+            final pendingReplay = isRunning ? null : settings.pendingReplay;
 
             return Container(
               decoration: BoxDecoration(
@@ -83,40 +86,12 @@ class _SessionCard extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
-                  SizedBox(
-                    height: 56,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.sessionTitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 1),
-                                Text(
-                                  '${contest.name} · ${options.duration} '
-                                  '${l10n.durationUnit}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                          _StatusChip(isRunning: isRunning, issues: issues),
-                        ],
-                      ),
-                    ),
+                  _SessionHeader(
+                    isRunning: isRunning,
+                    issues: issues,
+                    pendingReplay: pendingReplay,
+                    contestName: contest.name,
+                    duration: options.duration,
                   ),
                   Expanded(
                     child: SingleChildScrollView(
@@ -135,7 +110,11 @@ class _SessionCard extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                    child: _RunSection(isRunning: isRunning, issues: issues),
+                    child: _RunSection(
+                      isRunning: isRunning,
+                      issues: issues,
+                      hasPendingReplay: pendingReplay != null,
+                    ),
                   ),
                 ],
               ),
@@ -147,15 +126,294 @@ class _SessionCard extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.isRunning, required this.issues});
+class _SessionHeader extends StatelessWidget {
+  const _SessionHeader({
+    required this.isRunning,
+    required this.issues,
+    required this.pendingReplay,
+    required this.contestName,
+    required this.duration,
+  });
 
   final bool isRunning;
   final List<SettingsIssue> issues;
+  final PendingReplay? pendingReplay;
+  final String contestName;
+  final int duration;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    final pending = pendingReplay;
+
+    return ConstrainedBox(
+      key: const Key('sessionHeader'),
+      // Grows with the text scale instead of clipping the metadata line.
+      constraints: const BoxConstraints(minHeight: 68),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final available = constraints.maxWidth;
+            final scaler = MediaQuery.textScalerOf(context);
+            final direction = Directionality.of(context);
+            final titleStyle = textTheme.titleMedium;
+            final metaStyle = textTheme.bodySmall;
+
+            // The replay capsule is the only status item that can carry an
+            // extra time label, so it yields first when the title row is tight.
+            var showTime = false;
+            var compactStatus = false;
+            if (pending != null) {
+              final statusWidth = _StatusChip.widthFor(
+                context: context,
+                isRunning: isRunning,
+                issues: issues,
+              );
+              final compactStatusWidth = _StatusChip.compactWidthFor(
+                isRunning: isRunning,
+                issues: issues,
+              );
+              final titleWidth = measureText(
+                l10n.sessionTitle,
+                titleStyle,
+                scaler,
+                direction,
+              );
+              final labelStyle = ReplayStatusCapsule.labelStyleOf(context);
+              final timeStyle = ReplayStatusCapsule.timeStyleOf(context);
+              final capsuleWidth = ReplayStatusCapsule.measureWidth(
+                labelStyle: labelStyle,
+                timeStyle: timeStyle,
+                textScaler: scaler,
+                textDirection: direction,
+                label: l10n.replayStatusChip,
+              );
+              final capsuleTimeWidth = ReplayStatusCapsule.measureWidth(
+                labelStyle: labelStyle,
+                timeStyle: timeStyle,
+                textScaler: scaler,
+                textDirection: direction,
+                label: l10n.replayStatusChip,
+                time: formatReplayArmedTimeOnly(context, pending.armedAtUtc),
+              );
+              final budget = available - 2;
+              if (titleWidth + 8 + statusWidth + 6 + capsuleTimeWidth <=
+                  budget) {
+                showTime = true;
+              } else if (titleWidth + 8 + statusWidth + 6 + capsuleWidth >
+                  budget) {
+                // The label is the least critical part of the readiness chip:
+                // keep the icon, its tooltip and its tap target instead of
+                // ellipsising the session title.
+                compactStatus = true;
+              }
+              // If even the compact chip cannot fit, the title ellipsises as
+              // the last resort rather than hiding a state the operator needs.
+              compactStatus =
+                  compactStatus ||
+                  titleWidth + 8 + compactStatusWidth + 6 + capsuleWidth >
+                      budget;
+            }
+
+            final items = <_HeaderItem, String>{
+              _HeaderItem.contest: pending == null
+                  ? contestName
+                  : replayContestLabel(pending),
+              if (pending != null)
+                _HeaderItem.mode: replayModeLabel(l10n, pending),
+              if (pending != null)
+                _HeaderItem.difficulty: replayDifficultyLabel(l10n, pending),
+              _HeaderItem.duration: '$duration ${l10n.durationUnit}',
+            };
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.sessionTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _StatusChip(
+                      isRunning: isRunning,
+                      issues: issues,
+                      compact: compactStatus,
+                    ),
+                    if (pending != null) ...[
+                      const SizedBox(width: 6),
+                      ReplayStatusCapsule(
+                        pending: pending,
+                        duration: duration,
+                        showTime: showTime,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 1),
+                _HeaderMetadataLine(
+                  items: items,
+                  style: metaStyle,
+                  maxWidth: available,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Header facts with whole-item hiding.
+///
+/// Items are measured with the same text style they render with and removed in
+/// priority order, so a narrow card never shows an ellipsis or an orphaned
+/// separator. Duration goes first (the timer and progress bar already repeat
+/// it), then the contest name (the card subtitle owns it), then difficulty,
+/// leaving mode last because it decides how the session behaves.
+enum _HeaderItem { contest, mode, difficulty, duration }
+
+class _HeaderMetadataLine extends StatelessWidget {
+  const _HeaderMetadataLine({
+    required this.items,
+    required this.style,
+    required this.maxWidth,
+  });
+
+  final Map<_HeaderItem, String> items;
+  final TextStyle? style;
+  final double maxWidth;
+
+  static const _hideOrder = [
+    _HeaderItem.duration,
+    _HeaderItem.contest,
+    _HeaderItem.difficulty,
+    _HeaderItem.mode,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    final separatorWidth = measureText(' · ', style, scaler, direction);
+    final hidden = <_HeaderItem>{};
+
+    double totalWidth() {
+      final visible = items.keys.where((key) => !hidden.contains(key)).toList();
+      if (visible.isEmpty) return 0;
+      var width = separatorWidth * (visible.length - 1);
+      for (final key in visible) {
+        width += measureText(items[key]!, style, scaler, direction);
+      }
+      return width;
+    }
+
+    for (final key in _hideOrder) {
+      if (totalWidth() <= maxWidth - 2) break;
+      if (items.containsKey(key)) hidden.add(key);
+    }
+
+    final visible = items.entries
+        .where((entry) => !hidden.contains(entry.key))
+        .toList();
+
+    return Row(
+      key: const Key('sessionHeaderMetadata'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var index = 0; index < visible.length; index++) ...[
+          if (index > 0) Text(' · ', maxLines: 1, style: style),
+          Text(visible[index].value, maxLines: 1, style: style),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.isRunning,
+    required this.issues,
+    this.compact = false,
+  });
+
+  final bool isRunning;
+  final List<SettingsIssue> issues;
+
+  /// Drops the label (keeping the icon, tooltip, semantics and tap target) when
+  /// the header row also has to fit the replay capsule.
+  final bool compact;
+
+  static String labelFor(
+    BuildContext context, {
+    required bool isRunning,
+    required List<SettingsIssue> issues,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final isPending = !isRunning && issues.isNotEmpty;
+    return isPending
+        ? l10n.sessionStatusPending(issues.length)
+        : isRunning
+        ? l10n.sessionStatusRunning
+        : l10n.sessionStatusReady;
+  }
+
+  static String semanticsLabelFor(
+    BuildContext context, {
+    required bool isRunning,
+    required List<SettingsIssue> issues,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final isPending = !isRunning && issues.isNotEmpty;
+    return isPending
+        ? l10n.readinessIncomplete(issues.length)
+        : isRunning
+        ? l10n.sessionStatusRunning
+        : l10n.sessionStatusReady;
+  }
+
+  static double _indicatorWidth({
+    required bool isRunning,
+    required List<SettingsIssue> issues,
+  }) => isRunning || issues.isNotEmpty ? 7 : 14;
+
+  static double widthFor({
+    required BuildContext context,
+    required bool isRunning,
+    required List<SettingsIssue> issues,
+  }) {
+    final style = Theme.of(
+      context,
+    ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600);
+    return 10 +
+        _indicatorWidth(isRunning: isRunning, issues: issues) +
+        6 +
+        measureText(
+          labelFor(context, isRunning: isRunning, issues: issues),
+          style,
+          MediaQuery.textScalerOf(context),
+          Directionality.of(context),
+        ) +
+        10;
+  }
+
+  static double compactWidthFor({
+    required bool isRunning,
+    required List<SettingsIssue> issues,
+  }) => 20 + _indicatorWidth(isRunning: isRunning, issues: issues);
+
+  @override
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final semantic = context.semanticColors;
 
@@ -174,13 +432,14 @@ class _StatusChip extends StatelessWidget {
         // onPrimaryContainer role.
         : scheme.primary;
 
-    final semanticsLabel = isPending
-        ? l10n.readinessIncomplete(issues.length)
-        : isRunning
-        ? l10n.sessionStatusRunning
-        : l10n.sessionStatusReady;
+    final semanticsLabel = semanticsLabelFor(
+      context,
+      isRunning: isRunning,
+      issues: issues,
+    );
+    final label = labelFor(context, isRunning: isRunning, issues: issues);
 
-    return SizedBox(
+    final chip = SizedBox(
       height: 40,
       child: Center(
         widthFactor: 1,
@@ -217,18 +476,16 @@ class _StatusChip extends StatelessWidget {
                       )
                     else
                       Icon(Icons.check_rounded, size: 14, color: foreground),
-                    const SizedBox(width: 6),
-                    Text(
-                      isRunning
-                          ? l10n.sessionStatusRunning
-                          : isPending
-                          ? l10n.sessionStatusPending(issues.length)
-                          : l10n.sessionStatusReady,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w600,
+                    if (!compact) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -237,6 +494,9 @@ class _StatusChip extends StatelessWidget {
         ),
       ),
     );
+
+    if (!compact) return chip;
+    return Tooltip(message: label, child: chip);
   }
 }
 
@@ -296,12 +556,14 @@ class _TimerBlock extends StatelessWidget {
                   children: [
                     Text(
                       '${l10n.elapsedLabel} ${formatDuration(elapsed)}',
+                      key: const Key('timerElapsedLabel'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: metaStyle,
                     ),
                     Text(
                       '${l10n.remainingLabel} ${formatDuration(remaining)}',
+                      key: const Key('timerRemainingLabel'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: metaStyle,
@@ -603,16 +865,25 @@ class _SideStat extends StatelessWidget {
 /// shared by the status chip and the start button, so clicking start always
 /// explains the same set of blockers the chip is showing.
 class _RunSection extends StatelessWidget {
-  const _RunSection({required this.isRunning, required this.issues});
+  const _RunSection({
+    required this.isRunning,
+    required this.issues,
+    required this.hasPendingReplay,
+  });
 
   final bool isRunning;
   final List<SettingsIssue> issues;
+  final bool hasPendingReplay;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _RunButton(isRunning: isRunning, issues: issues),
+        _RunButton(
+          isRunning: isRunning,
+          issues: issues,
+          hasPendingReplay: hasPendingReplay,
+        ),
         const SizedBox(height: 8),
         _RunNote(isRunning: isRunning),
       ],
@@ -621,10 +892,15 @@ class _RunSection extends StatelessWidget {
 }
 
 class _RunButton extends StatelessWidget {
-  const _RunButton({required this.isRunning, required this.issues});
+  const _RunButton({
+    required this.isRunning,
+    required this.issues,
+    required this.hasPendingReplay,
+  });
 
   final bool isRunning;
   final List<SettingsIssue> issues;
+  final bool hasPendingReplay;
 
   @override
   Widget build(BuildContext context) {
@@ -645,18 +921,42 @@ class _RunButton extends StatelessWidget {
             context,
           ).textTheme.labelLarge?.copyWith(fontSize: 15, letterSpacing: 0.5),
         ),
-        onPressed: () {
+        onPressed: () async {
           if (!isRunning && issues.isNotEmpty) {
             showSettingsIssuesDialog(context, issues: issues);
             return;
           }
-          context.read<_RunBtnCubit>().toggle();
+          final manager = context.read<ContestManager>();
+          if (isRunning) {
+            manager.stopContest();
+            return;
+          }
+          final result = await manager.startContest();
+          if (!context.mounted) return;
+          // An abandoned replay started a fresh session instead; say so
+          // explicitly rather than silently changing what RUN did.
+          if (result.started && result.abortedReason != null) {
+            toastification.show(
+              title: Text(
+                l10n.replayAbortedToast(result.replayContestName ?? '—'),
+              ),
+              autoCloseDuration: const Duration(seconds: 3),
+              type: ToastificationType.warning,
+              style: ToastificationStyle.fillColored,
+            );
+          }
         },
         icon: Icon(
           isRunning ? Icons.stop_circle_outlined : Icons.play_arrow,
           size: 20,
         ),
-        label: Text(isRunning ? l10n.stopTraining : l10n.startTraining),
+        label: Text(
+          isRunning
+              ? l10n.stopTraining
+              : hasPendingReplay
+              ? l10n.startReplay
+              : l10n.startTraining,
+        ),
       ),
     );
   }
@@ -823,21 +1123,11 @@ class _QsoSpeedCubit extends Cubit<double?> {
 }
 
 class _RunBtnCubit extends Cubit<bool> {
-  final ContestManager _contestManager;
   late final StreamSubscription<bool> _subscription;
 
   _RunBtnCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super(contestManager.isContestRunning) {
+    : super(contestManager.isContestRunning) {
     _subscription = contestManager.isContestRunningStream.listen(emit);
-  }
-
-  void toggle() {
-    if (state) {
-      _contestManager.stopContest();
-    } else {
-      _contestManager.startContest();
-    }
   }
 
   @override

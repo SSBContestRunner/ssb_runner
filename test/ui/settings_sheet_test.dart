@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' hide isNull;
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +14,8 @@ import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
+import 'package:ssb_runner/training/pending_replay.dart';
+import 'package:ssb_runner/training/training_profile.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_sheet.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
@@ -253,6 +255,112 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('CQ WPX rules'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets(
+    'an armed replay locks contest controls and cancelling restores them',
+    (tester) async {
+      final harness = await _pumpSheet(
+        tester,
+        configure: (settings) {
+          settings
+            ..contestId = 'CQ-WW-SSB'
+            ..stationCallsign = 'BI1QJQ'
+            ..contestDuration = 30
+            ..setStationExchangeValue('CQ-WW-SSB', 'cqZone', '5');
+          settings.armReplay(
+            PendingReplay(
+              runId: 'wpx-run',
+              contestId: 'CQ-WPX',
+              contestName: 'CQ WPX',
+              modeId: 'run',
+              difficultyId: 'standard',
+              questionSeed: 42,
+              audioSeed: 43,
+              armedAtUtc: DateTime.utc(2026, 1, 1, 10, 30),
+            ),
+          );
+        },
+      );
+
+      expect(find.text('Replay armed'), findsOneWidget);
+      expect(find.textContaining('Replaying CQ WPX'), findsOneWidget);
+      expect(
+        tester
+            .widget<DropdownMenu<String>>(find.byType(DropdownMenu<String>))
+            .enabled,
+        isFalse,
+      );
+
+      await _openTab(tester, 'Training');
+      expect(
+        tester
+            .widget<SegmentedButton<TrainingMode>>(
+              find.byType(SegmentedButton<TrainingMode>),
+            )
+            .onSelectionChanged,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<DropdownMenu<TrainingDifficulty>>(
+              find.byType(DropdownMenu<TrainingDifficulty>),
+            )
+            .enabled,
+        isFalse,
+      );
+
+      await tester.tap(find.text('Cancel replay'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Replay armed'), findsNothing);
+      expect(harness.settings.pendingReplay, isNull);
+      expect(harness.settings.contestId, 'CQ-WW-SSB');
+
+      await _openTab(tester, 'Contest & station');
+      expect(
+        tester
+            .widget<DropdownMenu<String>>(find.byType(DropdownMenu<String>))
+            .enabled,
+        isTrue,
+      );
+      await _openTab(tester, 'Training');
+      expect(
+        tester
+            .widget<SegmentedButton<TrainingMode>>(
+              find.byType(SegmentedButton<TrainingMode>),
+            )
+            .onSelectionChanged,
+        isNotNull,
+      );
+
+      // Let the cancellation toast (and its undo offer) close before the test
+      // ends.
+      await tester.pump(const Duration(seconds: 6));
+      expect(tester.takeException(), isNull);
+      harness.dispose();
+    },
+  );
+
+  testWidgets('past sessions are disabled while a session runs', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(tester, running: true);
+    await _openTab(tester, 'System');
+
+    expect(
+      find.text("Past sessions can't be opened while a session runs."),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Past sessions'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('No completed sessions yet.'), findsNothing);
 
     expect(tester.takeException(), isNull);
     harness.dispose();

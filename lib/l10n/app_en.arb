@@ -205,7 +205,7 @@
   "phaseHintListening": "Listening — copy his call, then Enter",
   "phaseHintCallNotCopied": "Call not copied — F5 to submit, F7 to repeat",
   "phaseHintHeWantsSerial": "He wants his serial — type it, Enter to send; F1 abandons this round",
-  "phaseHintReportSent": "Your report is sent — type his serial, then Enter; F5/F7 repeats",
+  "phaseHintReportSent": "Your report is sent — type his serial, then Enter; F5/F7 repeats (a mis-copied call is logged as copied)",
   "phaseHintSendingReport": "Sending your report…",
   "phaseHintQsoComplete": "QSO complete — starting the next one",
   "phaseHintSpListening": "Listening — Enter to pounce, F1 for another CQ",
@@ -291,7 +291,7 @@
       }
     }
   },
-  "contestRulesCqWpx": "You send: 59 + 3-digit serial number\nThey send: callsign + serial number\nLog: callsign + serial number; both must be correct to score",
+  "contestRulesCqWpx": "You send: 59 + serial number\nThey send: callsign + serial number\nLog: callsign + serial number; both must be correct to score",
   "contestRulesCqWw": "You send: 59 + CQ zone\nThey send: callsign + CQ zone\nLog: callsign + CQ zone",
   "contestRulesArrlDx": "You send: W/VE - 59 + state/province; DX - 59 + power in watts\nThey send: matching their own role\nLog: callsign + state/province or power",
   "contestRulesIaruHf": "You send: 59 + ITU zone\nThey send: callsign + ITU zone\nLog: callsign + ITU zone",
@@ -411,5 +411,53 @@
         "type": "String"
       }
     }
-  }
+  },
+  "hintNothingToSend": "Nothing to send right now",
+  "replayArmedTitle": "Replay armed",
+  "replayArmedDetail": "Replaying {contest} · {mode} · {difficulty}",
+  "@replayArmedDetail": {
+    "placeholders": {
+      "contest": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      },
+      "difficulty": {
+        "type": "String"
+      }
+    }
+  },
+  "replayArmedAt": "Armed at {time}",
+  "@replayArmedAt": {
+    "description": "Names the moment the replay was armed. It is not a scheduled start time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "replayStatusChip": "Replay armed",
+  "@replayStatusChip": {
+    "description": "Short header capsule label for an armed replay."
+  },
+  "replayDetailTitle": "Replay details",
+  "replayPanelModeLabel": "Mode",
+  "replayPanelTrigger": "Trigger: replays immediately when you next start training; this is not a scheduled task.",
+  "replayPanelCollapse": "Hide",
+  "undoCancelReplay": "Undo",
+  "startReplay": "Start replay",
+  "replayArmedStationHint": "Replay only reproduces incoming stations; you transmit with your current station settings.",
+  "replayLockedHint": "Contest, mode and difficulty are locked until the replay is cancelled.",
+  "cancelReplay": "Cancel replay",
+  "replayCancelledToast": "Replay cancelled",
+  "replayAbortedToast": "Replay of {contest} could not start; a new session uses your current settings.",
+  "@replayAbortedToast": {
+    "placeholders": {
+      "contest": {
+        "type": "String"
+      }
+    }
+  },
+  "pastSessionsUnavailableWhileRunning": "Past sessions can't be opened while a session runs."
 }

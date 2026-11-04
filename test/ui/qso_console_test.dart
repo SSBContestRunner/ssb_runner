@@ -33,6 +33,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:toastification/toastification.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -401,6 +402,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('分号键在该阶段无效时给出一条轻提示', (tester) async {
+    final harness = await _createHarness();
+    final ignoredController = StreamController<OperationEvent>.broadcast();
+    addTearDown(ignoredController.close);
+    final manager = _RunningContestManager(
+      contestDataManager: harness.dataManager,
+      runningManager: _FakeRunningManager(
+        ignoredShortcutStream: ignoredController.stream,
+      ),
+    );
+    await _pumpConsole(
+      tester,
+      harness,
+      manager: manager,
+      withToastOverlay: true,
+    );
+    // 让 cubit 先绑定到运行中的 manager 与它的忽略流。
+    await tester.pump();
+
+    ignoredController.add(OperationEvent.hisCallAndMyExchange);
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nothing to send right now'), findsOneWidget);
+
+    // 让 toast 自动关闭并播完退场动画，避免留下未完成的计时器。
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the lock is disabled while a session runs', (tester) async {
     final harness = await _createHarness();
     final manager = _RunningContestManager(
@@ -489,7 +521,15 @@ class _RunningContestManager extends ContestManager {
 }
 
 /// The only members [QsoConsoleCubit] touches while it binds to a session.
-class _FakeRunningManager implements ContestRunningManager {
+class _FakeRunningManager
+    with WidgetsBindingObserver
+    implements ContestRunningManager {
+  _FakeRunningManager({Stream<OperationEvent>? ignoredShortcutStream})
+    : _ignoredShortcutStream =
+          ignoredShortcutStream ?? const Stream<OperationEvent>.empty();
+
+  final Stream<OperationEvent> _ignoredShortcutStream;
+
   @override
   final String runId = 'test-run';
 
@@ -506,6 +546,9 @@ class _FakeRunningManager implements ContestRunningManager {
   @override
   Stream<SingleCallRunState> get stateStream =>
       Stream<SingleCallRunState>.empty();
+
+  @override
+  Stream<OperationEvent> get ignoredShortcutStream => _ignoredShortcutStream;
 
   @override
   ContestOperationEventHandler get contestOperationEventHandler =>
@@ -525,7 +568,7 @@ class _FakeOperationHandler implements ContestOperationEventHandler {
   Stream<int> get inputControlStream => Stream<int>.empty();
 
   @override
-  Future<void> handleOperationEvent(OperationEvent event) async {}
+  Future<bool> handleOperationEvent(OperationEvent event) async => true;
 
   @override
   void handleInputAreaEvent() {}
@@ -583,6 +626,7 @@ Future<void> _pumpConsole(
   double consoleWidth = 874,
   ContestManager? manager,
   QsoRecordListCubit? recordListCubit,
+  bool withToastOverlay = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, 720);
@@ -591,60 +635,58 @@ Future<void> _pumpConsole(
 
   final contestManager =
       manager ?? ContestManager(contestDataManager: harness.dataManager);
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.light,
-      locale: const Locale('en'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: MultiRepositoryProvider(
+  final app = MaterialApp(
+    theme: AppTheme.light,
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(
+      body: MultiRepositoryProvider(
+        providers: [
+          RepositoryProvider<AppSettings>.value(value: harness.settings),
+          RepositoryProvider<ContestManager>.value(value: contestManager),
+          RepositoryProvider<DxccManager>.value(
+            value: harness.dataManager.dxccManager,
+          ),
+          RepositoryProvider<ContestInputHandler>.value(
+            value: harness.inputHandler,
+          ),
+        ],
+        child: MultiBlocProvider(
           providers: [
-            RepositoryProvider<AppSettings>.value(value: harness.settings),
-            RepositoryProvider<ContestManager>.value(value: contestManager),
-            RepositoryProvider<DxccManager>.value(
-              value: harness.dataManager.dxccManager,
+            BlocProvider(
+              create: (_) => MainSettingsCubit(contestManager: contestManager),
             ),
-            RepositoryProvider<ContestInputHandler>.value(
-              value: harness.inputHandler,
+            BlocProvider(
+              create: (_) => ContestSettingCubit(appSettings: harness.settings),
+            ),
+            BlocProvider(
+              create: (_) => StationCallsignCubit(appSettings: harness.settings),
+            ),
+            BlocProvider(
+              create: (_) => TrainingOptionsCubit(harness.settings),
+            ),
+            // Mirrors MainPage: the sent-exchange field reads the raw row
+            // count (DUPE included) once a run has started.
+            BlocProvider(
+              create: (context) =>
+                  recordListCubit ??
+                  QsoRecordListCubit(
+                    appDatabase: harness.dataManager.appDatabase,
+                    contestManager: contestManager,
+                  ),
             ),
           ],
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider(
-                create: (_) =>
-                    MainSettingsCubit(contestManager: contestManager),
-              ),
-              BlocProvider(
-                create: (_) =>
-                    ContestSettingCubit(appSettings: harness.settings),
-              ),
-              BlocProvider(
-                create: (_) =>
-                    StationCallsignCubit(appSettings: harness.settings),
-              ),
-              BlocProvider(
-                create: (_) => TrainingOptionsCubit(harness.settings),
-              ),
-              // Mirrors MainPage: the sent-exchange field reads the raw row
-              // count (DUPE included) once a run has started.
-              BlocProvider(
-                create: (context) =>
-                    recordListCubit ??
-                    QsoRecordListCubit(
-                      appDatabase: harness.dataManager.appDatabase,
-                      contestManager: contestManager,
-                    ),
-              ),
-            ],
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(width: consoleWidth, child: const QsoConsole()),
-            ),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(width: consoleWidth, child: const QsoConsole()),
           ),
         ),
       ),
     ),
+  );
+  await tester.pumpWidget(
+    withToastOverlay ? ToastificationWrapper(child: app) : app,
   );
   await tester.pump();
 }

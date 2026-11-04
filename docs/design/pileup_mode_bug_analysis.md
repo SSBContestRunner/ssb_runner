@@ -175,7 +175,7 @@ if (run != null && contestType != null) {
    `WaitingSubmitCall` 会一直重挂 10 秒 `Retry` 定时器，于是出现日志里"每 10 秒空转、无音频"的循环。
 
 4. 同一条死路的另两个入口：
-   - [single_call_run_state_machine.dart#L241-L251](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/lib/contest_run/state_machine/single_call/single_call_run_state_machine.dart#L241-L251) `CallsignInvalid` 显式 `NoPlay`；
+   - ~~`CallsignInvalid` 显式 `NoPlay`~~（该事件已在 0.2.1-alpha03 移除，见 §3.3）；
    - [single_call_run_state_machine.dart#L148-L183](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/lib/contest_run/state_machine/single_call/single_call_run_state_machine.dart#L148-L183) `HeRepeatCorrectCallAnswer` 差异过大时也落到 `NoPlay`，并且**连 `pileupCallsigns` 都丢了**（构造时未传，回落成 `const []`，见 [single_call_run_state.dart#L5-L36](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/lib/contest_run/state_machine/single_call/single_call_run_state.dart#L5-L36)）。
 
 > 对操作员的影响：抄错一次之后，这一题再也听不到呼号（无法靠 AGN 重听），也看不到任何反馈，只能凭记忆猜中正确呼号才能继续 —— 即"卡住"。
@@ -270,7 +270,7 @@ definition.on(Retry, (state, event) {
 **B. 抄错要有反馈**：现实中喊错呼号，对方不会应答，会继续呼叫。所以
 - `WaitingSubmitCall` 抄错且超出阈值 → 回到"重发"分支（继续重放呼号 / pileup），不再静音；
 - `HeRepeatCorrectCallAnswer` 差异过大 → 留在重发状态（并补传 `pileupCallsigns`），不要掉到 `NoPlay`；
-- `CallsignInvalid` → 同样回到"可重听"的 `WaitingSubmitCall`（默认音频）。
+- ~~`CallsignInvalid` → 回到"可重听"的 `WaitingSubmitCall`~~：该路径已在 0.2.1-alpha03 移除，错呼号不再退回重听。
 
 **C. `QsoEnd` 不再硬冻结**：输入为空时也照常推进到下一题；把"输入为空"的拦截放回事件入口（`_handleSubmit`）去挡。
 
@@ -278,8 +278,15 @@ definition.on(Retry, (state, event) {
 
 - 抄错 2 位 → `SubmitCall` → 得到的仍是能产出 `PlayPileup` / `PlayCall` 的状态；
 - 该状态下 `Retry` 必须产出 `PlayPileup` / `PlayCall`（不是 `NoPlay`）；
-- `CallsignInvalid` 后的 `Retry` 同样有音频；
+- ~~`CallsignInvalid` 后的 `Retry` 同样有音频~~（已随 §3.3 改为"错呼号照常进入序号阶段"的用例）；
 - `HeRepeatCorrectCallAnswer` 差异过大后保留 `pileupCallsigns`。
+
+### 3.3 后续调整（0.2.1-alpha03）：抄错呼号不再退回
+
+比赛模拟器里笔误就是错误。`CallsignInvalid` 事件及其转移已删除：
+`_handleReportMyExchange` 对任何非空呼号都发出 `ReceiveExchange`，QSO 正常走完并按抄收值落库；
+log check 阶段呼号不一致按无效处理并扣 2 倍 QSO 分值，交换错误保持 NIL。
+原"错呼号退回 `WaitingSubmitCall`"的行为与用例随之废弃。
 
 ---
 

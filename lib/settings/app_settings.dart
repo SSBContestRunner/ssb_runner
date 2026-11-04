@@ -7,9 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
+import 'package:ssb_runner/contest_run/new/run_plan.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/training/pending_replay.dart';
 import 'package:ssb_runner/training/session_review.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 
@@ -32,6 +34,10 @@ class AppSettings {
   /// changes. Station exchange values are written straight to storage without a
   /// cubit, so the readiness views need their own signal to stay in sync.
   final ValueNotifier<int> settingsRevision = ValueNotifier(0);
+
+  /// Installed by [ContestManager] so arming a replay can be refused while a
+  /// session is already running. AppSettings does not own the manager.
+  bool Function()? contestRunningCheck;
 
   AppSettings({
     required SharedPreferencesWithCache prefs,
@@ -70,6 +76,10 @@ class AppSettings {
       _prefs.getString(_settingContestId) ?? ContestRegistry.all.first.id;
 
   set contestId(String value) {
+    if (_hasArmedReplay) {
+      _rejectArmedWrite(_settingContestId, value);
+      return;
+    }
     _prefs.setString(_settingContestId, value);
     _bumpSettingsRevision();
   }
@@ -78,6 +88,10 @@ class AppSettings {
       _prefs.getString(_settingContestMode) ?? TrainingMode.run.id;
 
   set contestModeId(String value) {
+    if (_hasArmedReplay) {
+      _rejectArmedWrite(_settingContestMode, value);
+      return;
+    }
     _prefs.setString(_settingContestMode, value);
     _bumpSettingsRevision();
   }
@@ -129,20 +143,30 @@ class AppSettings {
   PhonicType get phonicType =>
       _parsePhonicType(_prefs.getInt(_settingPhonicType));
 
-  set phonicType(PhonicType value) =>
-      _prefs.setInt(_settingPhonicType, value.index);
+  set phonicType(PhonicType value) {
+    _prefs.setInt(_settingPhonicType, value.index);
+    _bumpSettingsRevision();
+  }
 
   IncomingAccent get incomingAccent =>
       IncomingAccent.fromId(_prefs.getString(_settingIncomingAccent));
 
-  set incomingAccent(IncomingAccent value) =>
-      _prefs.setString(_settingIncomingAccent, value.id);
+  set incomingAccent(IncomingAccent value) {
+    _prefs.setString(_settingIncomingAccent, value.id);
+    _bumpSettingsRevision();
+  }
 
   TrainingDifficulty get difficulty =>
       TrainingDifficulty.fromId(_prefs.getString(_settingDifficulty));
 
-  set difficulty(TrainingDifficulty value) =>
-      _prefs.setString(_settingDifficulty, value.id);
+  set difficulty(TrainingDifficulty value) {
+    if (_hasArmedReplay) {
+      _rejectArmedWrite(_settingDifficulty, value.id);
+      return;
+    }
+    _prefs.setString(_settingDifficulty, value.id);
+    _bumpSettingsRevision();
+  }
 
   /// Effects only affect incoming stations; the operator's own CQ and messages
   /// remain clear.
@@ -295,16 +319,130 @@ class AppSettings {
     return 'q$question / a$audio';
   }
 
-  /// Run id whose recorded event log should be replayed by the next session.
-  String? get pendingReplayRunId =>
-      _prefs.getString(_settingPendingReplayRunId);
-
-  set pendingReplayRunId(String? value) {
-    if (value == null) {
-      _prefs.remove(_settingPendingReplayRunId);
-    } else {
-      _prefs.setString(_settingPendingReplayRunId, value);
+  /// The next session's replay snapshot (design §7.1/§7.2).
+  ///
+  /// If the v2 key is absent, the legacy `pendingReplayRunId` is assembled
+  /// from the matching session-history entry. A run id without history stays
+  /// explicitly unknown; the resolver aborts instead of guessing.
+  PendingReplay? get pendingReplay {
+    final raw = _prefs.getString(_settingPendingReplayV2);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          return PendingReplay.fromJson(decoded);
+        }
+      } catch (error) {
+        log.warn(
+          'unreadable pending replay snapshot',
+          tag: 'settings',
+          fields: {'error': '$error'},
+        );
+      }
     }
+    return _pendingReplayFromLegacy();
+  }
+
+  PendingReplay? _pendingReplayFromLegacy() {
+    final runId = _prefs.getString(_settingPendingReplayRunId);
+    if (runId == null || runId.isEmpty) return null;
+    for (final review in sessionHistory) {
+      if (review.metadata.runId == runId) {
+        return PendingReplay.fromReview(review, armedAtUtc: review.endedAt);
+      }
+    }
+    // The resolver reports this once at run start; logging here would fire on
+    // every UI rebuild because the snapshot is read during layout.
+    return PendingReplay(
+      runId: runId,
+      contestId: unknownReplayField,
+      contestName: unknownReplayField,
+      modeId: unknownReplayField,
+      difficultyId: unknownReplayField,
+      questionSeed: 0,
+      audioSeed: 0,
+      armedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
+
+  /// Arms the next-session replay without touching the ordinary settings.
+  /// Cancelling or a failed start therefore leaves the operator exactly where
+  /// they were before arming.
+  void armReplay(PendingReplay replay) {
+    if (contestRunningCheck?.call() ?? false) {
+      log.warn(
+        'settings.replay',
+        tag: 'settings',
+        fields: {'action': 'rejected-running', 'runId': replay.runId},
+      );
+      return;
+    }
+    final replacing = pendingReplay != null;
+    _prefs.setString(_settingPendingReplayV2, replay.encode());
+    _prefs.remove(_settingPendingReplayRunId);
+    _bumpSettingsRevision();
+    log.info(
+      'settings.replay',
+      tag: 'settings',
+      fields: {
+        'action': replacing ? 'replace' : 'arm',
+        'runId': replay.runId,
+        'contestId': replay.contestId,
+        'modeId': replay.modeId,
+        'difficultyId': replay.difficultyId,
+      },
+    );
+  }
+
+  void clearPendingReplay() {
+    final armed = pendingReplay != null;
+    _prefs.remove(_settingPendingReplayV2);
+    _prefs.remove(_settingPendingReplayRunId);
+    _bumpSettingsRevision();
+    if (armed) {
+      log.info(
+        'settings.replay',
+        tag: 'settings',
+        fields: {'action': 'cancel'},
+      );
+    }
+  }
+
+  /// Commits a verified run plan immediately before the session starts. This
+  /// is the only place arming turns into ordinary settings; one revision bump
+  /// covers the three values and the cleared snapshot.
+  void commitRunSpec(RunPlan plan) {
+    _prefs
+      ..setString(_settingContestId, plan.contestId)
+      ..setString(_settingContestMode, plan.modeId)
+      ..setString(_settingDifficulty, plan.difficultyId)
+      ..remove(_settingPendingReplayV2)
+      ..remove(_settingPendingReplayRunId);
+    _bumpSettingsRevision();
+  }
+
+  /// Values displayed on standby. An armed replay wins so the whole UI shows
+  /// the session that is about to run; they are not used while a run is live.
+  String get effectiveContestId {
+    final replay = pendingReplay;
+    if (replay != null && replay.hasKnownContest) {
+      return ContestRegistry.canonicalId(replay.contestId) ?? replay.contestId;
+    }
+    return contestId;
+  }
+
+  String get effectiveModeId {
+    final replay = pendingReplay;
+    if (replay != null && replay.hasKnownMode) return replay.modeId;
+    return contestModeId;
+  }
+
+  String get effectiveDifficultyId {
+    final replay = pendingReplay;
+    if (replay != null && replay.hasKnownDifficulty) {
+      return replay.difficultyId;
+    }
+    return difficulty.id;
   }
 
   bool get lockQuestionSeed =>
@@ -333,6 +471,20 @@ class AppSettings {
   }
 
   void _bumpSettingsRevision() => settingsRevision.value++;
+
+  /// Cheap lock check used by the setters: the snapshot is read on every
+  /// layout pass, so avoiding the full parse here keeps rebuilds cheap.
+  bool get _hasArmedReplay =>
+      (_prefs.getString(_settingPendingReplayV2)?.isNotEmpty ?? false) ||
+      (_prefs.getString(_settingPendingReplayRunId)?.isNotEmpty ?? false);
+
+  void _rejectArmedWrite(String key, String value) {
+    log.warn(
+      'setting write rejected while a replay is armed',
+      tag: 'settings',
+      fields: {'key': key, 'value': value},
+    );
+  }
 
   int _limitContestDuration(int durationInMinutes) {
     return min(durationInMinutes, maxDurationInMinutesPerRun);
@@ -375,6 +527,7 @@ const _settingAudioSeed = 'setting_audio_seed';
 const _settingPendingQuestionSeed = 'setting_pending_question_seed';
 const _settingPendingAudioSeed = 'setting_pending_audio_seed';
 const _settingPendingReplayRunId = 'setting_pending_replay_run_id';
+const _settingPendingReplayV2 = 'setting_pending_replay_v2';
 const _settingLockQuestionSeed = 'setting_lock_question_seed';
 const _settingLockAudioSeed = 'setting_lock_audio_seed';
 

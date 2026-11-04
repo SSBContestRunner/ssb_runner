@@ -22,3 +22,22 @@ final class Penalty extends CorrectnessType {
 
   Penalty({required this.penaltyMultiple});
 }
+
+/// Contest log check: a wrong callsign is NIL plus a fixed QSO-point penalty,
+/// while a wrong exchange is NIL only. Shared so every contest (including
+/// WPX) scores the same categories the same way.
+CorrectnessType calculateLogCheckCorrectness(
+  QsoTableData submitQso, {
+  required int callsignPenaltyMultiple,
+}) {
+  if (submitQso.callsignCorrect == submitQso.callsign &&
+      submitQso.exchange == submitQso.exchangeCorrect) {
+    return Correct();
+  }
+
+  if (submitQso.callsign != submitQso.callsignCorrect) {
+    return Penalty(penaltyMultiple: callsignPenaltyMultiple);
+  }
+
+  return Incorrect();
+}

@@ -261,18 +261,6 @@ initSingleCallRunStateMachine({
         );
       });
 
-      definition.on(CallsignInvalid, (state, event) {
-        state as ReportMyExchange;
-
-        // The copy was rejected: go back to a listening state that replays the
-        // answer instead of one that can never make a sound again.
-        return definition.transitionTo(
-          WaitingSubmitCall(
-            currentCallAnswer: state.currentCallAnswer,
-            currentExchangeAnswer: state.currentExchangeAnswer,
-          ),
-        );
-      });
     });
 
     builder.state(WaitingSubmitMyExchange, (definition) {
@@ -434,5 +422,11 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
     );
   }
 
-  return NoPlay();
+  // Even when the operator copied the call wildly wrong, the exchange phase
+  // must still be audible: replay his callsign and serial rather than silence.
+  return PlayCallExchange(
+    call: answerCall,
+    exchange: answerExchange,
+    isMe: false,
+  );
 }

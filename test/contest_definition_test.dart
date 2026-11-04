@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart' show LazyDatabase;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ssb_runner/common/extract_prefix.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/received_exchange.dart';
+import 'package:ssb_runner/contest_type/score_calculator.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
@@ -84,6 +86,88 @@ void main() {
       );
     }
   });
+  test('every contest charges 2x for a busted call and NIL for a bad exchange',
+      () {
+    final base = QsoTableData(
+      id: 1,
+      utcInSeconds: 1,
+      runId: 'run-1',
+      stationCallsign: 'BI1ABC',
+      callsign: 'JA1ABC',
+      callsignCorrect: 'JA1ABC',
+      exchange: '24',
+      exchangeCorrect: '24',
+    );
+    final bustedCall = base.copyWith(callsign: 'JA1ABX');
+    final bustedBoth = base.copyWith(callsign: 'JA1ABX', exchange: '25');
+    final badExchange = base.copyWith(exchange: '25');
+
+    for (final definition in ContestRegistry.all) {
+      final calculator = _type(definition.id).scoreCalculator;
+
+      expect(
+        calculator.calculateCorrectness(base),
+        isA<Correct>(),
+        reason: definition.id,
+      );
+      final callResult = calculator.calculateCorrectness(bustedCall);
+      expect(callResult, isA<Penalty>(), reason: definition.id);
+      expect(
+        (callResult as Penalty).penaltyMultiple,
+        2,
+        reason: definition.id,
+      );
+      final bothResult = calculator.calculateCorrectness(bustedBoth);
+      expect(bothResult, isA<Penalty>(), reason: definition.id);
+      expect(
+        (bothResult as Penalty).penaltyMultiple,
+        2,
+        reason: definition.id,
+      );
+      expect(
+        calculator.calculateCorrectness(badExchange),
+        isA<Incorrect>(),
+        reason: definition.id,
+      );
+    }
+  });
+
+  test('unknown prefixes and DXCC ids cannot add multipliers', () {
+    final qso = QsoTableData(
+      id: 1,
+      utcInSeconds: 1,
+      runId: 'run-1',
+      stationCallsign: 'BI1ABC',
+      callsign: 'JA1ABC',
+      callsignCorrect: 'JA1ABC',
+      exchange: '24',
+      exchangeCorrect: '24',
+    );
+
+    final wpx = _type('CQ-WPX').scoreCalculator;
+    expect(extractPrefix('JA1ABC'), 'JA1');
+    expect(wpx.calculateScore([qso]).multiple, 1);
+    // No extractable prefix: the prefix set must stay empty instead of
+    // counting a blank string as a multiplier.
+    expect(
+      wpx.calculateScore([qso.copyWith(callsign: 'ABCDE')]).multiple,
+      0,
+    );
+
+    final cqww = _type(
+      'CQ-WW-SSB',
+      dxccManager: _FakeDxccManager(dxccId: -1),
+    ).scoreCalculator;
+    // Only the exchange multiplier survives; 'dxcc--1' must not be counted.
+    expect(cqww.calculateScore([qso]).multiple, 1);
+  });
+
+  test('JIDX states that its penalty is a training convention', () {
+    final notice = ContestRegistry.byId('JIDX-SSB').scoringNotice;
+    expect(notice, contains('no log-check penalty'));
+    expect(notice, contains('2x'));
+  });
+
   test('registry exposes the five common SSB training templates', () {
     expect(
       ContestRegistry.all.map((item) => item.id),

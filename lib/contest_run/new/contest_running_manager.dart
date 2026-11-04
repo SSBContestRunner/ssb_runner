@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
@@ -21,7 +22,7 @@ import 'package:ssb_runner/training/replay_answer_source.dart';
 import 'package:ssb_runner/training/session_random.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 
-class ContestRunningManager {
+class ContestRunningManager with WidgetsBindingObserver {
   final String runId;
   final ContestType _contestType;
   final ContestDataManager _contestDataManager;
@@ -99,6 +100,15 @@ class ContestRunningManager {
     bindings: functionKeysFromSettings(_contestDataManager.appSettings),
   );
 
+  /// Operation events that were recognised but had nothing to do in the
+  /// current phase. The console shows a short hint for them so a dead key
+  /// press never looks like a broken keyboard or input method.
+  final StreamController<OperationEvent> _ignoredShortcutController =
+      StreamController<OperationEvent>.broadcast();
+
+  Stream<OperationEvent> get ignoredShortcutStream =>
+      _ignoredShortcutController.stream;
+
   late final KeyEventCallback _keyEventCallback = _onKeyEvent;
 
   bool _onKeyEvent(KeyEvent event) {
@@ -131,6 +141,7 @@ class ContestRunningManager {
        _onAnswersExhausted = onAnswersExhausted,
        _accentPolicy = accentPolicy {
     _contestDataManager.audioLoader.setSessionRandom(_sessionRandom);
+    WidgetsBinding.instance.addObserver(this);
     _setupStateMachine();
     _setupKeyboardListener();
   }
@@ -197,8 +208,13 @@ class ContestRunningManager {
   }
 
   void _setupKeyboardListener() {
-    _keyEventManager.operationEventStream.listen((event) {
-      contestOperationEventHandler.handleOperationEvent(event);
+    _keyEventManager.operationEventStream.listen((event) async {
+      final handled = await contestOperationEventHandler.handleOperationEvent(
+        event,
+      );
+      if (!handled && !_ignoredShortcutController.isClosed) {
+        _ignoredShortcutController.add(event);
+      }
     });
 
     _keyEventManager.inputAreaEventStream.listen((event) {
@@ -209,7 +225,18 @@ class ContestRunningManager {
     ServicesBinding.instance.keyboard.addHandler(_keyEventCallback);
   }
 
+  /// A key released while the window is inactive never reaches this run, so
+  /// the held-function-key latch is dropped instead of going stale.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      _keyEventManager.resetPressedKeys();
+    }
+  }
+
   void stop() {
+    WidgetsBinding.instance.removeObserver(this);
+    _ignoredShortcutController.close();
     _contestStateChangeHandler.dispose();
     _contestDataManager.audioLoader.setSessionRandom(null);
     _stateMachine.dispose();

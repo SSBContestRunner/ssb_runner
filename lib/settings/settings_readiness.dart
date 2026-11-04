@@ -45,7 +45,9 @@ List<SettingsIssue> checkSettingsReadiness({
   // them would only add noise on top of the callsign issue.
   if (callsign.isEmpty) return issues;
 
-  final definition = ContestRegistry.byId(settings.contestId);
+  // The readiness gate follows the effective contest so an armed replay
+  // validates the station fields of the session that is about to run.
+  final definition = ContestRegistry.byId(settings.effectiveContestId);
   final config = settings.stationExchangeConfig(definition.id);
   final plan = definition.myExchangePlan(
     stationCallsign: callsign,

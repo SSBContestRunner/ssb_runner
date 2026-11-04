@@ -66,11 +66,17 @@ class _ConsoleGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final windowWidth = MediaQuery.sizeOf(context).width;
+    // The session card owns the fixed track on the right; the log column on
+    // the left is Expanded and takes whatever is left. At the 1024 minimum,
+    // the English timer labels need a 362dp card (113.4dp for
+    // "Remaining 00:00:00" plus 12dp slack in its 2/5 share of the row), so
+    // 372 keeps the label intact and shortens the log column instead. The
+    // wider tiers grow the card just enough to stay comfortable.
     final sideWidth = windowWidth <= 1060
-        ? 310.0
+        ? 372.0
         : windowWidth <= 1180
-        ? 332.0
-        : 360.0;
+        ? 384.0
+        : 396.0;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
