@@ -232,7 +232,7 @@ void main() {
     expect(find.text('CQ WPX'), findsWidgets);
     expect(find.text('Replay armed'), findsOneWidget);
     expect(
-      find.textContaining('You send: 59 + 3-digit serial number'),
+      find.textContaining('You send: 59 + serial number'),
       findsOneWidget,
     );
     expect(find.text('001'), findsOneWidget);

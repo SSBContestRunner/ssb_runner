@@ -291,7 +291,7 @@
       }
     }
   },
-  "contestRulesCqWpx": "You send: 59 + 3-digit serial number\nThey send: callsign + serial number\nLog: callsign + serial number; both must be correct to score",
+  "contestRulesCqWpx": "You send: 59 + serial number\nThey send: callsign + serial number\nLog: callsign + serial number; both must be correct to score",
   "contestRulesCqWw": "You send: 59 + CQ zone\nThey send: callsign + CQ zone\nLog: callsign + CQ zone",
   "contestRulesArrlDx": "You send: W/VE - 59 + state/province; DX - 59 + power in watts\nThey send: matching their own role\nLog: callsign + state/province or power",
   "contestRulesIaruHf": "You send: 59 + ITU zone\nThey send: callsign + ITU zone\nLog: callsign + ITU zone",

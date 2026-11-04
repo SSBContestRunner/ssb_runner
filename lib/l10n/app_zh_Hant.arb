@@ -151,7 +151,7 @@
   "contestExchangeJidx": "59 都道府縣 / CQ 分區",
   "contestRulesTooltip": "比賽規則",
   "contestRulesTitle": "{contest} 規則",
-  "contestRulesCqWpx": "我方發送：59 + 3 位序號\n對方發送：呼號 + 序號\n錄入：呼號 + 序號，全部正確才計分",
+  "contestRulesCqWpx": "我方發送：59 + 序號\n對方發送：呼號 + 序號\n錄入：呼號 + 序號，全部正確才計分",
   "contestRulesCqWw": "我方發送：59 + CQ 分區\n對方發送：呼號 + CQ 分區\n錄入：呼號 + CQ 分區",
   "contestRulesArrlDx": "我方發送：W/VE 發 59 + 州/省；DX 發 59 + 功率（瓦）\n對方發送：依對方身份對應\n錄入：呼號 + 州/省 或 功率",
   "contestRulesIaruHf": "我方發送：59 + ITU 分區\n對方發送：呼號 + ITU 分區\n錄入：呼號 + ITU 分區",

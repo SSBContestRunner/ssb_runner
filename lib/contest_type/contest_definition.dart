@@ -94,7 +94,7 @@ class CqWpxDefinition extends ContestDefinition {
   String get scoringNotice => 'Single-band training score; prefix multipliers.';
   @override
   String get rulesSummary =>
-      'You send: 59 + 3-digit serial number\n'
+      'You send: 59 + serial number\n'
       'They send: callsign + serial number\n'
       'Log: callsign + serial number; both must be correct to score';
 
