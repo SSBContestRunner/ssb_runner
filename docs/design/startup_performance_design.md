@@ -3,6 +3,16 @@
 > 状态：待评审
 > 适用范围：桌面端启动路径（Windows / macOS / Linux）
 > 不在范围：第 5 项（代码签名 / 公证）、第 6 项（数据库目录修复。已由其他改动完成：`db/database_bootstrap.dart` + `common/dirs.dart`）
+>
+> **Schema 版本占用**（对照 [`app_database.dart`](../../lib/db/app_database.dart#L11) 的 `_schemaVersion = 6`）：
+>
+> | 版本 | 用途 | 状态 |
+> | --- | --- | --- |
+> | v6 | cty 前缀表缓存失效：`delete(prefixTable).go()`（**清行、保留表**） | 已提交（`10d6ff4`、`a830895`） |
+> | v7 | QSO 语音重放四列（`accentDir` / `phonicType` / `callPhonicDirs` / `exchangePhonicDirs`） | 规划中，未提交 |
+> | v8+ | 未占用；本文 §5.6 阶段 2 若要删除前缀表，必须从 **v8 起** | 未占用 |
+>
+> 本文成稿时 schema 为 v5；下述 schema 描述已按当前代码（`_schemaVersion = 6`）更正，属历史陈述的会单独标注。
 
 ---
 
@@ -364,7 +374,7 @@ PrefixRow? _findMatchPrefixData(String prefix) {
 | --- | --- | --- | --- | --- | --- |
 | 仅编译内数据 | ≈5 ms | ≈5 ms | **不支持**，必须发版 | 支持 | 低 |
 | **A：编译内种子 + DB 快照（本次采用）** | 25–45 ms | 23–95 ms | 支持：下载 → 单事务替换 | 支持（种子回灌） | 中 |
-| B：编译内种子 + 磁盘快照文件 | 5–10 ms | 5–10 ms | 支持：下载 → 临时文件 + 原子 rename | 支持 | 中（需自建原子写 / 校验，并升 v6 删表） |
+| B：编译内种子 + 磁盘快照文件 | 5–10 ms | 5–10 ms | 支持：下载 → 临时文件 + 原子 rename | 支持 | 中（需自建原子写 / 校验，并在未来版本（v8+）删除前缀表） |
 
 **决策：本次实现 A；B 作为后续升级保留，前置钩子与升级路径见 §5.5、§5.6。**
 
@@ -435,7 +445,7 @@ PrefixRow? _findMatchPrefixData(String prefix) {
 
 | | A | B |
 | --- | --- | --- |
-| schema | 保持 v5 | 升 v6：`deleteTable('prefix_table')` |
+| schema | 保持 v6 | 未来升 v8+：`deleteTable(prefixTable)`（真正删表；v6 只是清行） |
 | `DxccManager` 构造 | 保持 `DxccManager(database: ...)` | 去掉 `AppDatabase` 依赖 |
 | Provider / 测试签名 | 不变 | `main_app.dart` + 4 处测试同步修改 |
 | 第 1 项（事务导入） | 需要，且是热更新写入口 | 不再需要（无写库路径） |
@@ -447,7 +457,7 @@ PrefixRow? _findMatchPrefixData(String prefix) {
 #### 5.4.4 长期维护
 
 - **A 的优势**：前缀可进 SQL，将来若要做按 DXCC 统计、前缀编辑等查询有现成载体；事务语义免维护。
-- **A 的代价**：只读参考数据放进用户库，生命周期与 QSO/日志不同，备份、清空历史时要小心；历史上 v3/v4/v5 都靠"清空前缀表"来换数据，schema 演进与数据缓存耦合。
+- **A 的代价**：只读参考数据放进用户库，生命周期与 QSO/日志不同，备份、清空历史时要小心；历史上 v3/v4/v5/v6 都靠"清空前缀表"来换数据（v6 为 20261102 cty.dat 更新，仍是清行、不删表），schema 演进与数据缓存耦合。
 - **B 的优势**：参考数据独立、可自描述版本、可原子替换与单步回滚；启动不受 DB 故障影响；每次启动少 15–85 ms。
 - **B 的代价**：多一套文件生命周期管理，需要自己做校验与原子写；`DxccManager` 与 DB 解耦会牵动测试。
 
@@ -468,7 +478,7 @@ PrefixRow? _findMatchPrefixData(String prefix) {
 
 采用两阶段迁移，避免在 drift `onUpgrade` 内做文件 IO，也避免数据丢失。
 
-**阶段 1（schema 仍为 v5）**：加入文件快照读取，DB 作为一次性导出源。
+**阶段 1（不升 schema）**：加入文件快照读取，DB 作为一次性导出源。实施时沿用当时的当前版本（现为 v6；若 v7 重放已落地则为 v7），不额外占用版本号。
 
 ```text
 // loadDxcc 内，按优先级读取
@@ -479,9 +489,9 @@ PrefixRow? _findMatchPrefixData(String prefix) {
 
 导出使用运行时编码器 `encodePrefixTsv(List<PrefixRow>, version)`（与生成工具同一格式，新增约 20 行）。这一版可独立发版、独立回滚。
 
-**阶段 2（schema v6）**：确认阶段 1 稳定后进行。
+**阶段 2（未来升 v8+；v6 的清缓存语义必须保留）**：确认阶段 1 稳定后进行。
 
-1. `onUpgrade(from < 6)` 执行 `deleteTable('prefix_table')`；
+1. `onUpgrade(from < 8)` 执行 `deleteTable(prefixTable)`（真正删表，区别于 v6 的 `delete(prefixTable).go()` 清行）；**保留 `from < 6` 的清缓存分支**，老库仍须先失效 cty 缓存；
 2. 删除 `PrefixTable`、`_loadSnapshot()`、`replacePrefixes()` 与全部 DB 相关代码；
 3. `DxccManager` 去掉 `AppDatabase` 依赖，修改 `main_app.dart` 的 Provider 与 4 处测试构造；
 4. `db_ready` 从启动关键路径移除，历史库改为按需打开；
@@ -568,6 +578,6 @@ PrefixRow? _findMatchPrefixData(String prefix) {
 
 ## 10. 后续可选（不在本次范围）
 
-- **B 方案升级**：按 §5.6 的两阶段迁移，把前缀快照从 SQLite 移到磁盘文件（首次与后续启动均 ≤ 20 ms，schema v6）。本次已按 §5.5 预留 `_loadSnapshot()` / `replacePrefixes()` 两个存储入口，升级时只替换这两处。
+- **B 方案升级**：按 §5.6 的两阶段迁移，把前缀快照从 SQLite 移到磁盘文件（首次与后续启动均 ≤ 20 ms，需占用 v8+）。本次已按 §5.5 预留 `_loadSnapshot()` / `replacePrefixes()` 两个存储入口，升级时只替换这两处。
 - 第 5 项：macOS Developer ID + 公证、Windows 代码签名。
 - 语音资源打包为单归档，减少首次启动的系统级文件扫描数量。

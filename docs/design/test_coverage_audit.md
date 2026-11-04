@@ -119,7 +119,7 @@ lib/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart       43
   - `eventLogTable` 写入 + 回放读取（完整会话 replay 用例）。
 
 完全缺失的存储测试：
-1. **Schema 迁移**：`schemaVersion 5` 的 v2→v5 升级路径（建表、加列、清前缀表）没有任何测试。重构若调整表结构，这是最容易造成老用户数据丢失的地方。
+1. **Schema 迁移**：当前 `schemaVersion 6`，v2→v6 升级路径（建表、加列、清前缀表）没有任何测试；`test/db/` 不存在，仓库当前**没有** DB/迁移测试。规划覆盖 **v2→v7 / v5→v7 / v6→v7 与全新安装 v7**（v6 = cty 前缀缓存失效，清行不删表；v7 = QSO 重放四列，代码中尚未落地）。重构若调整表结构，这是最容易造成老用户数据丢失的地方。
 2. **启动目录解析**：`ensureDatabaseReady()` 的首选/回退目录、Documents 旧库迁移、迁移失败告警、全部目录不可用时退化为内存库，均未测试；`dirs.dart` 0%。
 3. **文件库持久性**：没有任何测试"写入 → 关闭 → 重新打开 → 数据仍在"；全部使用 `NativeDatabase.memory()`，无法发现关闭/刷盘/路径问题。
 4. **约束与索引**：`QsoTable`/`PrefixTable`/`EventLogTable` 无唯一索引、无外键，去重完全依赖应用层 `qso_duplicates`（应用层测试 100%，但存储层无保险）。重构引入查询优化时缺少基准测试。
@@ -159,7 +159,7 @@ lib/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart       43
 1. 状态 × 事件矩阵补全：Run 模式 F5（`SubmitCallAndHisExchange`）全链路、`ReportMyExchange` 的 `ReceiveExchange`、`WaitingSubmitMyExchange` 的 Retry、S&P 的 Retry/NextCall、无效事件告警分支。
 2. 键盘输入层单测：F1–F8 映射、组合键（仅按下 Enter/Esc/`;`/空格）、按住抑制、KeyUp 复位、自定义键位读取。
 3. 一条完整 `ContestManager` 生命周期测试：start → 多次操作 → stop → 复盘写入 + 历史记录 + event log 落盘（用真实内存 DB）。
-4. DB：v1→v5 迁移测试、`ensureDatabaseReady` 的回退/迁移/不可用路径、文件库"关-开"持久性、历史 JSON 损坏与 30 条上限。
+4. DB：v1→v6（现状）与 v2→v7 / v5→v7 / v6→v7、全新安装 v7 的迁移测试、`ensureDatabaseReady` 的回退/迁移/不可用路径、文件库"关-开"持久性、历史 JSON 损坏与 30 条上限。
 5. 音频资产完整性：遍历所有 `CommonPayload` 文件名与音素资产路径，断言资源存在；对每个状态断言产生的 payload 类型（当前 `_SilentAudioLoader` 把所有音频都静默化，无法发现状态与音频映射错配）。
 
 **P1**
