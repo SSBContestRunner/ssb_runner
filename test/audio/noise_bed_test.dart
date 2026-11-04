@@ -222,6 +222,13 @@ class _FakeNoiseEngine implements AudioEngine {
     noiseBedVolume = volume;
   }
 
+  bool noiseBedPaused = false;
+
+  @override
+  void setNoiseBedPaused(bool paused) {
+    noiseBedPaused = paused;
+  }
+
   @override
   void fadeNoiseBedVolume(double volume, Duration time) {
     bedFades.add((volume: volume, time: time));
@@ -244,6 +251,12 @@ class _FakeSegment implements AudioSegment {
 
   @override
   void start() {}
+
+  @override
+  void pause() {}
+
+  @override
+  void resume() {}
 
   @override
   Future<void> stop() async {}

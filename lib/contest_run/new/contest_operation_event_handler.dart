@@ -61,6 +61,11 @@ class ContestOperationEventHandler {
   /// do with it; the console turns that into a short hint instead of leaving a
   /// dead key press that looks like a broken keyboard.
   Future<bool> handleOperationEvent(OperationEvent event) async {
+    // Paused runs are frozen: report the key as handled so it never reaches the
+    // "ignored shortcut" hint, and change no state.
+    if (_isPaused) {
+      return true;
+    }
     log.debug('operation event', tag: 'contest', fields: {'event': event.name});
 
     // The combined "his call + my serial" clip is part of the dispatch: it may
@@ -464,6 +469,9 @@ class ContestOperationEventHandler {
   }
 
   void handleInputAreaEvent() {
+    if (_isPaused) {
+      return;
+    }
     _isRstFilled = true;
   }
 
@@ -473,8 +481,28 @@ class ContestOperationEventHandler {
     _stateMachine.transition(event);
   }
 
+  bool _isPaused = false;
+
+  /// Freezes the operation-side wait chain for the training pause.
+  void pause() {
+    _isPaused = true;
+  }
+
+  void resume() {
+    _isPaused = false;
+  }
+
+  /// Parks the caller while the session is paused.
+  Future<void> _waitUntilResumed() async {
+    while (_isPaused) {
+      await Future.delayed(Duration(milliseconds: 50));
+    }
+  }
+
   Future<void> _waitAudioNotPlaying() async {
+    await _waitUntilResumed();
     while (_audioPlayer.isPlaying()) {
+      await _waitUntilResumed();
       await Future.delayed(Duration(milliseconds: 100));
     }
   }

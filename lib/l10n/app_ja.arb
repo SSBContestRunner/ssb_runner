@@ -142,6 +142,19 @@
   "statRate": "レート",
   "statCallErrors": "コールサイン誤り",
   "statExchangeErrors": "交換情報の誤り",
+  "statDuration": "有効時間",
+  "statPaused": "一時停止時間",
+  "pausedTimeSummary": "{duration}（{count} 回）",
+  "@pausedTimeSummary": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "practiceSeedLine": "練習シード：{seed}",
   "replayThisSession": "このセッションを再生",
   "contestExchangeCqWpx": "59 シリアル",
@@ -226,5 +239,46 @@
   "cancelReplay": "リプレイをキャンセル",
   "replayCancelledToast": "リプレイをキャンセルしました",
   "replayAbortedToast": "{contest} のリプレイを開始できませんでした。現在の設定で新しいセッションを開始します。",
-  "pastSessionsUnavailableWhileRunning": "セッション実行中は過去のセッションを開けません。"
+  "pastSessionsUnavailableWhileRunning": "セッション実行中は過去のセッションを開けません。",
+  "sessionStatusPaused": "一時停止中",
+  "sessionStatusResuming": "再開中",
+  "sessionPausedTooltip": "{status} · 停止 {duration}（{count} 回）",
+  "@sessionPausedTooltip": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pauseTraining": "一時停止",
+  "resumeTraining": "再開",
+  "endSession": "セッション終了",
+  "sessionPausedNote": "入力と F1–F8 はロック中 · ログは閲覧のみ",
+  "resumeCountdown": "{seconds} 秒後に再開",
+  "@resumeCountdown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "resumeSkip": "今すぐ再開",
+  "resumeHint": "一時停止位置から続行（先頭には戻りません）",
+  "endPausedTitle": "セッションを終了しますか？",
+  "endPausedBody": "終了するとこの練習は続行できません。未完了の問題と残り時間は失われます。記録済みの {count} 件の QSO は保持され、振り返りに保存されます。",
+  "@endPausedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "endPausedConfirm": "終了して振り返りを見る",
+  "endRunningBody": "未完了の問題と残り時間は失われます。記録済みの QSO は保持されます。"
 }

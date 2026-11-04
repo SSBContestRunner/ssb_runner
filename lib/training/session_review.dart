@@ -104,6 +104,8 @@ class TrainingRunReview {
     required this.score,
     this.duplicateCount = 0,
     this.endReason = 'stopped',
+    this.pauseCount = 0,
+    this.pausedDuration = Duration.zero,
   });
 
   final TrainingRunMetadata metadata;
@@ -116,8 +118,21 @@ class TrainingRunReview {
   final int duplicateCount;
   final String endReason;
 
+  /// How many times the run was paused, and how long it stayed paused.
+  final int pauseCount;
+
+  final Duration pausedDuration;
+
   double get accuracy => qsoCount == 0 ? 0 : correctCount / qsoCount;
-  Duration get duration => endedAt.difference(metadata.startedAt);
+
+  /// Effective practice time: wall-clock span minus paused time. QSO rate uses
+  /// this, so a long pause cannot inflate the score per hour.
+  Duration get duration {
+    final wall = endedAt.difference(metadata.startedAt);
+    final effective = wall - pausedDuration;
+    return effective.isNegative ? Duration.zero : effective;
+  }
+
   double get qsosPerHour =>
       duration.inSeconds == 0 ? 0 : qsoCount * 3600 / duration.inSeconds;
 
@@ -126,6 +141,8 @@ class TrainingRunReview {
     required List<QsoTableData> qsos,
     required int score,
     String endReason = 'stopped',
+    int pauseCount = 0,
+    Duration pausedDuration = Duration.zero,
   }) {
     final originalCount = qsos.length;
     qsos = uniqueQsos(qsos);
@@ -150,6 +167,8 @@ class TrainingRunReview {
       score: score,
       duplicateCount: originalCount - qsos.length,
       endReason: endReason,
+      pauseCount: pauseCount,
+      pausedDuration: pausedDuration,
     );
   }
 
@@ -172,6 +191,8 @@ class TrainingRunReview {
     'score': score,
     'duplicateCount': duplicateCount,
     'endReason': endReason,
+    'pauseCount': pauseCount,
+    'pausedDurationMs': pausedDuration.inMilliseconds,
   };
 
   String encode() => jsonEncode(toJson());
@@ -203,6 +224,10 @@ class TrainingRunReview {
       score: json['score'] as int,
       duplicateCount: json['duplicateCount'] as int? ?? 0,
       endReason: json['endReason'] as String? ?? 'stopped',
+      pauseCount: json['pauseCount'] as int? ?? 0,
+      pausedDuration: Duration(
+        milliseconds: json['pausedDurationMs'] as int? ?? 0,
+      ),
     );
   }
 }

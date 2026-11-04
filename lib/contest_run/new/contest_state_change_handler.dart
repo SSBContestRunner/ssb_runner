@@ -54,6 +54,9 @@ class ContestStateChangeHandler {
   final AccentPolicy _accentPolicy;
 
   Timer? _retryTimer;
+  SingleCallRunState? _retryState;
+  SingleCallRunEvent? _retryEvent;
+  bool _isPaused = false;
   bool _isAbandoning = false;
 
   ContestStateChangeHandler({
@@ -87,6 +90,26 @@ class ContestStateChangeHandler {
     _inputHandler.onInputChanged = null;
   }
 
+  /// Freezes the automatic follow-up timers for the training pause.
+  void pause() {
+    _isPaused = true;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+  }
+
+  /// Re-arms the follow-up timer with the full timeout. Paused time must never
+  /// be counted as silence.
+  void resume() {
+    if (!_isPaused) {
+      return;
+    }
+    _isPaused = false;
+    final state = _retryState;
+    if (state != null) {
+      _setupRetryTimer(state, _retryEvent);
+    }
+  }
+
   // region state change handler
   Future<void> handleToState(
     SingleCallRunState toState, {
@@ -94,6 +117,8 @@ class ContestStateChangeHandler {
   }) async {
     if (_disposed) return;
     _setupRetryTimer(toState, event);
+    await _waitUntilResumed();
+    if (_disposed) return;
 
     try {
       await _playAudioByStateChange(toState, event);
@@ -507,12 +532,18 @@ class ContestStateChangeHandler {
   void _setupRetryTimer(SingleCallRunState toState, SingleCallRunEvent? event) {
     _retryTimer?.cancel();
     _retryTimer = null;
+    _retryState = null;
+    _retryEvent = null;
+
+    if (_isPaused) {
+      return;
+    }
 
     switch (toState) {
       case WaitingSubmitCall():
       case SpListeningCq():
       case SpWaitingHisExchange():
-        _armRetryTimer();
+        _armRetryTimer(toState, event);
         break;
       case WaitingSubmitMyExchange():
       case HeAskForExchange():
@@ -521,7 +552,7 @@ class ContestStateChangeHandler {
         // silence. A Retry that already replayed must not arm the timer again,
         // or the round would repeat itself every 10 s forever.
         if (event is! Retry) {
-          _armRetryTimer();
+          _armRetryTimer(toState, event);
         }
         break;
       case QsoEnd():
@@ -531,7 +562,9 @@ class ContestStateChangeHandler {
     }
   }
 
-  void _armRetryTimer() {
+  void _armRetryTimer(SingleCallRunState toState, SingleCallRunEvent? event) {
+    _retryState = toState;
+    _retryEvent = event;
     _retryTimer = Timer(_retryTimeout, () {
       _stateMachine.transition(Retry());
     });
@@ -555,6 +588,7 @@ class ContestStateChangeHandler {
     }
 
     await Future.delayed(Duration(milliseconds: 500));
+    await _waitUntilResumed();
     if (_disposed || !identical(_stateMachine.currentState, toState)) return;
 
     // A contest simulator is unforgiving: every non-empty submission is a
@@ -563,8 +597,18 @@ class ContestStateChangeHandler {
     _stateMachine.transition(ReceiveExchange());
   }
 
+  /// Parks the caller while the session is paused. Audio keeps its active
+  /// segment, so waiting here is what prevents a paused run from advancing.
+  Future<void> _waitUntilResumed() async {
+    while (!_disposed && _isPaused) {
+      await Future.delayed(Duration(milliseconds: 50));
+    }
+  }
+
   Future<void> _waitAudioNotPlaying() async {
+    await _waitUntilResumed();
     while (!_disposed && _audioPlayer.isPlaying()) {
+      await _waitUntilResumed();
       await Future.delayed(Duration(milliseconds: 100));
     }
   }

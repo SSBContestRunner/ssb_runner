@@ -268,6 +268,19 @@
   "statRate": "Rate",
   "statCallErrors": "Call errors",
   "statExchangeErrors": "Exchange errors",
+  "statDuration": "Duration",
+  "statPaused": "Paused",
+  "pausedTimeSummary": "{duration} ({count} times)",
+  "@pausedTimeSummary": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "practiceSeedLine": "Practice seed: {seed}",
   "@practiceSeedLine": {
     "placeholders": {
@@ -459,5 +472,46 @@
       }
     }
   },
-  "pastSessionsUnavailableWhileRunning": "Past sessions can't be opened while a session runs."
+  "pastSessionsUnavailableWhileRunning": "Past sessions can't be opened while a session runs.",
+  "sessionStatusPaused": "Paused",
+  "sessionStatusResuming": "Resuming",
+  "sessionPausedTooltip": "{status} · paused {duration} ({count} times)",
+  "@sessionPausedTooltip": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pauseTraining": "Pause training",
+  "resumeTraining": "Continue training",
+  "endSession": "End session",
+  "sessionPausedNote": "Input and F1–F8 are locked · the log is read-only",
+  "resumeCountdown": "Resuming in {seconds}s",
+  "@resumeCountdown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "resumeSkip": "Resume now",
+  "resumeHint": "Continues from the pause point, not from the start of the question",
+  "endPausedTitle": "End this session?",
+  "endPausedBody": "Ending stops this practice run: unfinished questions and remaining time are lost. The {count} QSOs already logged are kept and saved to the review.",
+  "@endPausedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "endPausedConfirm": "End and view review",
+  "endRunningBody": "Unfinished questions and remaining time will be lost; already logged QSOs are kept."
 }

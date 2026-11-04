@@ -313,6 +313,32 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   late final Map<int, void Function()> _inputControlMap;
 
   StreamSubscription<OperationEvent>? _ignoredShortcutSubscription;
+  StreamSubscription<ContestSessionPhase>? _sessionPhaseSubscription;
+
+  /// While the run is paused (including the 3-2-1 resume window), both editable
+  /// fields become read-only. This is the single gate for text entry: the
+  /// controllers keep their drafts, and nothing reaches the input cubit.
+  bool _inputLocked = false;
+
+  static bool _locksInput(ContestSessionPhase phase) =>
+      phase == ContestSessionPhase.paused ||
+      phase == ContestSessionPhase.resuming;
+
+  @override
+  void initState() {
+    super.initState();
+    final contestManager = context.read<ContestManager>();
+    _inputLocked = _locksInput(contestManager.sessionPhase);
+    _sessionPhaseSubscription = contestManager.sessionPhaseStream.listen((
+      phase,
+    ) {
+      final locked = _locksInput(phase);
+      if (!mounted || locked == _inputLocked) {
+        return;
+      }
+      setState(() => _inputLocked = locked);
+    });
+  }
 
   _QsoInputAreaState() {
     _inputControlMap = {
@@ -393,6 +419,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
             height: widget.fieldHeight,
             controller: _callSignEditorController,
             focusNode: _callSignFocusNode,
+            locked: _inputLocked,
             label: l10n.callLabel,
             suffix: l10n.autoUppercase,
             inputFormatters: [
@@ -434,6 +461,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                 height: widget.fieldHeight,
                 controller: _exchangeEditorController,
                 focusNode: _exchangeFocusNode,
+                locked: _inputLocked,
                 label: l10n.exchangeFieldLabel,
                 inputFormatters: [
                   UpperCaseTextFormatter(),
@@ -456,6 +484,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _rstEditorController.dispose();
     _exchangeEditorController.dispose();
     _ignoredShortcutSubscription?.cancel();
+    _sessionPhaseSubscription?.cancel();
 
     _callSignFocusNode.dispose();
     _exchangeFocusNode.dispose();
@@ -471,6 +500,7 @@ class _QsoField extends StatelessWidget {
     this.fieldKey,
     this.focusNode,
     this.readOnly = false,
+    this.locked = false,
     this.focusable = true,
     this.striped = false,
     this.fillColor,
@@ -486,6 +516,10 @@ class _QsoField extends StatelessWidget {
   final Key? fieldKey;
   final FocusNode? focusNode;
   final bool readOnly;
+
+  /// Session-level lock (training paused). Unlike [readOnly] this keeps the
+  /// enabled styling, so the field does not look broken while it is locked.
+  final bool locked;
 
   /// Read-only projections (RST, sent exchange) must not join the Tab order or
   /// steal focus from the F2 → received-exchange flow.
@@ -531,7 +565,7 @@ class _QsoField extends StatelessWidget {
             textInputAction: TextInputAction.none,
             controller: controller,
             focusNode: focusNode,
-            readOnly: readOnly,
+            readOnly: readOnly || locked,
             canRequestFocus: focusable,
             inputFormatters: inputFormatters,
             onChanged: onChanged,

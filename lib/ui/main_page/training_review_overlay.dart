@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/common/time_format.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
@@ -94,6 +95,20 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
                           l10n.statRate,
                           '${review.qsosPerHour.toStringAsFixed(1)}/h',
                         ),
+                        // Rate already uses the effective duration, so show
+                        // both numbers: paused time never counts as practice.
+                        _stat(
+                          l10n.statDuration,
+                          formatDuration(review.duration),
+                        ),
+                        if (review.pausedDuration > Duration.zero)
+                          _stat(
+                            l10n.statPaused,
+                            l10n.pausedTimeSummary(
+                              formatDuration(review.pausedDuration),
+                              review.pauseCount,
+                            ),
+                          ),
                         _stat(l10n.scoreScore, '${review.score}'),
                         _stat(l10n.statCallErrors, '${review.callsignErrors}'),
                         _stat(
