@@ -8,7 +8,7 @@ import 'package:ssb_runner/db/table/qso_table.dart';
 
 part 'app_database.g.dart';
 
-const _schemaVersion = 5;
+const _schemaVersion = 6;
 
 @DriftDatabase(tables: [PrefixTable, QsoTable, EventLogTable])
 class AppDatabase extends _$AppDatabase {
@@ -42,6 +42,11 @@ class AppDatabase extends _$AppDatabase {
       // v5 rebuilds the cty asset from cty.dat (correct entity ids); same
       // reload applies.
       if (from < 5) {
+        await delete(prefixTable).go();
+      }
+      // v6 ships the 20261102 cty.dat update; drop the cached prefixes so the
+      // next loadDxcc() re-parses the new asset.
+      if (from < 6) {
         await delete(prefixTable).go();
       }
     },
