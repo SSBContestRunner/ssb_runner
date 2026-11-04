@@ -77,24 +77,24 @@ void main() {
     final dxcc = _FakeDxccManager();
     final plan = MyExchangePlan(fields: [_cqZoneField], sendsSerial: false);
 
-    expect(
-      validateStationExchange(
-        plan: plan,
-        config: StationExchangeConfig.empty,
-        stationCallsign: 'BI1QJQ',
-        dxccManager: dxcc,
-      ),
-      'Please set CQ Zone',
+    final missing = validateStationExchange(
+      plan: plan,
+      config: StationExchangeConfig.empty,
+      stationCallsign: 'BI1QJQ',
+      dxccManager: dxcc,
     );
-    expect(
-      validateStationExchange(
-        plan: plan,
-        config: const StationExchangeConfig({'cqZone': '99'}),
-        stationCallsign: 'BI1QJQ',
-        dxccManager: dxcc,
-      ),
-      contains('between'),
+    expect(missing, isA<StationExchangeMissing>());
+    expect(missing!.field.id, 'cqZone');
+
+    final outOfRange = validateStationExchange(
+      plan: plan,
+      config: const StationExchangeConfig({'cqZone': '99'}),
+      stationCallsign: 'BI1QJQ',
+      dxccManager: dxcc,
     );
+    expect(outOfRange, isA<StationExchangeOutOfRange>());
+    expect((outOfRange! as StationExchangeOutOfRange).min, _cqZoneField.min);
+    expect((outOfRange as StationExchangeOutOfRange).max, _cqZoneField.max);
     expect(
       validateStationExchange(
         plan: plan,
@@ -124,6 +124,142 @@ void main() {
     expect(formatExchangeNumber('5', 2), '05');
     expect(formatExchangeNumber('100', 0), '100');
     expect(formatExchangeNumber('0100', 0), '100');
+  });
+
+  test('buildMyExchangeText matches each contest spoken form', () {
+    final dxcc = _FakeDxccManager();
+
+    expect(
+      buildMyExchangeText(
+        plan: const MyExchangePlan(fields: [], sendsSerial: true),
+        config: StationExchangeConfig.empty,
+        stationCallsign: '',
+        dxccManager: dxcc,
+        qsoNumber: 7,
+      ),
+      '007',
+      reason: 'CQ WPX serial',
+    );
+    expect(
+      buildMyExchangeText(
+        plan: MyExchangePlan(fields: [_cqZoneField], sendsSerial: false),
+        config: const StationExchangeConfig({'cqZone': '5'}),
+        stationCallsign: 'BI1QJQ',
+        dxccManager: dxcc,
+        qsoNumber: 1,
+      ),
+      '05',
+      reason: 'CQ WW / JIDX: configured 5 is read as zero-five',
+    );
+    expect(
+      buildMyExchangeText(
+        plan: MyExchangePlan(
+          fields: [
+            StationExchangeField(
+              id: 'ituZone',
+              label: 'ITU Zone',
+              min: 1,
+              max: 90,
+              audioDigits: 2,
+            ),
+          ],
+          sendsSerial: false,
+        ),
+        config: StationExchangeConfig.empty,
+        stationCallsign: 'DL1ABC',
+        dxccManager: dxcc,
+        qsoNumber: 1,
+      ),
+      '',
+      reason: 'IARU without an explicit or derivable zone',
+    );
+    expect(
+      buildMyExchangeText(
+        plan: MyExchangePlan(
+          fields: [
+            StationExchangeField(
+              id: 'power',
+              label: 'Power',
+              min: 1,
+              max: 1500,
+              audioDigits: 0,
+            ),
+          ],
+          sendsSerial: false,
+        ),
+        config: const StationExchangeConfig({'power': '100'}),
+        stationCallsign: 'W1ABC',
+        dxccManager: dxcc,
+        qsoNumber: 1,
+      ),
+      '100',
+      reason: 'ARRL DX: power is read as entered',
+    );
+    expect(
+      buildMyExchangeText(
+        plan: MyExchangePlan(
+          fields: [
+            StationExchangeField(
+              id: 'stateProvince',
+              label: 'State/Province',
+              numeric: false,
+            ),
+          ],
+          sendsSerial: false,
+        ),
+        config: const StationExchangeConfig({'stateProvince': 'TX'}),
+        stationCallsign: 'K1ABC',
+        dxccManager: dxcc,
+        qsoNumber: 1,
+      ),
+      'TX',
+      reason: 'ARRL DX: letters pass through',
+    );
+    expect(
+      buildMyExchangeText(
+        plan: MyExchangePlan(
+          fields: [
+            StationExchangeField(
+              id: 'prefecture',
+              label: 'Prefecture',
+              min: 1,
+              max: 50,
+              audioDigits: 2,
+            ),
+          ],
+          sendsSerial: false,
+        ),
+        config: const StationExchangeConfig({'prefecture': '10'}),
+        stationCallsign: 'JA1ABC',
+        dxccManager: dxcc,
+        qsoNumber: 1,
+      ),
+      '10',
+    );
+  });
+
+  test('StationExchangeBuilder delegates to buildMyExchangeText', () {
+    final dxcc = _FakeDxccManager();
+    const plan = MyExchangePlan(fields: [_cqZoneField], sendsSerial: false);
+    const config = StationExchangeConfig({'cqZone': '5'});
+    final builder = StationExchangeBuilder(
+      plan: plan,
+      config: config,
+      stationCallsign: 'BI1QJQ',
+      dxccManager: dxcc,
+      exchangeAudioDigits: 2,
+    );
+
+    expect(
+      builder.buildMyExchange(1),
+      buildMyExchangeText(
+        plan: plan,
+        config: config,
+        stationCallsign: 'BI1QJQ',
+        dxccManager: dxcc,
+        qsoNumber: 1,
+      ),
+    );
   });
 
   test('StationExchangeConfig JSON round-trips and drops empty values', () {

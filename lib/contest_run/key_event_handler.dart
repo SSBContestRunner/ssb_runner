@@ -1,28 +1,27 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 
-final defaultFunctionKeysMap = {
-  LogicalKeyboardKey.f1: OperationEvent.cq,
-  LogicalKeyboardKey.f2: OperationEvent.exch,
-  LogicalKeyboardKey.f3: OperationEvent.tu,
-  LogicalKeyboardKey.f4: OperationEvent.myCall,
-  LogicalKeyboardKey.f5: OperationEvent.hisCall,
-  LogicalKeyboardKey.f6: OperationEvent.b4,
-  LogicalKeyboardKey.f7: OperationEvent.agn,
-  LogicalKeyboardKey.f8: OperationEvent.nil,
-};
+/// The default F1–F12 bindings, derived from [FunctionKey] so the keys and the
+/// settings share one source.
+List<FunctionKeyBinding> get defaultFunctionKeyBindings => [
+  for (final key in FunctionKey.values)
+    FunctionKeyBinding(key, key.defaultAction),
+];
 
 class KeyEventHandler {
-  KeyEventHandler({Map<LogicalKeyboardKey, OperationEvent>? functionKeys})
-    : _functionKeysMap = functionKeys ?? defaultFunctionKeysMap;
+  KeyEventHandler({List<FunctionKeyBinding>? bindings})
+    : _bindings = bindings ?? defaultFunctionKeyBindings;
 
-  final Map<LogicalKeyboardKey, OperationEvent> _functionKeysMap;
+  final List<FunctionKeyBinding> _bindings;
+
+  late final Map<LogicalKeyboardKey, OperationAction?> _actionByKey = {
+    for (final binding in _bindings) binding.key.logicalKey: binding.action,
+  };
 
   bool _isFunctionKeyPressed = false;
-
-  final Set<LogicalKeyboardKey> _pressedKeys = {};
 
   final StreamController<OperationEvent> _operationEventController =
       StreamController.broadcast(sync: false);
@@ -34,48 +33,118 @@ class KeyEventHandler {
   Stream<InputAreaEvent> get inputAreaEventStream =>
       _inputAreaEventController.stream;
 
+  /// Any modifier held counts as a combination, not as the shortcut itself.
+  ///
+  /// This is read from [HardwareKeyboard] rather than tracked here: the
+  /// framework updates its pressed state before calling the handlers, so it
+  /// cannot go stale if a key-up is missed (e.g. released while the window was
+  /// inactive), which used to disable `;`, Enter, Esc and Space silently.
+  bool get _hasModifierPressed =>
+      HardwareKeyboard.instance.isShiftPressed ||
+      HardwareKeyboard.instance.isControlPressed ||
+      HardwareKeyboard.instance.isAltPressed ||
+      HardwareKeyboard.instance.isMetaPressed;
+
+  /// Modifier names for the key log, so a "dead" `;` can be diagnosed from the
+  /// file without reproducing it.
+  String get _modifierLabel => [
+    if (HardwareKeyboard.instance.isMetaPressed) 'meta',
+    if (HardwareKeyboard.instance.isControlPressed) 'control',
+    if (HardwareKeyboard.instance.isAltPressed) 'alt',
+    if (HardwareKeyboard.instance.isShiftPressed) 'shift',
+  ].join('+');
+
   void onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
-      _pressedKeys.add(event.logicalKey);
-      _handleKeyPressed(event.logicalKey);
+      _handleKeyPressed(event);
+      return;
     }
 
     if (event is KeyUpEvent) {
-      _pressedKeys.remove(event.logicalKey);
       _handleFunctionKeyReleased(event.logicalKey);
     }
   }
 
-  void _handleKeyPressed(LogicalKeyboardKey key) {
-    if (_functionKeysMap.keys.contains(key)) {
+  /// Drops the "a function key is still held" latch.
+  ///
+  /// Called when the window stops being active: the key-up can be delivered
+  /// somewhere else, and a stuck latch would make every F-key dead until one is
+  /// pressed and released again in this window.
+  void resetPressedKeys() {
+    _isFunctionKeyPressed = false;
+  }
+
+  /// [KeyRepeatEvent] is deliberately not handled: holding a shortcut down
+  /// sends a key once, and auto-repeat must not storm the state machine.
+  void _handleKeyPressed(KeyEvent event) {
+    final key = event.logicalKey;
+
+    if (_actionByKey.containsKey(key)) {
       _handleFunctionKeyPressed(key);
     }
 
-    _checkOnlyKeyPressed(key, LogicalKeyboardKey.enter, () {
+    _checkSingleKeyPressed(event, LogicalKeyboardKey.enter, () {
       _operationEventController.add(OperationEvent.submit);
     });
 
-    _checkOnlyKeyPressed(key, LogicalKeyboardKey.escape, () {
+    _checkSingleKeyPressed(event, LogicalKeyboardKey.escape, () {
       _operationEventController.add(OperationEvent.cancel);
     });
 
-    _checkOnlyKeyPressed(key, LogicalKeyboardKey.semicolon, () {
-      _operationEventController.add(OperationEvent.hisCallAndMyExchange);
-    });
+    // Shift is allowed for `;`: on several layouts the semicolon itself is the
+    // shifted character, and a Shift-only press must still mean `;` there.
+    // The physical key is also accepted so a layout that reports `:` for
+    // Shift+`;` keeps working.
+    _checkSingleKeyPressed(
+      event,
+      LogicalKeyboardKey.semicolon,
+      () {
+        _operationEventController.add(OperationEvent.hisCallAndMyExchange);
+      },
+      referencePhysicalKey: PhysicalKeyboardKey.semicolon,
+      allowShift: true,
+    );
 
-    _checkOnlyKeyPressed(key, LogicalKeyboardKey.space, () {
+    _checkSingleKeyPressed(event, LogicalKeyboardKey.space, () {
       _inputAreaEventController.add(InputAreaEvent.switchCallsignAndExchange);
     });
   }
 
-  void _checkOnlyKeyPressed(
-    LogicalKeyboardKey key,
+  void _checkSingleKeyPressed(
+    KeyEvent event,
     LogicalKeyboardKey referenceKey,
-    void Function() block,
-  ) {
-    if (key == referenceKey && _pressedKeys.length == 1) {
-      block();
+    void Function() block, {
+    PhysicalKeyboardKey? referencePhysicalKey,
+    bool allowShift = false,
+  }) {
+    final matches =
+        event.logicalKey == referenceKey ||
+        (referencePhysicalKey != null &&
+            event.physicalKey == referencePhysicalKey);
+    if (!matches) {
+      return;
     }
+
+    final blocked = allowShift
+        ? HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isAltPressed ||
+              HardwareKeyboard.instance.isMetaPressed
+        : _hasModifierPressed;
+    if (blocked) {
+      log.debug(
+        'shortcut ignored: modifier held',
+        tag: 'key',
+        fields: {'key': referenceKey.debugName, 'modifiers': _modifierLabel},
+      );
+      return;
+    }
+
+    log.debug(
+      'shortcut',
+      tag: 'key',
+      fields: {'key': referenceKey.debugName, 'modifiers': _modifierLabel},
+    );
+    block();
   }
 
   void _handleFunctionKeyPressed(LogicalKeyboardKey key) {
@@ -85,43 +154,24 @@ class KeyEventHandler {
 
     _isFunctionKeyPressed = true;
 
-    final operationEvent = _functionKeysMap[key];
-    if (operationEvent != null) {
-      _operationEventController.add(operationEvent);
+    // Spare keys are recognised as function keys but dispatch nothing.
+    final action = _actionByKey[key];
+    if (action != null) {
+      _operationEventController.add(operationEventFor(action));
     }
   }
 
   void _handleFunctionKeyReleased(LogicalKeyboardKey key) {
-    if (_functionKeysMap.keys.contains(key)) {
+    if (_actionByKey.containsKey(key)) {
       _isFunctionKeyPressed = false;
     }
   }
 }
 
-Map<LogicalKeyboardKey, OperationEvent> functionKeysFromSettings(
-  AppSettings settings,
-) {
-  final result = <LogicalKeyboardKey, OperationEvent>{};
-  for (final action in OperationAction.values) {
-    final key = _logicalFunctionKey(settings.binding(action));
-    if (key != null) result[key] = _operationEventFor(action);
-  }
-  return result.isEmpty ? defaultFunctionKeysMap : result;
-}
+List<FunctionKeyBinding> functionKeysFromSettings(AppSettings settings) =>
+    settings.functionKeyBindings;
 
-LogicalKeyboardKey? _logicalFunctionKey(String label) => switch (label) {
-  'F1' => LogicalKeyboardKey.f1,
-  'F2' => LogicalKeyboardKey.f2,
-  'F3' => LogicalKeyboardKey.f3,
-  'F4' => LogicalKeyboardKey.f4,
-  'F5' => LogicalKeyboardKey.f5,
-  'F6' => LogicalKeyboardKey.f6,
-  'F7' => LogicalKeyboardKey.f7,
-  'F8' => LogicalKeyboardKey.f8,
-  _ => null,
-};
-
-OperationEvent _operationEventFor(OperationAction action) => switch (action) {
+OperationEvent operationEventFor(OperationAction action) => switch (action) {
   OperationAction.cq => OperationEvent.cq,
   OperationAction.exchange => OperationEvent.exch,
   OperationAction.tu => OperationEvent.tu,
@@ -130,6 +180,7 @@ OperationEvent _operationEventFor(OperationAction action) => switch (action) {
   OperationAction.before => OperationEvent.b4,
   OperationAction.again => OperationEvent.agn,
   OperationAction.noCopy => OperationEvent.nil,
+  OperationAction.wipe => OperationEvent.wipe,
 };
 
 enum OperationEvent {
@@ -141,6 +192,7 @@ enum OperationEvent {
   b4(btnText: 'B4'),
   agn(btnText: 'AGN'),
   nil(btnText: 'NIL'),
+  wipe(btnText: 'Wipe'),
   submit(btnText: ''),
   cancel(btnText: ''),
   hisCallAndMyExchange(btnText: '');

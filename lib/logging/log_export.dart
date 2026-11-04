@@ -81,11 +81,11 @@ List<String> _currentSessionLines(List<String> lines) {
 /// user picks in the system save dialog.
 ///
 /// Returns `null` when the user cancels the dialog.
-Future<File?> exportLogArchive() async {
+Future<File?> exportLogArchive({String fileTypeLabel = 'Zip archive'}) async {
   final target = await getSaveLocation(
     suggestedName: 'ssb-runner-diagnostics-${_timestamp()}.zip',
-    acceptedTypeGroups: const [
-      XTypeGroup(label: 'Zip archive', extensions: ['zip']),
+    acceptedTypeGroups: [
+      XTypeGroup(label: fileTypeLabel, extensions: const ['zip']),
     ],
   );
   if (target == null) {

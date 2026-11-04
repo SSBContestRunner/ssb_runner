@@ -22,6 +22,7 @@ class ContestOperationEventHandler {
   final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
   final ContestInputHandler _inputHandler;
+  final Future<void> Function()? _onAbandonRound;
 
   String get _hisCall => _inputHandler.hisCall;
 
@@ -45,16 +46,33 @@ class ContestOperationEventHandler {
     required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
     stateMachine,
     required ContestInputHandler inputHandler,
+    Future<void> Function()? onAbandonRound,
   }) : _contestRunId = contestRunId,
        _contestDataManager = contestDataManager,
        _contestType = contestType,
        _stateMachine = stateMachine,
-       _inputHandler = inputHandler;
+       _inputHandler = inputHandler,
+       _onAbandonRound = onAbandonRound;
 
   // region operation event handler
-  Future<void> handleOperationEvent(OperationEvent event) async {
+  /// Runs an operation event and reports whether it did anything.
+  ///
+  /// `false` means the key was recognised but the current phase has nothing to
+  /// do with it; the console turns that into a short hint instead of leaving a
+  /// dead key press that looks like a broken keyboard.
+  Future<bool> handleOperationEvent(OperationEvent event) async {
+    log.debug('operation event', tag: 'contest', fields: {'event': event.name});
+
+    // The combined "his call + my serial" clip is part of the dispatch: it may
+    // only go out when the current state accepts the shortcut. Playing it
+    // unconditionally used to transmit audio the simulation never answered.
+    if (event == OperationEvent.hisCallAndMyExchange) {
+      return _handleHisCallAndMyExchange();
+    }
+
     await _playAudioByOperationEvent(event);
     await _handleOperationEventBusiness(event);
+    return true;
   }
 
   Future<void> _playAudioByOperationEvent(OperationEvent event) async {
@@ -112,14 +130,12 @@ class ContestOperationEventHandler {
         );
         break;
       case OperationEvent.hisCallAndMyExchange:
-        final hisCall = _hisCall;
-        if (hisCall.isEmpty) {
-          break;
-        }
-        pcmData = await obtainHisCallAndMyExchange(hisCall);
+        // Audio and state change are dispatched together in
+        // _handleHisCallAndMyExchange; playing here as well would double it.
         break;
       case OperationEvent.submit:
       case OperationEvent.cancel:
+      case OperationEvent.wipe:
         break;
     }
 
@@ -177,6 +193,8 @@ class ContestOperationEventHandler {
   Future<void> _handleOperationEventBusiness(OperationEvent event) async {
     switch (event) {
       case OperationEvent.cq:
+        await _handleCq();
+        break;
       case OperationEvent.agn:
         transition(Retry());
         break;
@@ -189,15 +207,36 @@ class ContestOperationEventHandler {
       case OperationEvent.hisCall:
         _handleHisCall();
         break;
-      case OperationEvent.hisCallAndMyExchange:
-        _handleHisCallAndMyExchange();
-        break;
       case OperationEvent.exch:
         _handleExchEvent();
+        break;
+      case OperationEvent.wipe:
+        // Wipe only clears the operator's input: no state change, no audio,
+        // no database write and no operation log.
+        _inputHandler.clear();
         break;
       default:
         break;
     }
+  }
+
+  /// States of a QSO that has started but not been committed yet. F1 there
+  /// means "give up this round", not "call CQ again".
+  bool get _isInFlightQso => switch (_stateMachine.currentState) {
+    HeRepeatCorrectCallAnswer() ||
+    HeAskForExchange() ||
+    WaitingSubmitMyExchange() ||
+    ReportMyExchange() => true,
+    _ => false,
+  };
+
+  Future<void> _handleCq() async {
+    if (_isInFlightQso) {
+      await _onAbandonRound?.call();
+      return;
+    }
+
+    transition(Retry());
   }
 
   Future<void> _handleSubmit({bool isOperateInput = true}) async {
@@ -232,26 +271,63 @@ class ContestOperationEventHandler {
       return;
     }
 
-    if (_hisCall.isEmpty && _exchange.isEmpty) {
-      transition(Retry());
+    if (currentState is HeAskForExchange) {
+      // He asked for his serial: Enter sends what the operator copied. With
+      // nothing copied, replay the request instead of dropping the key press.
+      if (_exchange.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
+      transition(SubmitHisExchange(exchange: _exchange));
       return;
     }
 
-    if (_hisCall.isNotEmpty && _exchange.isNotEmpty) {
+    if (currentState is WaitingSubmitCall ||
+        currentState is HeRepeatCorrectCallAnswer) {
+      await _submitCallAndMyExchange(isOperateInput: isOperateInput);
+      return;
+    }
+
+    if (currentState is WaitingSubmitMyExchange) {
+      // Nothing copied for his serial yet: replay it instead of emitting a
+      // `SubmitCallAndHisExchange` this state has no handler for, which used
+      // to lose the key press behind a dropped-event warning.
+      if (_exchange.isEmpty) {
+        transition(Retry());
+        return;
+      }
+
       transition(SubmitMyExchange(exchange: _exchange, call: _hisCall));
       return;
     }
 
-    if (_hisCall.isNotEmpty) {
-      transition(
-        SubmitCallAndHisExchange(
-          call: _hisCall,
-          myExchange: await _myExchange(),
-          isOperateInput: isOperateInput,
-        ),
-      );
+    // ReportMyExchange / QsoEnd / SpQsoEnd accept no submission: Enter is a
+    // no-op there, recorded instead of dropped silently.
+    log.debug(
+      'submit ignored',
+      tag: 'contest',
+      fields: {'state': '${currentState.runtimeType}'},
+    );
+  }
+
+  /// Sends his call and our serial as one transmission. Both states that owe
+  /// it (`WaitingSubmitCall` and `HeRepeatCorrectCallAnswer`) handle the same
+  /// `SubmitCallAndHisExchange`, so the event cannot be dropped; an empty
+  /// copy asks him to repeat instead of staying mute.
+  Future<void> _submitCallAndMyExchange({required bool isOperateInput}) async {
+    if (_hisCall.isEmpty) {
+      transition(Retry());
       return;
     }
+
+    transition(
+      SubmitCallAndHisExchange(
+        call: _hisCall,
+        myExchange: await _myExchange(),
+        isOperateInput: isOperateInput,
+      ),
+    );
   }
 
   /// The exchange the operator transmits for the current QSO. Contest-aware:
@@ -275,6 +351,18 @@ class ContestOperationEventHandler {
     _audioPlayer.resetStream();
   }
 
+  /// F5 (`<his>`) sends the callsign the operator copied. What that means for
+  /// the round depends on where it stands, so the states are spelled out
+  /// instead of inferred:
+  ///
+  /// - still waiting for the callsign (or he is repeating it): the copy is
+  ///   submitted, as before;
+  /// - the callsign is already agreed and he owes us the exchange: he repeats
+  ///   his serial, exactly like F7 (AGN). Run and S&P both work this way.
+  ///
+  /// States outside the matrix (sign-off, report being sent) get nothing on
+  /// purpose: they have no `Retry` handler, so a blanket retry would only spam
+  /// the state log with dropped-event warnings.
   Future<void> _handleHisCall() async {
     await _waitAudioNotPlaying();
 
@@ -282,28 +370,92 @@ class ContestOperationEventHandler {
       return;
     }
 
-    if (_stateMachine.currentState is WaitingSubmitCall ||
-        _stateMachine.currentState is HeRepeatCorrectCallAnswer) {
-      _stateMachine.transition(SubmitCall(call: _hisCall));
-      return;
-    }
-
-    if (_stateMachine.currentState is HeAskForExchange) {
-      transition(Retry());
-      return;
+    switch (_stateMachine.currentState) {
+      case WaitingSubmitCall():
+      case HeRepeatCorrectCallAnswer():
+        _stateMachine.transition(SubmitCall(call: _hisCall));
+        break;
+      case HeAskForExchange():
+      case WaitingSubmitMyExchange():
+      case SpWaitingHisExchange():
+        transition(Retry());
+        break;
+      default:
+        break;
     }
   }
 
-  void _handleHisCallAndMyExchange() {
-    if (_stateMachine.currentState is WaitingSubmitCall) {
-      _handleSubmit(isOperateInput: false);
-      return;
-    }
+  /// The `;` shortcut: one transmission with his call and our serial.
+  ///
+  /// Audio and the state change are decided together here. It used to play the
+  /// combined clip in every state while only two states advanced, so pressing
+  /// it mid-QSO transmitted audio the run never answered. Every state is listed
+  /// explicitly, in the same layout as [_handleHisCall], so a state that is
+  /// added later cannot be swallowed silently.
+  ///
+  /// Returns false only where the shortcut is deliberately ignored, so the
+  /// console can say so instead of leaving the operator wondering.
+  Future<bool> _handleHisCallAndMyExchange() async {
+    final currentState = _stateMachine.currentState;
 
-    if (_stateMachine.currentState is WaitingSubmitMyExchange) {
-      transition(Retry());
-      return;
+    switch (currentState) {
+      case WaitingSubmitCall():
+      case HeRepeatCorrectCallAnswer():
+        if (_hisCall.isEmpty) {
+          // Nothing copied yet: ask him to repeat instead of staying mute.
+          log.debug(
+            'his call + my exchange: no call copied, repeating',
+            tag: 'contest',
+            fields: {'state': '${currentState.runtimeType}'},
+          );
+          transition(Retry());
+          return true;
+        }
+
+        await _playHisCallAndMyExchange(_hisCall);
+        transition(
+          SubmitCallAndHisExchange(
+            call: _hisCall,
+            myExchange: await _myExchange(),
+            isOperateInput: false,
+          ),
+        );
+        return true;
+      case WaitingSubmitMyExchange():
+        // Already sent our report: the shortcut asks him to repeat his serial.
+        if (_hisCall.isNotEmpty) {
+          await _playHisCallAndMyExchange(_hisCall);
+        }
+        transition(Retry());
+        return true;
+      case HeAskForExchange():
+        // He is asking for our serial; the combined clip would talk over him.
+        transition(Retry());
+        return true;
+      case SpListeningCq():
+      case SpWaitingHisExchange():
+        // S&P keeps its two-Enter model: `;` is another Enter, no combined clip.
+        await _handleSubmit(isOperateInput: false);
+        return true;
+      case ReportMyExchange():
+      case QsoEnd():
+      case SpQsoEnd():
+        log.debug(
+          'his call + my exchange ignored',
+          tag: 'contest',
+          fields: {'state': '${currentState.runtimeType}'},
+        );
+        return false;
     }
+  }
+
+  Future<void> _playHisCallAndMyExchange(String hisCall) async {
+    final pcmData = await obtainHisCallAndMyExchange(hisCall);
+    _audioPlayer.addAudioData(
+      pcmData,
+      isResetCurrentStream: true,
+      isMyAudio: true,
+    );
   }
 
   Future<void> _handleExchEvent() async {

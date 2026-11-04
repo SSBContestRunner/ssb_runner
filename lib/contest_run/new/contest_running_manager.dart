@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
@@ -18,7 +22,7 @@ import 'package:ssb_runner/training/replay_answer_source.dart';
 import 'package:ssb_runner/training/session_random.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 
-class ContestRunningManager {
+class ContestRunningManager with WidgetsBindingObserver {
   final String runId;
   final ContestType _contestType;
   final ContestDataManager _contestDataManager;
@@ -29,6 +33,7 @@ class ContestRunningManager {
   final AnswerSource? _answerSourceOverride;
   final void Function(ContestAnswer answer)? _onAnswerGenerated;
   final void Function(String reason)? _onAnswersExhausted;
+  final AccentPolicy _accentPolicy;
   late final SessionRandom _sessionRandom = SessionRandom(_seed);
   final int _seed;
 
@@ -37,6 +42,18 @@ class ContestRunningManager {
 
   late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
+
+  final _stateStreamController =
+      StreamController<SingleCallRunState>.broadcast();
+
+  /// Current phase, for the UI hint and the "give up this round" entry.
+  Stream<SingleCallRunState> get stateStream => _stateStreamController.stream;
+
+  SingleCallRunState get currentState => _stateMachine.currentState;
+
+  /// Difficulty this run was launched with. The UI uses it to decide how much
+  /// guidance to show, so a later settings change cannot switch it mid-run.
+  TrainingDifficulty get difficulty => _difficulty;
 
   late final ScoreManager scoreManager = ScoreManager(
     contestId: runId,
@@ -66,6 +83,7 @@ class ContestRunningManager {
         scoreManager: scoreManager,
         contestAnswerGenerator: _answerGenerator,
         onAnswersExhausted: _onAnswersExhausted,
+        accentPolicy: _accentPolicy,
       );
 
   late final ContestOperationEventHandler contestOperationEventHandler =
@@ -75,11 +93,21 @@ class ContestRunningManager {
         contestType: _contestType,
         stateMachine: _stateMachine,
         inputHandler: _inputHandler,
+        onAbandonRound: _contestStateChangeHandler.abandonRound,
       );
 
   late final _keyEventManager = KeyEventHandler(
-    functionKeys: functionKeysFromSettings(_contestDataManager.appSettings),
+    bindings: functionKeysFromSettings(_contestDataManager.appSettings),
   );
+
+  /// Operation events that were recognised but had nothing to do in the
+  /// current phase. The console shows a short hint for them so a dead key
+  /// press never looks like a broken keyboard or input method.
+  final StreamController<OperationEvent> _ignoredShortcutController =
+      StreamController<OperationEvent>.broadcast();
+
+  Stream<OperationEvent> get ignoredShortcutStream =>
+      _ignoredShortcutController.stream;
 
   late final KeyEventCallback _keyEventCallback = _onKeyEvent;
 
@@ -98,6 +126,7 @@ class ContestRunningManager {
     required TrainingDifficulty difficulty,
     required int seed,
     AnswerSource? answerSource,
+    required AccentPolicy accentPolicy,
     void Function(ContestAnswer answer)? onAnswerGenerated,
     void Function(String reason)? onAnswersExhausted,
   }) : _contestType = contestType,
@@ -109,8 +138,10 @@ class ContestRunningManager {
        _seed = seed,
        _answerSourceOverride = answerSource,
        _onAnswerGenerated = onAnswerGenerated,
-       _onAnswersExhausted = onAnswersExhausted {
+       _onAnswersExhausted = onAnswersExhausted,
+       _accentPolicy = accentPolicy {
     _contestDataManager.audioLoader.setSessionRandom(_sessionRandom);
+    WidgetsBinding.instance.addObserver(this);
     _setupStateMachine();
     _setupKeyboardListener();
   }
@@ -127,6 +158,7 @@ class ContestRunningManager {
       }
 
       final toState = transition.to;
+      _stateStreamController.add(toState);
       _contestStateChangeHandler.handleToState(
         toState,
         event: transition.event,
@@ -155,6 +187,7 @@ class ContestRunningManager {
         initialState: initialState,
         transitionListener: transitionListener,
       );
+      _stateStreamController.add(initialState);
       _contestStateChangeHandler.handleToState(initialState);
       return;
     }
@@ -170,12 +203,18 @@ class ContestRunningManager {
       transitionListener: transitionListener,
     );
 
+    _stateStreamController.add(initialState);
     _contestStateChangeHandler.handleToState(initialState);
   }
 
   void _setupKeyboardListener() {
-    _keyEventManager.operationEventStream.listen((event) {
-      contestOperationEventHandler.handleOperationEvent(event);
+    _keyEventManager.operationEventStream.listen((event) async {
+      final handled = await contestOperationEventHandler.handleOperationEvent(
+        event,
+      );
+      if (!handled && !_ignoredShortcutController.isClosed) {
+        _ignoredShortcutController.add(event);
+      }
     });
 
     _keyEventManager.inputAreaEventStream.listen((event) {
@@ -186,7 +225,18 @@ class ContestRunningManager {
     ServicesBinding.instance.keyboard.addHandler(_keyEventCallback);
   }
 
+  /// A key released while the window is inactive never reaches this run, so
+  /// the held-function-key latch is dropped instead of going stale.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      _keyEventManager.resetPressedKeys();
+    }
+  }
+
   void stop() {
+    WidgetsBinding.instance.removeObserver(this);
+    _ignoredShortcutController.close();
     _contestStateChangeHandler.dispose();
     _contestDataManager.audioLoader.setSessionRandom(null);
     _stateMachine.dispose();

@@ -80,19 +80,19 @@ void main() {
     });
   });
 
-  group('ReportMyExchange 收到 CallsignInvalid', () {
-    test('回到可重听的等待提交状态，重试仍有音频', () {
-      final machine = _machineInReportMyExchange();
+  group('ReportMyExchange 收到 ReceiveExchange', () {
+    test('抄错呼号且差异超过阈值时，序号阶段仍重放呼号与序号', () {
+      final machine = _machineInReportMyExchange(submitCall: 'X9ZZZZ');
 
-      final toState = machine.transition(CallsignInvalid());
+      final toState = machine.transition(ReceiveExchange());
 
-      expect(toState, isA<WaitingSubmitCall>());
-      expect((toState as WaitingSubmitCall).audioPlayType, isA<PlayCall>());
-
-      final retried = machine.transition(Retry());
-
-      expect(retried, isA<WaitingSubmitCall>());
-      expect((retried as WaitingSubmitCall).audioPlayType, isA<PlayCall>());
+      expect(toState, isA<WaitingSubmitMyExchange>());
+      final waiting = toState as WaitingSubmitMyExchange;
+      expect(waiting.audioPlayType, isA<PlayCallExchange>());
+      final audio = waiting.audioPlayType as PlayCallExchange;
+      expect(audio.call, 'B100IARU');
+      expect(audio.exchangeToPlay, '59 001');
+      expect(audio.isMe, isFalse);
     });
   });
 
@@ -118,6 +118,86 @@ void main() {
 
       expect(toState, isA<QsoEnd>());
       expect((toState as QsoEnd).correctedCall, isNull);
+    });
+
+    test('收到 Retry 原地重播他的序号', () {
+      final machine = initSingleCallRunStateMachine(
+        initialState: WaitingSubmitMyExchange(
+          currentCallAnswer: 'B100IARU',
+          currentExchangeAnswer: '59 001',
+          submitCall: 'B100IARU',
+          audioPlayType: PlayExchange(exchange: '59 001', isMe: false),
+          isOperateInput: false,
+        ),
+        transitionListener: (_) {},
+      );
+
+      final toState = machine.transition(Retry());
+
+      expect(toState, isA<WaitingSubmitMyExchange>());
+      final waiting = toState as WaitingSubmitMyExchange;
+      expect(waiting.audioPlayType, isA<PlayExchange>());
+      expect((waiting.audioPlayType as PlayExchange).isMe, isFalse);
+    });
+  });
+
+  group('在途 QSO 放弃本轮', () {
+    test('HeAskForExchange 收到 Retry 仍原地重播我的呼号', () {
+      final machine = _machineInHeAskForExchange();
+
+      final toState = machine.transition(Retry());
+
+      expect(toState, isA<HeAskForExchange>());
+      expect((toState as HeAskForExchange).isPlayMyCall, isTrue);
+    });
+
+    test('HeAskForExchange 收到 AbandonQso：换新题并回到等待提交呼号', () {
+      final machine = _machineInHeAskForExchange();
+
+      final toState = machine.transition(
+        AbandonQso(
+          nextCallAnswer: 'C3CCC',
+          nextExchangeAnswer: '59 002',
+          pileupCallsigns: const ['C3CCC'],
+        ),
+      );
+
+      expect(toState, isA<WaitingSubmitCall>());
+      final waiting = toState as WaitingSubmitCall;
+      expect(waiting.currentCallAnswer, 'C3CCC');
+      expect(waiting.currentExchangeAnswer, '59 002');
+      expect(waiting.audioPlayType, isA<PlayCall>());
+    });
+
+    test('HeAskForExchange 收到 SubmitHisExchange：进入发送我的序号阶段', () {
+      final machine = _machineInHeAskForExchange(submitCall: 'B10');
+
+      final toState = machine.transition(SubmitHisExchange(exchange: '59 001'));
+
+      expect(toState, isA<WaitingSubmitMyExchange>());
+      expect((toState as WaitingSubmitMyExchange).submitCall, 'B10');
+    });
+
+    test('WaitingSubmitMyExchange 收到 AbandonQso：换新题', () {
+      final machine = _machineInSubmitExchangeState(submitCall: 'B100IARU');
+
+      final toState = machine.transition(
+        AbandonQso(nextCallAnswer: 'C3CCC', nextExchangeAnswer: '59 002'),
+      );
+
+      expect(toState, isA<WaitingSubmitCall>());
+      expect((toState as WaitingSubmitCall).currentCallAnswer, 'C3CCC');
+    });
+
+    test('HeRepeatCorrectCallAnswer 收到 AbandonQso：换新题', () {
+      final machine = _machineInRepeatState('B100IARU', submitCall: 'B10');
+
+      final toState = machine.transition(
+        AbandonQso(nextCallAnswer: 'C3CCC', nextExchangeAnswer: '59 002'),
+      );
+
+      expect(toState, isA<WaitingSubmitCall>());
+      expect((toState as WaitingSubmitCall).currentCallAnswer, 'C3CCC');
     });
   });
 
@@ -217,15 +297,31 @@ _machineInWaitingSubmitCall({
 }
 
 StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-_machineInReportMyExchange() {
+_machineInReportMyExchange({String submitCall = 'B10'}) {
   return initSingleCallRunStateMachine(
     initialState: ReportMyExchange(
       currentCallAnswer: 'B100IARU',
       currentExchangeAnswer: '59 001',
-      submitCall: 'B10',
+      submitCall: submitCall,
       myExchange: '59 001',
       audioPlayType: NoPlay(),
       isOperateInput: true,
+    ),
+    transitionListener: (_) {},
+  );
+}
+
+StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
+_machineInHeAskForExchange({
+  String submitCall = 'B100IARU',
+  bool isPlayMyCall = false,
+}) {
+  return initSingleCallRunStateMachine(
+    initialState: HeAskForExchange(
+      currentCallAnswer: 'B100IARU',
+      currentExchangeAnswer: '59 001',
+      submitCall: submitCall,
+      isPlayMyCall: isPlayMyCall,
     ),
     transitionListener: (_) {},
   );

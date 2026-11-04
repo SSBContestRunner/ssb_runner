@@ -40,10 +40,6 @@ class SubmitCall extends SingleCallRunEvent {
   final String call;
 }
 
-class CallsignInvalid extends SingleCallRunEvent {
-  CallsignInvalid();
-}
-
 class ReceiveExchange extends SingleCallRunEvent {
   ReceiveExchange();
 }
@@ -72,6 +68,20 @@ class NextCall extends SingleCallRunEvent {
   });
   final String callAnswer;
   final String exchangeAnswer;
+  final List<String> pileupCallsigns;
+}
+
+/// The operator gives up the in-flight QSO (F1 in the middle of a QSO) and a
+/// fresh question starts. Nothing is logged; the abandoned round leaves no
+/// trace in the score.
+class AbandonQso extends SingleCallRunEvent {
+  AbandonQso({
+    required this.nextCallAnswer,
+    required this.nextExchangeAnswer,
+    this.pileupCallsigns = const [],
+  });
+  final String nextCallAnswer;
+  final String nextExchangeAnswer;
   final List<String> pileupCallsigns;
 }
 

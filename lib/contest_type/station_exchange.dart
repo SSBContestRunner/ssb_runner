@@ -114,14 +114,110 @@ String formatExchangeNumber(String value, int digits) {
   return stripped.padLeft(digits, '0');
 }
 
-/// Returns an English error when a required plan field is missing or invalid.
-String? validateStationExchange({
+/// Structured validation result so the UI can format the message in the
+/// active language instead of this domain layer carrying English text.
+sealed class StationExchangeValidationError {
+  const StationExchangeValidationError(this.field);
+
+  final StationExchangeField field;
+}
+
+final class StationExchangeMissing extends StationExchangeValidationError {
+  const StationExchangeMissing(super.field);
+}
+
+final class StationExchangeInvalid extends StationExchangeValidationError {
+  const StationExchangeInvalid(super.field);
+}
+
+final class StationExchangeOutOfRange extends StationExchangeValidationError {
+  const StationExchangeOutOfRange(
+    super.field, {
+    required this.min,
+    required this.max,
+  });
+
+  final int min;
+  final int max;
+}
+
+/// Returns the first problem with a required plan field, or null when valid.
+StationExchangeValidationError? validateStationExchange({
   required MyExchangePlan plan,
   required StationExchangeConfig config,
   required String stationCallsign,
   required DxccManager dxccManager,
 }) {
-  if (plan.sendsSerial) return null;
+  final errors = validateStationExchangeAll(
+    plan: plan,
+    config: config,
+    stationCallsign: stationCallsign,
+    dxccManager: dxccManager,
+  );
+  return errors.isEmpty ? null : errors.first;
+}
+
+/// Returns every problem with a required plan field, so the settings UI can
+/// show all incomplete items at once instead of one per start attempt.
+List<StationExchangeValidationError> validateStationExchangeAll({
+  required MyExchangePlan plan,
+  required StationExchangeConfig config,
+  required String stationCallsign,
+  required DxccManager dxccManager,
+}) {
+  if (plan.sendsSerial) return const [];
+  final errors = <StationExchangeValidationError>[];
+  for (final field in plan.fields) {
+    final error = _validateField(field, config, stationCallsign, dxccManager);
+    if (error != null) errors.add(error);
+  }
+  return errors;
+}
+
+StationExchangeValidationError? _validateField(
+  StationExchangeField field,
+  StationExchangeConfig config,
+  String stationCallsign,
+  DxccManager dxccManager,
+) {
+  final value = resolveExchangeValue(
+    field,
+    config,
+    stationCallsign,
+    dxccManager,
+  );
+  if (value == null || value.isEmpty) return StationExchangeMissing(field);
+  if (field.numeric) {
+    final parsed = int.tryParse(value);
+    if (parsed == null) return StationExchangeInvalid(field);
+    if (field.min != null && parsed < field.min!) {
+      return StationExchangeOutOfRange(field, min: field.min!, max: field.max!);
+    }
+    if (field.max != null && parsed > field.max!) {
+      return StationExchangeOutOfRange(field, min: field.min!, max: field.max!);
+    }
+  } else if (field.validator != null && !field.validator!(value)) {
+    return StationExchangeInvalid(field);
+  }
+  return null;
+}
+
+/// The exchange the operator transmits for the 1-based [qsoNumber], after the
+/// RST and already normalised to the spoken form (leading zeros included).
+///
+/// Shared by [StationExchangeBuilder] and the console's read-only preview so
+/// the displayed value and the transmitted value can never drift apart.
+String buildMyExchangeText({
+  required MyExchangePlan plan,
+  required StationExchangeConfig config,
+  required String stationCallsign,
+  required DxccManager dxccManager,
+  required int qsoNumber,
+}) {
+  if (plan.sendsSerial) {
+    return formatExchangeNumber(qsoNumber.toString(), plan.serialDigits);
+  }
+  final parts = <String>[];
   for (final field in plan.fields) {
     final value = resolveExchangeValue(
       field,
@@ -129,21 +225,12 @@ String? validateStationExchange({
       stationCallsign,
       dxccManager,
     );
-    if (value == null || value.isEmpty) return 'Please set ${field.label}';
-    if (field.numeric) {
-      final parsed = int.tryParse(value);
-      if (parsed == null) return 'Please enter a valid ${field.label}';
-      if (field.min != null && parsed < field.min!) {
-        return '${field.label} must be between ${field.min} and ${field.max}';
-      }
-      if (field.max != null && parsed > field.max!) {
-        return '${field.label} must be between ${field.min} and ${field.max}';
-      }
-    } else if (field.validator != null && !field.validator!(value)) {
-      return 'Please enter a valid ${field.label}';
-    }
+    if (value == null || value.isEmpty) continue;
+    parts.add(
+      field.numeric ? formatExchangeNumber(value, field.audioDigits) : value,
+    );
   }
-  return null;
+  return parts.join(' ');
 }
 
 /// Builds the operator's own exchange and normalises the received exchange for
@@ -166,25 +253,13 @@ class StationExchangeBuilder {
   final int exchangeAudioDigits;
 
   /// The exchange the operator transmits for the 1-based [qsoNumber].
-  String buildMyExchange(int qsoNumber) {
-    if (plan.sendsSerial) {
-      return formatExchangeNumber(qsoNumber.toString(), plan.serialDigits);
-    }
-    final parts = <String>[];
-    for (final field in plan.fields) {
-      final value = resolveExchangeValue(
-        field,
-        config,
-        stationCallsign,
-        dxccManager,
-      );
-      if (value == null || value.isEmpty) continue;
-      parts.add(
-        field.numeric ? formatExchangeNumber(value, field.audioDigits) : value,
-      );
-    }
-    return parts.join(' ');
-  }
+  String buildMyExchange(int qsoNumber) => buildMyExchangeText(
+    plan: plan,
+    config: config,
+    stationCallsign: stationCallsign,
+    dxccManager: dxccManager,
+    qsoNumber: qsoNumber,
+  );
 
   /// Received exchange -> spoken form. Letters pass through untouched.
   String formatExchangeForAudio(String exchange) {

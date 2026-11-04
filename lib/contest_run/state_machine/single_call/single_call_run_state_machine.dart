@@ -132,6 +132,10 @@ initSingleCallRunStateMachine({
         return definition.transitionTo(state.copyWith(isPlayMyCall: true));
       });
 
+      definition.on(AbandonQso, (state, event) {
+        return definition.transitionTo(_abandonedRound(event as AbandonQso));
+      });
+
       definition.on(SubmitHisExchange, (state, event) {
         state as HeAskForExchange;
 
@@ -153,6 +157,10 @@ initSingleCallRunStateMachine({
     builder.state(HeRepeatCorrectCallAnswer, (definition) {
       definition.on(Retry, (state, event) {
         return definition.transitionTo(state);
+      });
+
+      definition.on(AbandonQso, (state, event) {
+        return definition.transitionTo(_abandonedRound(event as AbandonQso));
       });
 
       definition.on(SubmitCall, (state, event) {
@@ -231,6 +239,10 @@ initSingleCallRunStateMachine({
     });
 
     builder.state(ReportMyExchange, (definition) {
+      definition.on(AbandonQso, (state, event) {
+        return definition.transitionTo(_abandonedRound(event as AbandonQso));
+      });
+
       definition.on(ReceiveExchange, (state, event) {
         state as ReportMyExchange;
 
@@ -249,21 +261,13 @@ initSingleCallRunStateMachine({
         );
       });
 
-      definition.on(CallsignInvalid, (state, event) {
-        state as ReportMyExchange;
-
-        // The copy was rejected: go back to a listening state that replays the
-        // answer instead of one that can never make a sound again.
-        return definition.transitionTo(
-          WaitingSubmitCall(
-            currentCallAnswer: state.currentCallAnswer,
-            currentExchangeAnswer: state.currentExchangeAnswer,
-          ),
-        );
-      });
     });
 
     builder.state(WaitingSubmitMyExchange, (definition) {
+      definition.on(AbandonQso, (state, event) {
+        return definition.transitionTo(_abandonedRound(event as AbandonQso));
+      });
+
       definition.on(Retry, (state, event) {
         final stateVal = state as WaitingSubmitMyExchange;
 
@@ -330,13 +334,75 @@ initSingleCallRunStateMachine({
     });
 
     builder.onTransition((transition) {
-      log.info(
-        'onTransition: from=${transition.from} to=${(transition is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) ? transition.to : null} event=${transition.event}',
-        tag: 'contest.state',
-      );
+      if (transition
+          is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>) {
+        log.info(
+          'onTransition: from=${transition.from.runtimeType} to=${transition.to.runtimeType} event=${transition.event.runtimeType}',
+          tag: 'contest.state',
+          fields: _transitionFields(transition.to),
+        );
+      } else {
+        log.warn(
+          'dropped: no handler for ${transition.event.runtimeType} in ${transition.from.runtimeType}',
+          tag: 'contest.state',
+        );
+      }
       transitionListener(transition);
     });
   });
+}
+
+WaitingSubmitCall _abandonedRound(AbandonQso event) {
+  return WaitingSubmitCall(
+    currentCallAnswer: event.nextCallAnswer,
+    currentExchangeAnswer: event.nextExchangeAnswer,
+    pileupCallsigns: event.pileupCallsigns,
+  );
+}
+
+/// Copy carried into the transition log so a stuck round can be diagnosed
+/// without reproducing it: what was asked, what was submitted, and whose
+/// callsign was being announced.
+Map<String, Object?> _transitionFields(SingleCallRunState value) {
+  return switch (value) {
+    WaitingSubmitCall state => {
+      'call': state.currentCallAnswer,
+      'exchange': state.currentExchangeAnswer,
+      'pileupCallsigns': state.pileupCallsigns,
+    },
+    ReportMyExchange state => {
+      'call': state.currentCallAnswer,
+      'exchange': state.currentExchangeAnswer,
+      'submitCall': state.submitCall,
+      'isOperateInput': state.isOperateInput,
+    },
+    WaitingSubmitMyExchange state => {
+      'call': state.currentCallAnswer,
+      'exchange': state.currentExchangeAnswer,
+      'submitCall': state.submitCall,
+      'isOperateInput': state.isOperateInput,
+    },
+    HeAskForExchange state => {
+      'call': state.currentCallAnswer,
+      'exchange': state.currentExchangeAnswer,
+      'submitCall': state.submitCall,
+      'isPlayMyCall': state.isPlayMyCall,
+    },
+    HeRepeatCorrectCallAnswer state => {
+      'call': state.currentCallAnswer,
+      'exchange': state.currentExchangeAnswer,
+      'submitCall': state.submitCall,
+    },
+    QsoEnd state => {
+      'call': state.currentCallAnswer,
+      'exchange': state.currentExchangeAnswer,
+      'submitCall': state.submitCall,
+      'submitExchange': state.submitExchange,
+    },
+    SpListeningCq state => {'call': state.currentCallAnswer},
+    SpWaitingHisExchange state => {'call': state.currentCallAnswer},
+    SpQsoEnd state => {'call': state.currentCallAnswer},
+  };
 }
 
 AudioPlayType _calcuateSingleCallAudioPlayType(
@@ -356,5 +422,11 @@ AudioPlayType _calcuateSingleCallAudioPlayType(
     );
   }
 
-  return NoPlay();
+  // Even when the operator copied the call wildly wrong, the exchange phase
+  // must still be audible: replay his callsign and serial rather than silence.
+  return PlayCallExchange(
+    call: answerCall,
+    exchange: answerExchange,
+    isMe: false,
+  );
 }

@@ -2,16 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
+import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/common/normalize_callsign.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_running_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
+import 'package:ssb_runner/contest_run/new/run_plan.dart';
+import 'package:ssb_runner/contest_run/new/run_plan_resolver.dart';
 import 'package:ssb_runner/contest_run/qso_duplicates.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
+import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
@@ -23,7 +28,9 @@ class ContestManager {
   final ContestDataManager _contestDataManager;
 
   ContestManager({required ContestDataManager contestDataManager})
-    : _contestDataManager = contestDataManager;
+    : _contestDataManager = contestDataManager {
+    contestDataManager.appSettings.contestRunningCheck = () => isContestRunning;
+  }
 
   late final ContestTimer contestTimer = ContestTimer(
     onContestEnd: () {
@@ -93,25 +100,29 @@ class ContestManager {
     );
   }
 
-  Future<void> startContest() async {
+  Future<RunStartResult> startContest() async {
     final runId = Uuid().v4();
-    _currentContestRunId = runId;
 
     _contestInputHandler.clear();
     _eventLog.clear();
 
     final settings = _contestDataManager.appSettings;
-    final replayRunId = settings.pendingReplayRunId;
-    settings.pendingReplayRunId = null;
-    var replayEvents = const <TrainingRunEvent>[];
-    if (replayRunId != null) {
+    final pendingReplay = settings.pendingReplay;
+    final requestedContestId = settings.contestId;
+    final requestedModeId = settings.contestModeId;
+    final requestedDifficultyId = settings.difficulty.id;
+
+    ReplayLog? replayLog;
+    if (pendingReplay != null) {
       try {
-        replayEvents = await _loadEvents(replayRunId);
+        replayLog = await _loadRunLog(pendingReplay.runId);
       } catch (error, stackTrace) {
-        // Missing/failed log: fall back to the recorded seeds.
+        // A missing log is an abort condition, not a silent seed fallback: the
+        // resolver turns it into a settings run with an explicit notice.
         log.warn(
-          'replay log unavailable, falling back to practice seeds',
+          'replay log unavailable; the replay will be abandoned',
           tag: 'contest',
+          fields: {'replayRunId': pendingReplay.runId},
         );
         log.error(
           'failed to load replay log',
@@ -122,31 +133,112 @@ class ContestManager {
       }
     }
 
-    final dxccManager = _contestDataManager.dxccManager;
-    final definition = ContestRegistry.byId(settings.contestId);
-    final mode = TrainingMode.fromId(settings.contestModeId);
-    final difficulty = settings.difficulty;
     final generatedSeed = DateTime.now().microsecondsSinceEpoch & 0x7fffffff;
-    final questionSeed =
+    // The resolver fills a replay from the pending snapshot and a settings run
+    // (including an abandoned replay) from these ordinary seeds.
+    final settingsQuestionSeed =
         settings.pendingQuestionSeed ??
         (settings.lockQuestionSeed
             ? (settings.questionSeed ?? generatedSeed)
             : generatedSeed);
-    final audioSeed =
+    final settingsAudioSeed =
         settings.pendingAudioSeed ??
         (settings.lockAudioSeed
-            ? (settings.audioSeed ?? questionSeed)
-            : questionSeed);
+            ? (settings.audioSeed ?? settingsQuestionSeed)
+            : settingsQuestionSeed);
+
+    final plan = RunPlanResolver.resolve(
+      pendingReplay: pendingReplay,
+      replayLog: replayLog,
+      settingsContestId: requestedContestId,
+      settingsModeId: requestedModeId,
+      settingsDifficultyId: requestedDifficultyId,
+      questionSeed: settingsQuestionSeed,
+      audioSeed: settingsAudioSeed,
+    );
+    final questionSeed = plan.questionSeed;
+    final audioSeed = plan.audioSeed;
+
+    final replayAnswers = plan.isReplay
+        ? (replayLog?.answers ?? const <TrainingRunEvent>[])
+        : const <TrainingRunEvent>[];
+
+    // Pre-flight: pending and ordinary settings stay untouched until every
+    // check that can fail has passed.
+    final callsignPoolEmpty = !_contestDataManager.callsignLoader.callSigns.any(
+      (call) => normalizeCallsign(call).isNotEmpty,
+    );
+    if (callsignPoolEmpty && replayAnswers.isEmpty) {
+      log.warn(
+        'Cannot start training with an empty callsign pool',
+        tag: 'contest',
+        fields: {'replayRunId': plan.replayRunId},
+      );
+      return RunStartResult(
+        started: false,
+        source: plan.source,
+        abortedReason: plan.abortedReason,
+        replayContestName: plan.abortedContestName,
+        notices: const ['callsign_pool_empty'],
+      );
+    }
+
+    final exchangeErrors = _stationExchangeErrors(plan);
+    if (exchangeErrors.isNotEmpty) {
+      log.warn(
+        'Cannot start training: station exchange is incomplete',
+        tag: 'contest',
+        fields: {'contestId': plan.contestId, 'issues': exchangeErrors},
+      );
+      return RunStartResult(
+        started: false,
+        source: plan.source,
+        abortedReason: plan.abortedReason,
+        replayContestName: plan.abortedContestName,
+        notices: exchangeErrors,
+      );
+    }
+
+    if (plan.abortedReason != null) {
+      settings.clearPendingReplay();
+      log.info(
+        'contest.replay.abort',
+        tag: 'contest',
+        fields: {
+          'reason': plan.abortedReason!.name,
+          'pendingContestId': pendingReplay?.contestId,
+          'pendingModeId': pendingReplay?.modeId,
+          'pendingDifficultyId': pendingReplay?.difficultyId,
+          'recordedContestId': replayLog?.header?.contestId,
+          'recordedModeId': replayLog?.header?.modeId,
+          'recordedDifficultyId': replayLog?.header?.difficultyId,
+          'fallbackContestId': plan.contestId,
+        },
+      );
+    } else if (plan.source == RunPlanSource.pending) {
+      // Only a verified replay turns the pending snapshot into ordinary
+      // settings. One bump covers all three values plus the cleared snapshot.
+      settings.commitRunSpec(plan);
+    }
+
     settings
       ..pendingQuestionSeed = null
       ..pendingAudioSeed = null
       ..questionSeed = questionSeed
       ..audioSeed = audioSeed;
+
+    final definition = plan.definition;
+    final dxccManager = _contestDataManager.dxccManager;
+    final mode = TrainingMode.fromId(plan.modeId);
+    final difficulty = TrainingDifficulty.fromId(plan.difficultyId);
     final contestType = definition.create(
       stationCallsign: settings.stationCallsign,
       dxccManager: dxccManager,
       stationExchange: settings.stationExchangeConfig(definition.id),
     );
+    // Session-level voice policy: fixed for the whole run, recorded with the
+    // result so a replay stays traceable.
+    final accentPolicy = AccentPolicy(settings.incomingAccent);
     _activeRun = TrainingRunMetadata(
       runId: runId,
       contestId: definition.id,
@@ -155,48 +247,58 @@ class ContestManager {
       difficultyId: difficulty.id,
       questionSeed: questionSeed,
       audioSeed: audioSeed,
+      accentId: accentPolicy.accent.id,
+      appVersion: AppInfo.version ?? '',
       startedAt: DateTime.now().toUtc(),
     );
     _activeContestType = contestType;
 
-    final recording = ReplayAnswerSource.fromEvents(replayEvents);
-    final replaySource = recording.length == 0 ? null : recording;
-    _answerSourceName = replaySource != null
-        ? 'recorded-replay'
-        : replayRunId != null
-        ? 'seed-replay'
-        : 'live';
-    if (replayRunId != null && replaySource == null) {
-      log.warn(
-        'No recorded answers available; starting practice from seed',
-        tag: 'contest',
-        fields: {'runId': runId, 'replayRunId': replayRunId},
-      );
-    }
-    if (replaySource == null &&
-        !_contestDataManager.callsignLoader.callSigns.any(
-          (call) => normalizeCallsign(call).isNotEmpty,
-        )) {
-      log.warn(
-        'Cannot start training with an empty callsign pool',
-        tag: 'contest',
-      );
-      return;
-    }
+    final recording = plan.isReplay
+        ? ReplayAnswerSource.fromEvents(replayAnswers)
+        : null;
+    final replaySource = recording != null && recording.length > 0
+        ? recording
+        : null;
+    _answerSourceName = replaySource != null ? 'recorded-replay' : 'live';
+
     log.info(
       'Training started',
       tag: 'contest',
       fields: {
         'runId': runId,
-        'contestId': definition.id,
+        'requestedContestId': requestedContestId,
+        'effectiveContestId': definition.id,
+        'planSource': plan.source.name,
         'mode': mode.id,
         'difficulty': difficulty.id,
         'questionSeed': questionSeed,
         'audioSeed': audioSeed,
-        'replayRunId': replayRunId,
+        'replayRunId': plan.replayRunId,
+        'recordedContestId': replayLog?.header?.contestId,
+        'recordedModeId': replayLog?.header?.modeId,
+        'recordedDifficultyId': replayLog?.header?.difficultyId,
+        'replayAbortedReason': plan.abortedReason?.name,
+        'committedContestId': settings.contestId,
+        'committedModeId': settings.contestModeId,
+        'committedDifficultyId': settings.difficulty.id,
         'answerSource': _answerSourceName,
-        'recordedAnswerCount': recording.length,
+        'recordedAnswerCount': replayAnswers.length,
       },
+    );
+
+    await _persistRunStartHeader(
+      runId,
+      RecordedRunHeader(
+        contestId: definition.id,
+        contestName: definition.name,
+        modeId: mode.id,
+        difficultyId: difficulty.id,
+        questionSeed: questionSeed,
+        audioSeed: audioSeed,
+        accentId: accentPolicy.accent.id,
+        appVersion: AppInfo.version ?? '',
+        replayOfRunId: plan.replayRunId,
+      ),
     );
 
     _audioPlayer.setTrainingProfile(
@@ -211,7 +313,7 @@ class ContestManager {
 
     // Reset the clock before the first answer is generated so the logged
     // elapsed time starts at zero.
-    final durationInMinutes = _contestDataManager.appSettings.contestDuration;
+    final durationInMinutes = settings.contestDuration;
     contestTimer.start(durationInMinutes);
 
     _contestTypeStreamController.sink.add(contestType);
@@ -222,6 +324,7 @@ class ContestManager {
       difficulty: difficulty,
       seed: questionSeed,
       answerSource: replaySource,
+      accentPolicy: accentPolicy,
     );
 
     // Emit the run id only once the new running manager is in place: listeners
@@ -230,8 +333,38 @@ class ContestManager {
     // the previous run.
     _contestRunIdStreamController.sink.add(runId);
 
+    _currentContestRunId = runId;
     _isContestRunning = true;
     _isContestRunningStreamController.sink.add(true);
+
+    return RunStartResult(
+      started: true,
+      source: plan.source,
+      abortedReason: plan.abortedReason,
+      replayContestName: plan.abortedContestName,
+      notices: plan.warnings,
+    );
+  }
+
+  List<String> _stationExchangeErrors(RunPlan plan) {
+    final settings = _contestDataManager.appSettings;
+    final callsign = settings.stationCallsign;
+    // Without a callsign the exchange cannot be derived; the readiness gate in
+    // the UI reports that separately, so this pre-flight stays quiet.
+    if (callsign.isEmpty) return const [];
+    final exchangePlan = plan.definition.myExchangePlan(
+      stationCallsign: callsign,
+      dxccManager: _contestDataManager.dxccManager,
+    );
+    return [
+      for (final error in validateStationExchangeAll(
+        plan: exchangePlan,
+        config: settings.stationExchangeConfig(plan.definition.id),
+        stationCallsign: callsign,
+        dxccManager: _contestDataManager.dxccManager,
+      ))
+        'exchange_${error.field.id}',
+    ];
   }
 
   ContestRunningManager _createContestRunningManager(
@@ -241,6 +374,7 @@ class ContestManager {
     required TrainingDifficulty difficulty,
     required int seed,
     AnswerSource? answerSource,
+    required AccentPolicy accentPolicy,
   }) {
     return ContestRunningManager(
       runId: runId,
@@ -252,6 +386,7 @@ class ContestManager {
       difficulty: difficulty,
       seed: seed,
       answerSource: answerSource,
+      accentPolicy: accentPolicy,
       onAnswerGenerated: _recordAnswer,
       onAnswersExhausted: (reason) => stopContest(reason: reason),
     );
@@ -323,19 +458,58 @@ class ContestManager {
     }
   }
 
-  Future<List<TrainingRunEvent>> _loadEvents(String runId) async {
+  /// Loads a recording's answers and, when present, its run-start header.
+  /// The header is parsed from the same event log with no schema change.
+  Future<ReplayLog> _loadRunLog(String runId) async {
     final rows =
         await (_appDatabase.eventLogTable.select()
               ..where((row) => row.runId.equals(runId))
               ..orderBy([(row) => OrderingTerm.asc(row.id)]))
             .get();
-    return rows
-        .map(
-          (row) => TrainingRunEvent.fromJson(
-            jsonDecode(row.payload) as Map<String, dynamic>,
-          ),
-        )
-        .toList();
+    final answers = <TrainingRunEvent>[];
+    RecordedRunHeader? header;
+    for (final row in rows) {
+      final json = jsonDecode(row.payload) as Map<String, dynamic>;
+      if (row.eventType == 'run-start') {
+        header ??= RecordedRunHeader.fromJson(json);
+      } else {
+        answers.add(TrainingRunEvent.fromJson(json));
+      }
+    }
+    return ReplayLog(answers: answers, header: header);
+  }
+
+  /// Writes the self-describing header as the first event of a new run. A
+  /// failure is downgraded to a warning: it must never block a session.
+  Future<void> _persistRunStartHeader(
+    String runId,
+    RecordedRunHeader header,
+  ) async {
+    try {
+      await _appDatabase
+          .into(_appDatabase.eventLogTable)
+          .insert(
+            EventLogTableCompanion.insert(
+              runId: runId,
+              elapsedMs: 0,
+              eventType: 'run-start',
+              payload: jsonEncode(header.toJson()),
+              createdAtUtc: DateTime.now().toUtc().millisecondsSinceEpoch,
+            ),
+          );
+    } catch (error, stackTrace) {
+      log.warn(
+        'failed to persist the run-start header',
+        tag: 'contest',
+        fields: {'runId': runId, 'contestId': header.contestId},
+      );
+      log.error(
+        'failed to persist the run-start header',
+        tag: 'contest',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<void> _saveReview(
@@ -355,6 +529,35 @@ class ContestManager {
     );
     _contestDataManager.appSettings.saveSessionReview(review);
     _reviewStreamController.add(review);
+  }
+
+  /// The operator's own exchange for the 1-based [qsoNumber].
+  ///
+  /// While a session runs it uses the contest type frozen at start (identical
+  /// to what is actually transmitted); on standby it previews the next session
+  /// from the current contest, callsign and station settings.
+  String myExchangeFor(int qsoNumber) {
+    final active = _activeContestType;
+    if (_isContestRunning && active != null) {
+      return active.buildMyExchange(qsoNumber);
+    }
+
+    final settings = _contestDataManager.appSettings;
+    final dxccManager = _contestDataManager.dxccManager;
+    // Standby previews the effective contest: an armed replay shows the
+    // recording's contest while the ordinary settings stay untouched.
+    final definition = ContestRegistry.byId(settings.effectiveContestId);
+    final plan = definition.myExchangePlan(
+      stationCallsign: settings.stationCallsign,
+      dxccManager: dxccManager,
+    );
+    return buildMyExchangeText(
+      plan: plan,
+      config: settings.stationExchangeConfig(definition.id),
+      stationCallsign: settings.stationCallsign,
+      dxccManager: dxccManager,
+      qsoNumber: qsoNumber,
+    );
   }
 
   Future<int> countCurrentRunQso() async {
@@ -380,4 +583,22 @@ class ContestManager {
         .reversed
         .toList();
   }
+}
+
+/// Outcome of one `startContest` call, consumed by the RUN button so a replay
+/// that had to be abandoned is explained instead of silently replaced.
+class RunStartResult {
+  const RunStartResult({
+    required this.started,
+    required this.source,
+    this.abortedReason,
+    this.replayContestName,
+    this.notices = const [],
+  });
+
+  final bool started;
+  final RunPlanSource source;
+  final ReplayAbortReason? abortedReason;
+  final String? replayContestName;
+  final List<String> notices;
 }
