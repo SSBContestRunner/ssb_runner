@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:toastification/toastification.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
@@ -42,7 +43,16 @@ class QsoConsoleCubit extends Cubit<SingleCallRunState?> {
   StreamSubscription? _inputControlStreamSubscription;
   StreamSubscription? _contestOperationEventHandlerSubscription;
   StreamSubscription<SingleCallRunState>? _contestStateSubscription;
+  StreamSubscription<OperationEvent>? _ignoredShortcutSubscription;
   ContestOperationEventHandler? _contestOperationEventHandler;
+
+  final _ignoredShortcutController =
+      StreamController<OperationEvent>.broadcast();
+
+  /// Key presses that were recognised but had nothing to do in the current
+  /// phase (today only `;`). The input area turns them into a short hint.
+  Stream<OperationEvent> get ignoredShortcutStream =>
+      _ignoredShortcutController.stream;
 
   /// Phase guidance is a Beginner-only crutch: at higher difficulties the
   /// operator has to read the band and the state machine themselves.
@@ -68,6 +78,8 @@ class QsoConsoleCubit extends Cubit<SingleCallRunState?> {
         .listen((isRunning) {
           _contestStateSubscription?.cancel();
           _contestStateSubscription = null;
+          _ignoredShortcutSubscription?.cancel();
+          _ignoredShortcutSubscription = null;
 
           final runningManager = _contestManager.contestRunningManager;
           if (isRunning && runningManager != null) {
@@ -81,6 +93,10 @@ class QsoConsoleCubit extends Cubit<SingleCallRunState?> {
             _contestStateSubscription = runningManager.stateStream.listen(
               _emitState,
             );
+            _ignoredShortcutSubscription = runningManager.ignoredShortcutStream
+                .listen((event) {
+                  if (!isClosed) _ignoredShortcutController.add(event);
+                });
           } else {
             _contestOperationEventHandler = null;
             _showPhaseHint = false;
@@ -111,6 +127,8 @@ class QsoConsoleCubit extends Cubit<SingleCallRunState?> {
     _inputControlStreamSubscription?.cancel();
     _contestOperationEventHandlerSubscription?.cancel();
     _contestStateSubscription?.cancel();
+    _ignoredShortcutSubscription?.cancel();
+    _ignoredShortcutController.close();
     _contestOperationEventHandler = null;
     return super.close();
   }
@@ -294,6 +312,8 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 
   late final Map<int, void Function()> _inputControlMap;
 
+  StreamSubscription<OperationEvent>? _ignoredShortcutSubscription;
+
   _QsoInputAreaState() {
     _inputControlMap = {
       fillRst: _fillRst,
@@ -308,6 +328,30 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     cubit.attachInputControl((inputControl) {
       _inputControlMap[inputControl]?.call();
     });
+  }
+
+  /// Explains a key press the current phase cannot use (today only `;`), so it
+  /// never reads as a dead key or a broken input method.
+  void _attachIgnoredShortcutHint() {
+    if (_ignoredShortcutSubscription != null) {
+      return;
+    }
+
+    _ignoredShortcutSubscription = context
+        .read<QsoConsoleCubit>()
+        .ignoredShortcutStream
+        .listen((event) {
+          if (!mounted || event != OperationEvent.hisCallAndMyExchange) {
+            return;
+          }
+
+          toastification.show(
+            title: Text(AppLocalizations.of(context).hintNothingToSend),
+            type: ToastificationType.info,
+            style: ToastificationStyle.fillColored,
+            autoCloseDuration: const Duration(seconds: 2),
+          );
+        });
   }
 
   void _fillRst() {
@@ -337,6 +381,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
     _attachInputControl(context);
+    _attachIgnoredShortcutHint();
 
     return Row(
       spacing: 10,
@@ -410,6 +455,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _callSignEditorController.dispose();
     _rstEditorController.dispose();
     _exchangeEditorController.dispose();
+    _ignoredShortcutSubscription?.cancel();
 
     _callSignFocusNode.dispose();
     _exchangeFocusNode.dispose();
@@ -654,7 +700,9 @@ class _SentExchangeFieldState extends State<_SentExchangeField> {
     // Only reachable on standby: a running session is locked by the settings
     // drawer itself, so the icon is disabled then.
     final settings = context.read<AppSettings>();
-    final definition = ContestRegistry.byId(settings.contestId);
+    // Follow the effective contest so an armed replay opens the field the
+    // upcoming session actually needs.
+    final definition = ContestRegistry.byId(settings.effectiveContestId);
     final plan = definition.myExchangePlan(
       stationCallsign: settings.stationCallsign,
       dxccManager: context.read<DxccManager>(),

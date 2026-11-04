@@ -8,6 +8,7 @@ import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 import 'package:toastification/toastification.dart';
@@ -29,18 +30,42 @@ class MainSettingsCubit extends Cubit<bool> {
   }
 }
 
+/// Projects the effective contest (armed replay wins on standby). Any write
+/// that bypasses the cubits bumps [AppSettings.settingsRevision], so the
+/// projection can never lag behind the value the next run will use.
 class ContestSettingCubit extends Cubit<ContestDefinition> {
   final AppSettings _appSettings;
 
   ContestSettingCubit({required AppSettings appSettings})
     : _appSettings = appSettings,
-      super(ContestRegistry.byId(appSettings.contestId));
+      super(ContestRegistry.byId(appSettings.effectiveContestId)) {
+    _appSettings.settingsRevision.addListener(_syncFromSettings);
+  }
+
+  void _syncFromSettings() {
+    final contest = ContestRegistry.byId(_appSettings.effectiveContestId);
+    if (!identical(contest, state)) emit(contest);
+  }
 
   void changeContest(String contestId) {
-    final contest = ContestRegistry.byId(contestId);
+    // Locked while a replay is armed: the only exit is cancelling it, never
+    // changing the contest underneath the recording.
+    if (_appSettings.pendingReplay != null) {
+      log.warn(
+        'contest change rejected while a replay is armed',
+        tag: 'settings',
+        fields: {'requestedContestId': contestId},
+      );
+      return;
+    }
     _appSettings.contestId = contestId;
+    _syncFromSettings();
+  }
 
-    emit(contest);
+  @override
+  Future<void> close() {
+    _appSettings.settingsRevision.removeListener(_syncFromSettings);
+    return super.close();
   }
 }
 
@@ -49,11 +74,24 @@ class StationCallsignCubit extends Cubit<String> {
 
   StationCallsignCubit({required AppSettings appSettings})
     : _appSettings = appSettings,
-      super(appSettings.stationCallsign);
+      super(appSettings.stationCallsign) {
+    _appSettings.settingsRevision.addListener(_syncFromSettings);
+  }
+
+  void _syncFromSettings() {
+    final callSign = _appSettings.stationCallsign;
+    if (callSign != state) emit(callSign);
+  }
 
   void onCallSignChange(String callSign) {
     _appSettings.stationCallsign = callSign;
-    emit(callSign);
+    _syncFromSettings();
+  }
+
+  @override
+  Future<void> close() {
+    _appSettings.settingsRevision.removeListener(_syncFromSettings);
+    return super.close();
   }
 }
 
@@ -73,23 +111,22 @@ class TrainingOptions {
   final IncomingAccent incomingAccent;
   final TrainingDifficulty difficulty;
   final double volume;
+
+  bool sameAs(TrainingOptions other) =>
+      mode == other.mode &&
+      duration == other.duration &&
+      phonicType == other.phonicType &&
+      incomingAccent == other.incomingAccent &&
+      difficulty == other.difficulty &&
+      volume == other.volume;
 }
 
 /// UI state for the Training/Audio tabs and the topbar metadata.
 class TrainingOptionsCubit extends Cubit<TrainingOptions> {
-  TrainingOptionsCubit(this._settings)
-    : super(
-        TrainingOptions(
-          mode: TrainingMode.fromId(_settings.contestModeId),
-          duration: _settings.contestDuration,
-          phonicType: _settings.phonicType,
-          incomingAccent: _settings.incomingAccent,
-          difficulty: _settings.difficulty,
-          volume: _settings.audioVolume,
-        ),
-      ) {
+  TrainingOptionsCubit(this._settings) : super(_readOptions(_settings)) {
     durationController = TextEditingController(text: state.duration.toString());
     durationFocusNode = FocusNode()..addListener(_handleDurationFocusChange);
+    _settings.settingsRevision.addListener(_syncFromSettings);
   }
 
   final AppSettings _settings;
@@ -98,6 +135,36 @@ class TrainingOptionsCubit extends Cubit<TrainingOptions> {
   // editing state and focus stable across rebuilds.
   late final TextEditingController durationController;
   late final FocusNode durationFocusNode;
+
+  static TrainingOptions _readOptions(AppSettings settings) => TrainingOptions(
+    mode: TrainingMode.fromId(settings.effectiveModeId),
+    duration: settings.contestDuration,
+    phonicType: settings.phonicType,
+    incomingAccent: settings.incomingAccent,
+    difficulty: TrainingDifficulty.fromId(settings.effectiveDifficultyId),
+    volume: settings.audioVolume,
+  );
+
+  void _syncFromSettings() {
+    final next = _readOptions(_settings);
+    if (next.duration != state.duration && !durationFocusNode.hasFocus) {
+      final text = next.duration.toString();
+      if (durationController.text != text) {
+        durationController.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      }
+    }
+    _emitIfChanged(next);
+  }
+
+  void _emitIfChanged(TrainingOptions next) {
+    if (state.sameAs(next)) return;
+    emit(next);
+  }
+
+  bool get _isReplayArmed => _settings.pendingReplay != null;
 
   void _handleDurationFocusChange() {
     if (durationFocusNode.hasFocus) return;
@@ -109,17 +176,31 @@ class TrainingOptionsCubit extends Cubit<TrainingOptions> {
   }
 
   void setMode(TrainingMode? value) {
-    if (value != null) {
-      _settings.contestModeId = value.id;
-      _emit(mode: value);
+    if (value == null) return;
+    if (_isReplayArmed) {
+      log.warn(
+        'mode change rejected while a replay is armed',
+        tag: 'settings',
+        fields: {'requestedModeId': value.id},
+      );
+      return;
     }
+    _settings.contestModeId = value.id;
+    _syncFromSettings();
   }
 
   void setDifficulty(TrainingDifficulty? value) {
-    if (value != null) {
-      _settings.difficulty = value;
-      _emit(difficulty: value);
+    if (value == null) return;
+    if (_isReplayArmed) {
+      log.warn(
+        'difficulty change rejected while a replay is armed',
+        tag: 'settings',
+        fields: {'requestedDifficultyId': value.id},
+      );
+      return;
     }
+    _settings.difficulty = value;
+    _syncFromSettings();
   }
 
   void setDuration(String input, AppLocalizations l10n) {
@@ -134,7 +215,7 @@ class TrainingOptionsCubit extends Cubit<TrainingOptions> {
     }
     final value = (parsed ?? 0).clamp(0, maxDurationInMinutesPerRun).toInt();
     _settings.contestDuration = value;
-    _emit(duration: value);
+    _syncFromSettings();
 
     // Show the clamped value immediately, e.g. typing 999 becomes 120.
     if (parsed != null && parsed > maxDurationInMinutesPerRun) {
@@ -147,48 +228,29 @@ class TrainingOptionsCubit extends Cubit<TrainingOptions> {
   }
 
   void setPhonic(PhonicType? value) {
-    if (value != null) {
-      _settings.phonicType = value;
-      _emit(phonicType: value);
-    }
+    if (value == null) return;
+    _settings.phonicType = value;
+    _syncFromSettings();
   }
 
   void setIncomingAccent(IncomingAccent? value) {
-    if (value != null) {
-      _settings.incomingAccent = value;
-      _emit(incomingAccent: value);
-    }
+    if (value == null) return;
+    _settings.incomingAccent = value;
+    _syncFromSettings();
   }
 
   void setVolume(double value) {
     _settings.audioVolume = value;
-    _emit(volume: value);
+    _syncFromSettings();
   }
 
   @override
   Future<void> close() {
+    _settings.settingsRevision.removeListener(_syncFromSettings);
     durationFocusNode
       ..removeListener(_handleDurationFocusChange)
       ..dispose();
     durationController.dispose();
     return super.close();
   }
-
-  void _emit({
-    TrainingMode? mode,
-    int? duration,
-    PhonicType? phonicType,
-    IncomingAccent? incomingAccent,
-    TrainingDifficulty? difficulty,
-    double? volume,
-  }) => emit(
-    TrainingOptions(
-      mode: mode ?? state.mode,
-      duration: duration ?? state.duration,
-      phonicType: phonicType ?? state.phonicType,
-      incomingAccent: incomingAccent ?? state.incomingAccent,
-      difficulty: difficulty ?? state.difficulty,
-      volume: volume ?? state.volume,
-    ),
-  );
 }

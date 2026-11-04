@@ -20,6 +20,7 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_state_change_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
+import 'package:ssb_runner/contest_run/new/run_plan.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
@@ -41,8 +42,9 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
-import 'package:ssb_runner/training/session_random.dart';
+import 'package:ssb_runner/training/pending_replay.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
+import 'package:ssb_runner/training/session_random.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 
 void main() {
@@ -77,7 +79,18 @@ void main() {
         // There are additional unused live stations, but a recorded replay
         // must end instead of switching to a live generator at this boundary.
         data.callsignLoader.callSigns.add('K1ABC');
-        data.appSettings.pendingReplayRunId = 'recorded-run';
+        data.appSettings.armReplay(
+          PendingReplay(
+            runId: 'recorded-run',
+            contestId: 'CQ-WPX',
+            contestName: 'CQ WPX',
+            modeId: TrainingMode.searchAndPounce.id,
+            difficultyId: TrainingDifficulty.beginner.id,
+            questionSeed: 42,
+            audioSeed: 43,
+            armedAtUtc: DateTime.now().toUtc(),
+          ),
+        );
         await rig.database
             .into(rig.database.eventLogTable)
             .insert(
@@ -126,7 +139,10 @@ void main() {
       final events = await (rig.database.select(
         rig.database.eventLogTable,
       )..where((row) => row.runId.equals(review.metadata.runId))).get();
-      expect(events, hasLength(1));
+      // Every run now starts with a self-describing header row; the answer
+      // rows follow it.
+      expect(events.where((row) => row.eventType == 'run-start'), hasLength(1));
+      expect(events.where((row) => row.eventType == 'answer'), hasLength(1));
       await logger.flush();
       final logs = await File('${directory.path}/latest.log').readAsString();
       for (final field in [
@@ -247,6 +263,81 @@ void main() {
       await rig.handler.handleToState(rig.machine.currentState);
 
       expect(rig.machine.currentState, isA<WaitingSubmitCall>());
+      await rig.dispose();
+    });
+  });
+
+  group('Run 抄错呼号：准入放开', () {
+    test('偏差超过阈值仍进入序号阶段，不丢本轮目标', () async {
+      final rig = await _rig(
+        initialState: _reportMyExchange(submitCall: 'X9ZZZZ'),
+      );
+
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      final next = rig.machine.currentState;
+      expect(next, isA<WaitingSubmitMyExchange>());
+      final waiting = next as WaitingSubmitMyExchange;
+      expect(waiting.submitCall, 'X9ZZZZ');
+      expect(waiting.currentCallAnswer, 'B100IARU');
+      expect(waiting.currentExchangeAnswer, '59 001');
+      expect(waiting.audioPlayType, isA<PlayCallExchange>());
+      expect(rig.answers.calls, 0, reason: '本轮目标不能被换成新的 pileup');
+      await rig.dispose();
+    });
+
+    test('错呼号 + 正确序号：按错呼号落库，正确呼号留在 callsignCorrect', () async {
+      final rig = await _rig(
+        initialState: _waitingSubmitMyExchange(submitCall: 'X9ZZZZ'),
+      );
+      rig.input.onExchangeEdit('59 001');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+      expect(rig.machine.currentState, isA<QsoEnd>());
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      final qsos = await rig.database.select(rig.database.qsoTable).get();
+      expect(qsos, hasLength(1));
+      expect(qsos.single.callsign, 'X9ZZZZ');
+      expect(qsos.single.callsignCorrect, 'B100IARU');
+      expect(qsos.single.exchange, '59 001');
+      expect(qsos.single.exchangeCorrect, '59 001');
+      await rig.dispose();
+    });
+
+    test('错呼号 + 错序号：两栏都按抄收值落库', () async {
+      final rig = await _rig(
+        initialState: _waitingSubmitMyExchange(submitCall: 'X9ZZZZ'),
+      );
+      rig.input.onExchangeEdit('59 002');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+      expect(rig.machine.currentState, isA<QsoEnd>());
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      final qsos = await rig.database.select(rig.database.qsoTable).get();
+      expect(qsos, hasLength(1));
+      expect(qsos.single.callsign, 'X9ZZZZ');
+      expect(qsos.single.callsignCorrect, 'B100IARU');
+      expect(qsos.single.exchange, '59 002');
+      expect(qsos.single.exchangeCorrect, '59 001');
+      await rig.dispose();
+    });
+
+    test('F7 重放：AGN + 呼号 + RST + 序号四段，不再静音', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _waitingSubmitMyExchange(submitCall: 'X9ZZZZ'),
+        audioLoader: loader,
+      );
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.agn);
+      expect(rig.machine.currentState, isA<WaitingSubmitMyExchange>());
+      await rig.handler.handleToState(rig.machine.currentState);
+
+      expect(loader.calls, 4, reason: 'AGN、呼号、RST、序号四段');
       await rig.dispose();
     });
   });
@@ -500,6 +591,455 @@ void main() {
       await rig.dispose();
     });
   });
+
+  group('分号键：他的呼号 + 我的序号', () {
+    test('WaitingSubmitCall：抄到呼号后一次发射并进入 ReportMyExchange', () async {
+      final loader = _CountingAudioLoader();
+      final transitions =
+          <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: _waitingSubmitCall('B100IARU'),
+        audioLoader: loader,
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      final handled = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(handled, isTrue, reason: '被接受的分号按键要报告已执行');
+      final current = rig.machine.currentState;
+      expect(current, isA<ReportMyExchange>());
+      expect((current as ReportMyExchange).submitCall, 'B100IARU');
+      expect(current.isOperateInput, isFalse);
+      expect(loader.calls, 2, reason: '他的呼号 + 我的序号 两段音频');
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+
+    test('HeRepeatCorrectCallAnswer：纠正后继续推进，不再静默', () async {
+      // 回归用例：日志里 `operation event hisCallAndMyExchange` 之后没有任何
+      // onTransition，分号键在这个状态下被整个吞掉。
+      final loader = _CountingAudioLoader();
+      final transitions =
+          <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: HeRepeatCorrectCallAnswer(
+          currentCallAnswer: 'B100IARU',
+          currentExchangeAnswer: '59 001',
+          submitCall: 'B10',
+        ),
+        audioLoader: loader,
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      final current = rig.machine.currentState;
+      expect(current, isA<ReportMyExchange>());
+      expect((current as ReportMyExchange).submitCall, 'B100IARU');
+      expect(loader.calls, 2);
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+
+    test('WaitingSubmitCall：空输入时重播，不播组合音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _waitingSubmitCall('B100IARU'),
+        audioLoader: loader,
+      );
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(rig.machine.currentState, isA<WaitingSubmitCall>());
+      expect(loader.calls, 0);
+      await rig.dispose();
+    });
+
+    test('WaitingSubmitMyExchange：重播他的序号', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _inFlightStateBuilders[2]('B100IARU'),
+        audioLoader: loader,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(rig.machine.currentState, isA<WaitingSubmitMyExchange>());
+      expect(loader.calls, 2);
+      await rig.dispose();
+    });
+
+    test('HeAskForExchange：只让他重发，不播组合音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _heAskForExchange('B100IARU'),
+        audioLoader: loader,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(rig.machine.currentState, isA<HeAskForExchange>());
+      expect(loader.calls, 0, reason: '他在要序号，组合音频会盖住他');
+      await rig.dispose();
+    });
+
+    test('ReportMyExchange / QsoEnd：不迁移也不播音频', () async {
+      for (final state in [_inFlightStateBuilders[3]('B100IARU'), _qsoEnd()]) {
+        final loader = _CountingAudioLoader();
+        final rig = await _rig(initialState: state, audioLoader: loader);
+        rig.input.onCallEdit('B100IARU');
+        final before = rig.machine.currentState;
+
+        final handled = await rig.operationHandler.handleOperationEvent(
+          OperationEvent.hisCallAndMyExchange,
+        );
+
+        expect(handled, isFalse, reason: '无动作时要让界面能提示');
+        expect(rig.machine.currentState, same(before));
+        expect(loader.calls, 0, reason: '${state.runtimeType} 不该发射');
+        await rig.dispose();
+      }
+    });
+
+    test('S&P：等价 Enter，不播组合音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _spListeningCq(),
+        searchAndPounce: true,
+        audioLoader: loader,
+      );
+      rig.input.onCallEdit('A1AAA');
+
+      final first = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(first, isTrue);
+      expect(rig.machine.currentState, isA<SpWaitingHisExchange>());
+      expect(loader.calls, 0);
+
+      // 第二次等价回车：抄到序号后提交并进入签字态。
+      rig.input.onExchangeEdit('007');
+      final second = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(second, isTrue);
+      expect(rig.machine.currentState, isA<SpQsoEnd>());
+      expect(loader.calls, 0);
+      await rig.dispose();
+    });
+
+    test('SpQsoEnd：不迁移也不播音频', () async {
+      final loader = _CountingAudioLoader();
+      final rig = await _rig(
+        initialState: _spListeningCq(),
+        searchAndPounce: true,
+        audioLoader: loader,
+      );
+      _advanceToSpQsoEnd(rig.machine);
+      rig.input.onCallEdit('A1AAA');
+      final before = rig.machine.currentState;
+
+      final handled = await rig.operationHandler.handleOperationEvent(
+        OperationEvent.hisCallAndMyExchange,
+      );
+
+      expect(handled, isFalse);
+      expect(rig.machine.currentState, same(before));
+      expect(loader.calls, 0);
+      await rig.dispose();
+    });
+  });
+
+  group('回车提交的遗留黑洞', () {
+    test('WaitingSubmitMyExchange 未抄序号时重播而不是 dropped', () async {
+      final transitions =
+          <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: _inFlightStateBuilders[2]('B100IARU'),
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+
+      expect(rig.machine.currentState, isA<WaitingSubmitMyExchange>());
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+
+    test('WaitingSubmitCall 两框都填仍然提交呼号 + 序号', () async {
+      final transitions =
+          <Transition<SingleCallRunState, SingleCallRunEvent, Null>>[];
+      final rig = await _rig(
+        initialState: _waitingSubmitCall('B100IARU'),
+        transitionListener: transitions.add,
+      );
+      rig.input.onCallEdit('B100IARU');
+      rig.input.onExchangeEdit('59 001');
+
+      await rig.operationHandler.handleOperationEvent(OperationEvent.submit);
+      await pumpEventQueue();
+
+      expect(rig.machine.currentState, isA<ReportMyExchange>());
+      expect(transitions.every(_isValidTransition), isTrue);
+      await rig.dispose();
+    });
+  });
+
+  group('重放归属与开局提交', () {
+    test('armed WPX 在 CQ WW 普通设置下按 WPX 预览并在启动后提交', () async {
+      final rig = await _openReplayRig(
+        settingsContestId: 'CQ-WW-SSB',
+        cqZone: '5',
+      );
+      rig.dataManager.callsignLoader.callSigns.add('4X6ZM');
+      await _insertAnswer(rig.database, 'wpx-recorded', exchange: '2500');
+      rig.dataManager.appSettings.armReplay(
+        _pendingFor('wpx-recorded', 'CQ-WPX'),
+      );
+
+      final manager = ContestManager(contestDataManager: rig.dataManager);
+      addTearDown(() async {
+        manager.stopContest();
+        await pumpEventQueue();
+        await rig.dispose();
+      });
+
+      // Standby preview follows the armed snapshot, not the ordinary settings.
+      expect(manager.myExchangeFor(1), '001');
+
+      final result = await manager.startContest();
+
+      expect(result.started, isTrue);
+      expect(result.source, RunPlanSource.pending);
+      expect(result.abortedReason, isNull);
+      expect(rig.dataManager.appSettings.contestId, 'CQ-WPX');
+      expect(rig.dataManager.appSettings.pendingReplay, isNull);
+      expect(manager.isContestRunning, isTrue);
+      expect(manager.myExchangeFor(1), '001');
+
+      final reviewFuture = manager.reviewStream.first;
+      manager.stopContest();
+      final review = await reviewFuture.timeout(const Duration(seconds: 5));
+      expect(review.metadata.contestId, 'CQ-WPX');
+    });
+
+    test('armed ARRL 重放只复刻来台，我方按当前站台功率发送', () async {
+      final rig = await _openReplayRig(settingsContestId: 'CQ-WPX');
+      rig.dataManager.appSettings.setStationExchangeValue(
+        'ARRL-DX',
+        'power',
+        '100',
+      );
+      rig.dataManager.callsignLoader.callSigns.add('4X6ZM');
+      await _insertAnswer(rig.database, 'arrl-recorded', exchange: '2500');
+      rig.dataManager.appSettings.armReplay(
+        PendingReplay(
+          runId: 'arrl-recorded',
+          contestId: 'ARRL-DX',
+          contestName: 'ARRL DX',
+          modeId: TrainingMode.run.id,
+          difficultyId: TrainingDifficulty.standard.id,
+          questionSeed: 42,
+          audioSeed: 43,
+          armedAtUtc: DateTime.utc(2026, 1, 1),
+        ),
+      );
+
+      final manager = ContestManager(contestDataManager: rig.dataManager);
+      addTearDown(() async {
+        manager.stopContest();
+        await pumpEventQueue();
+        await rig.dispose();
+      });
+
+      final result = await manager.startContest();
+
+      expect(result.started, isTrue);
+      expect(result.source, RunPlanSource.pending);
+      expect(rig.dataManager.appSettings.contestId, 'ARRL-DX');
+      // The recording supplies only the incoming answer; the operator's own
+      // exchange comes from the current station configuration.
+      expect(manager.myExchangeFor(1), '100');
+    });
+
+    test('录像头与待重放赛制冲突时中止并按普通设置开新局', () async {
+      final rig = await _openReplayRig(
+        settingsContestId: 'CQ-WW-SSB',
+        cqZone: '5',
+      );
+      rig.dataManager.callsignLoader.callSigns.add('4X6ZM');
+      await _insertHeader(rig.database, 'mismatch-run', contestId: 'CQ-WW-SSB');
+      await _insertAnswer(rig.database, 'mismatch-run', exchange: '2500');
+      rig.dataManager.appSettings.armReplay(
+        _pendingFor('mismatch-run', 'CQ-WPX'),
+      );
+
+      final manager = ContestManager(contestDataManager: rig.dataManager);
+      addTearDown(() async {
+        manager.stopContest();
+        await pumpEventQueue();
+        await rig.dispose();
+      });
+
+      final result = await manager.startContest();
+
+      expect(result.started, isTrue);
+      expect(result.source, RunPlanSource.settings);
+      expect(result.abortedReason, ReplayAbortReason.headerMismatch);
+      // The header is only evidence: the operator's settings win.
+      expect(rig.dataManager.appSettings.contestId, 'CQ-WW-SSB');
+      expect(rig.dataManager.appSettings.pendingReplay, isNull);
+      expect(manager.myExchangeFor(1), '05');
+    });
+
+    test('录像事件缺失时中止重放并清空待重放', () async {
+      final rig = await _openReplayRig(
+        settingsContestId: 'CQ-WW-SSB',
+        cqZone: '5',
+      );
+      rig.dataManager.callsignLoader.callSigns.add('4X6ZM');
+      rig.dataManager.appSettings.armReplay(
+        _pendingFor('missing-log', 'CQ-WPX'),
+      );
+
+      final manager = ContestManager(contestDataManager: rig.dataManager);
+      addTearDown(() async {
+        manager.stopContest();
+        await pumpEventQueue();
+        await rig.dispose();
+      });
+
+      final result = await manager.startContest();
+
+      expect(result.started, isTrue);
+      expect(result.abortedReason, ReplayAbortReason.eventsMissing);
+      expect(rig.dataManager.appSettings.contestId, 'CQ-WW-SSB');
+      expect(rig.dataManager.appSettings.pendingReplay, isNull);
+    });
+
+    test('空呼号池导致启动失败时保留待重放且不改普通设置', () async {
+      final rig = await _openReplayRig(settingsContestId: 'CQ-WPX');
+      rig.dataManager.appSettings.armReplay(
+        _pendingFor('missing-log', 'CQ-WPX'),
+      );
+
+      final manager = ContestManager(contestDataManager: rig.dataManager);
+      addTearDown(() async {
+        manager.stopContest();
+        await pumpEventQueue();
+        await rig.dispose();
+      });
+
+      final result = await manager.startContest();
+
+      expect(result.started, isFalse);
+      expect(result.notices, contains('callsign_pool_empty'));
+      expect(rig.dataManager.appSettings.pendingReplay, isNotNull);
+      expect(rig.dataManager.appSettings.contestId, 'CQ-WPX');
+      expect(manager.isContestRunning, isFalse);
+    });
+  });
+}
+
+Future<void> _insertHeader(
+  AppDatabase database,
+  String runId, {
+  required String contestId,
+}) => database
+    .into(database.eventLogTable)
+    .insert(
+      EventLogTableCompanion.insert(
+        runId: runId,
+        elapsedMs: 0,
+        eventType: 'run-start',
+        createdAtUtc: 0,
+        payload: jsonEncode({
+          'contestId': contestId,
+          'contestName': contestId,
+          'modeId': TrainingMode.run.id,
+          'difficultyId': TrainingDifficulty.standard.id,
+          'questionSeed': 42,
+          'audioSeed': 43,
+        }),
+      ),
+    );
+
+Future<void> _insertAnswer(
+  AppDatabase database,
+  String runId, {
+  required String exchange,
+}) => database
+    .into(database.eventLogTable)
+    .insert(
+      EventLogTableCompanion.insert(
+        runId: runId,
+        elapsedMs: 0,
+        eventType: 'answer',
+        createdAtUtc: 0,
+        payload: jsonEncode({
+          'type': 'answer',
+          'callsign': '4X6ZM',
+          'exchange': exchange,
+          'pileupCallsigns': ['4X6ZM'],
+          'modeId': TrainingMode.run.id,
+        }),
+      ),
+    );
+
+PendingReplay _pendingFor(String runId, String contestId) => PendingReplay(
+  runId: runId,
+  contestId: contestId,
+  contestName: contestId,
+  modeId: TrainingMode.run.id,
+  difficultyId: TrainingDifficulty.standard.id,
+  questionSeed: 42,
+  audioSeed: 43,
+  armedAtUtc: DateTime.utc(2026, 1, 1),
+);
+
+Future<_Rig> _openReplayRig({
+  required String settingsContestId,
+  String? cqZone,
+}) async {
+  final rig = await _rig(initialState: _qsoEnd());
+  rig.dataManager.appSettings
+    ..contestId = settingsContestId
+    ..contestModeId = TrainingMode.run.id
+    ..difficulty = TrainingDifficulty.standard
+    ..contestDuration = 30;
+  if (cqZone != null) {
+    rig.dataManager.appSettings.setStationExchangeValue(
+      settingsContestId,
+      'cqZone',
+      cqZone,
+    );
+  }
+  return rig;
+}
+
+bool _isValidTransition(
+  Transition<SingleCallRunState, SingleCallRunEvent, Null> transition,
+) {
+  return transition
+      is TransitionValid<SingleCallRunState, SingleCallRunEvent, Null>;
 }
 
 void _advanceToSpQsoEnd(
@@ -535,6 +1075,43 @@ WaitingSubmitCall _waitingSubmitCall(String callAnswer) {
   return WaitingSubmitCall(
     currentCallAnswer: callAnswer,
     currentExchangeAnswer: '59 002',
+  );
+}
+
+ReportMyExchange _reportMyExchange({
+  String currentCallAnswer = 'B100IARU',
+  String currentExchangeAnswer = '59 001',
+  String submitCall = 'B100IARU',
+}) {
+  return ReportMyExchange(
+    currentCallAnswer: currentCallAnswer,
+    currentExchangeAnswer: currentExchangeAnswer,
+    submitCall: submitCall,
+    myExchange: '001',
+    audioPlayType: PlayCallExchange(
+      call: submitCall,
+      exchange: '001',
+      isMe: true,
+    ),
+    isOperateInput: false,
+  );
+}
+
+WaitingSubmitMyExchange _waitingSubmitMyExchange({
+  String currentCallAnswer = 'B100IARU',
+  String currentExchangeAnswer = '59 001',
+  String submitCall = 'B100IARU',
+}) {
+  return WaitingSubmitMyExchange(
+    currentCallAnswer: currentCallAnswer,
+    currentExchangeAnswer: currentExchangeAnswer,
+    submitCall: submitCall,
+    audioPlayType: PlayCallExchange(
+      call: currentCallAnswer,
+      exchange: currentExchangeAnswer,
+      isMe: false,
+    ),
+    isOperateInput: false,
   );
 }
 
@@ -596,6 +1173,8 @@ Future<_Rig> _rig({
   AnswerSource? answerSource,
   CallsignLoader? callsignLoader,
   void Function(String reason)? onAnswersExhausted,
+  TransitionListener<SingleCallRunState, SingleCallRunEvent, Null>?
+  transitionListener,
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
   final input = ContestInputHandler();
@@ -608,11 +1187,11 @@ Future<_Rig> _rig({
   final machine = searchAndPounce
       ? initSearchAndPounceRunStateMachine(
           initialState: initialState as SpListeningCq,
-          transitionListener: (_) {},
+          transitionListener: transitionListener ?? (_) {},
         )
       : initSingleCallRunStateMachine(
           initialState: initialState,
-          transitionListener: (_) {},
+          transitionListener: transitionListener ?? (_) {},
         );
 
   final contestType = _FixedContestType();

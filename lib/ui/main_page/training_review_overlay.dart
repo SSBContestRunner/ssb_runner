@@ -6,8 +6,8 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
+import 'package:ssb_runner/training/pending_replay.dart';
 import 'package:ssb_runner/training/session_review.dart';
-import 'package:ssb_runner/training/training_profile.dart';
 
 class TrainingReviewOverlay extends StatefulWidget {
   const TrainingReviewOverlay({super.key});
@@ -136,13 +136,8 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
   void _replay(TrainingRunReview review) {
     final l10n = AppLocalizations.of(context);
     final settings = context.read<AppSettings>();
-    settings
-      ..pendingQuestionSeed = review.metadata.questionSeed
-      ..pendingAudioSeed = review.metadata.audioSeed
-      ..pendingReplayRunId = review.metadata.runId
-      ..contestId = review.metadata.contestId
-      ..contestModeId = review.metadata.modeId
-      ..difficulty = TrainingDifficulty.fromId(review.metadata.difficultyId);
+    // Arming keeps the ordinary settings; only a verified start commits them.
+    settings.armReplay(PendingReplay.fromReview(review));
     setState(() => _review = null);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
