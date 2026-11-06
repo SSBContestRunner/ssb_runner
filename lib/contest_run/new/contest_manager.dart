@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
+import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/common/normalize_callsign.dart';
@@ -19,6 +20,7 @@ import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
 import 'package:ssb_runner/training/session_review.dart';
 import 'package:ssb_runner/training/training_profile.dart';
@@ -80,6 +82,12 @@ class ContestManager {
   late final ContestInputHandler _contestInputHandler =
       _contestDataManager.inputHandler;
 
+  AudioLoader get audioLoader => _contestDataManager.audioLoader;
+
+  AudioPlayer get audioPlayer => _audioPlayer;
+
+  AppSettings get appSettings => _contestDataManager.appSettings;
+
   final _contestTypeStreamController =
       StreamController<ContestType>.broadcast();
 
@@ -92,6 +100,10 @@ class ContestManager {
 
   TrainingRunMetadata? _activeRun;
   ContestType? _activeContestType;
+
+  /// Contest type of the latest run; kept after the run stops so the QSO
+  /// replay can restore the serial's spoken form.
+  ContestType? get contestType => _activeContestType;
   final List<TrainingRunEvent> _eventLog = [];
   String _answerSourceName = 'live';
 

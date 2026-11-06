@@ -11,6 +11,9 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   final ContestManager _contestManager;
 
   StreamSubscription<List<QsoTableData>>? _qsoTableDataStream;
+  StreamSubscription<ContestSessionPhase>? _phaseSubscription;
+  List<QsoTableData> _qsos = [];
+  bool _sessionIdle = true;
 
   QsoRecordListCubit({
     required AppDatabase appDatabase,
@@ -18,6 +21,15 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   }) : _appDatabase = appDatabase,
        _contestManager = contestManager,
        super([]) {
+    _sessionIdle = !contestManager.isContestRunning;
+    _phaseSubscription = _contestManager.sessionPhaseStream.listen((phase) {
+      final idle = phase == ContestSessionPhase.idle;
+      if (_sessionIdle == idle) {
+        return;
+      }
+      _sessionIdle = idle;
+      _onQsosUpdate(_qsos);
+    });
     _contestManager.contestRunIdStream.listen((id) {
       if (id.isEmpty) {
         return;
@@ -38,6 +50,14 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   }
 
   void _onQsosUpdate(List<QsoTableData> qsos) {
-    emit(qsoResultsFromRecords(qsos));
+    _qsos = qsos;
+    emit(qsoResultsFromRecords(qsos, sessionIdle: _sessionIdle));
+  }
+
+  @override
+  Future<void> close() async {
+    await _phaseSubscription?.cancel();
+    await _qsoTableDataStream?.cancel();
+    return super.close();
   }
 }

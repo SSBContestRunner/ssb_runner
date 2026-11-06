@@ -637,6 +637,22 @@ class ContestStateChangeHandler {
       );
     } else {
       try {
+        final accentDir = _accentPolicy.resolve(
+          isMe: false,
+          dxccId: _dxccManager.findCallsignDxccId(correctCall),
+        );
+        final phonicType = _appSettings.phonicType;
+        final callPhonicDirs = _audioLoader.resolvePhonicDirs(
+          accentDir,
+          correctCall,
+          phonicType,
+        );
+        final exchangePhonicDirs = _audioLoader.resolvePhonicDirs(
+          accentDir,
+          _contestType.formatExchangeForAudio(correctExchange),
+          phonicType,
+        );
+
         final submitQso = await _appDatabase.qsoTable.insertReturningOrNull(
           QsoTableCompanion.insert(
             utcInSeconds: _contestTimer.elapseTime.inSeconds,
@@ -648,6 +664,10 @@ class ContestStateChangeHandler {
               submitExchange,
             ),
             exchangeCorrect: correctExchange,
+            accentDir: Value(accentDir),
+            phonicType: Value(phonicType.name),
+            callPhonicDirs: Value(callPhonicDirs.join(',')),
+            exchangePhonicDirs: Value(exchangePhonicDirs.join(',')),
           ),
         );
 

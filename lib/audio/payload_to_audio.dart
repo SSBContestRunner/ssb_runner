@@ -21,6 +21,19 @@ Future<Uint8List> loadAssetsWavPcmData(String filePath) async {
   return await wavToPcm(bytes);
 }
 
+/// Loads a clip without the global accent fallback, so callers can run their
+/// own fallback chain (the QSO replay RST does this).
+Future<Uint8List> loadExactAssetsWavPcmData(String filePath) async {
+  try {
+    final bytes = Uint8List.sublistView(
+      await rootBundle.load('assets/voice/$filePath'),
+    );
+    return await wavToPcm(bytes);
+  } on FlutterError {
+    return Uint8List(0);
+  }
+}
+
 Future<Uint8List> _loadAssetBytes(String filePath) async {
   try {
     return Uint8List.sublistView(

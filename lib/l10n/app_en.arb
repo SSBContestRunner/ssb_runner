@@ -335,6 +335,36 @@
       }
     }
   },
+  "correctionsDialogTitle": "Corrections · {count}",
+  "@correctionsDialogTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "correctionsDialogSubtitle": "Replay plays the correct callsign and serial. Tap ▶ to listen.",
+  "replayMissingCorrectValue": "No correct value (legacy)",
+  "replayUnavailable": "Unavailable",
+  "replayInterrupted": "Interrupted {from}, replaying {to}",
+  "@replayInterrupted": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "replayStopped": "Replay stopped: {call}",
+  "@replayStopped": {
+    "placeholders": {
+      "call": {
+        "type": "String"
+      }
+    }
+  },
   "autoLabel": "Auto",
   "autoUppercase": "Auto uppercase",
   "sessionTitle": "This session",

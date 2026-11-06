@@ -8,7 +8,7 @@ import 'package:ssb_runner/db/table/qso_table.dart';
 
 part 'app_database.g.dart';
 
-const _schemaVersion = 6;
+const _schemaVersion = 7;
 
 @DriftDatabase(tables: [PrefixTable, QsoTable, EventLogTable])
 class AppDatabase extends _$AppDatabase {
@@ -48,6 +48,15 @@ class AppDatabase extends _$AppDatabase {
       // next loadDxcc() re-parses the new asset.
       if (from < 6) {
         await delete(prefixTable).go();
+      }
+      // v7 adds the QSO voice replay metadata. The columns are nullable so
+      // rows logged before this version stay readable and are marked as
+      // legacy (not replayable) by the UI.
+      if (from < 7) {
+        await migrator.addColumn(qsoTable, qsoTable.accentDir);
+        await migrator.addColumn(qsoTable, qsoTable.phonicType);
+        await migrator.addColumn(qsoTable, qsoTable.callPhonicDirs);
+        await migrator.addColumn(qsoTable, qsoTable.exchangePhonicDirs);
       }
     },
   );
