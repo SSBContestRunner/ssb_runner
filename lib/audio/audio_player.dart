@@ -37,6 +37,11 @@ class AudioPlayer {
 
   bool _stopped = true;
 
+  /// Frozen by the training pause. The active segment keeps its playback
+  /// position and the queue is left untouched, so resuming continues from the
+  /// exact pause point.
+  bool _paused = false;
+
   AudioTrainingProfile? _trainingProfile;
   AudioTrainingEffects? _effects;
   Uint8List? _noiseBedPcm;
@@ -56,6 +61,8 @@ class AudioPlayer {
   static const double _ownSignalDuck = 0.0;
 
   bool get isStarted => !_stopped;
+
+  bool get isPaused => _paused;
 
   /// Installs (or clears) the per-session training profile.
   ///
@@ -92,7 +99,7 @@ class AudioPlayer {
 
   /// Starts the bed when one is wanted and the engine is ready.
   void _ensureNoiseBed() {
-    if (!_bedWanted || _bedStarting || !_engine.isInitialized) {
+    if (_paused || !_bedWanted || _bedStarting || !_engine.isInitialized) {
       return;
     }
     unawaited(_startNoiseBed());
@@ -143,6 +150,7 @@ class AudioPlayer {
   Future<void> startPlay() async {
     _reset();
     _stopped = false;
+    _paused = false;
     if (_trainingProfile != null) {
       _bedWanted = true;
       _ensureNoiseBed();
@@ -150,10 +158,59 @@ class AudioPlayer {
   }
 
   void stopPlay() {
+    _paused = false;
     _reset();
     _stopped = true;
     _bedWanted = false;
+    _engine.setNoiseBedPaused(false);
     _engine.stopNoiseBed().catchError((_) {});
+  }
+
+  /// Freezes audio in place for the training pause.
+  ///
+  /// Unlike [stopPlay] this keeps the active voice, the queue and the noise
+  /// bed; it only pauses them. The per-segment watchdog is cancelled so the
+  /// pause can never be mistaken for a stuck playback.
+  void pause() {
+    if (_stopped || _paused) {
+      return;
+    }
+    _paused = true;
+
+    final active = _active;
+    active?.watchdog?.cancel();
+    active?.watchdog = null;
+    active?.audioSegment.pause();
+
+    _engine.setNoiseBedPaused(true);
+  }
+
+  /// Continues from the exact pause point: the same segment resumes and the
+  /// queue is untouched — no rewind, no replay, no re-enqueue.
+  void resume() {
+    if (!_paused) {
+      return;
+    }
+    _paused = false;
+
+    final active = _active;
+    if (active != null) {
+      if (active.audioSegment.hasVoice) {
+        active.audioSegment.resume();
+        // Re-arm with the full timeout: the paused span must not count.
+        active.watchdog = Timer(
+          active.watchdogDuration,
+          () => _onSegmentFinished(active.generation),
+        );
+      } else {
+        // The clip ended while paused; advance instead of waiting for a voice
+        // that no longer exists.
+        _onSegmentFinished(active.generation);
+      }
+    }
+
+    _engine.setNoiseBedPaused(false);
+    _pump();
   }
 
   /// Drops everything queued or playing.
@@ -202,6 +259,9 @@ class AudioPlayer {
   }
 
   void _pump() {
+    if (_paused) {
+      return;
+    }
     _ensureNoiseBed();
     if (_stopped || _active != null || _pending.isEmpty) {
       return;
@@ -241,9 +301,13 @@ class AudioPlayer {
     }
 
     final generation = ++_generation;
+    final watchdogDuration =
+        _estimateDuration(segment.pcm.lengthInBytes) + _watchdogMargin;
     final active = _ActiveSegment(
       audioSegment: audioSegment,
       isMyAudio: segment.isMyAudio,
+      generation: generation,
+      watchdogDuration: watchdogDuration,
     );
     _active = active;
     _duckBedFor(segment.isMyAudio);
@@ -256,7 +320,7 @@ class AudioPlayer {
     // Safety net: never leave the queue stuck if the engine fails to report
     // the voice ending.
     active.watchdog = Timer(
-      _estimateDuration(segment.pcm.lengthInBytes) + _watchdogMargin,
+      watchdogDuration,
       () => _onSegmentFinished(generation),
     );
 
@@ -288,6 +352,11 @@ class AudioPlayer {
     if (generation != _generation) {
       return;
     }
+    // Keep the paused clip in its active slot: resuming continues it from the
+    // same position. A completion while paused can only come from a race.
+    if (_paused) {
+      return;
+    }
 
     final active = _active;
     _active = null;
@@ -317,10 +386,17 @@ class _PendingSegment {
 }
 
 class _ActiveSegment {
-  _ActiveSegment({required this.audioSegment, required this.isMyAudio});
+  _ActiveSegment({
+    required this.audioSegment,
+    required this.isMyAudio,
+    required this.generation,
+    required this.watchdogDuration,
+  });
 
   final AudioSegment audioSegment;
   final bool isMyAudio;
+  final int generation;
+  final Duration watchdogDuration;
 
   Timer? watchdog;
   StreamSubscription<void>? finishedSubscription;

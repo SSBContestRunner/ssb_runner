@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/app_topbar.dart';
 import 'package:ssb_runner/ui/main_page/qso_console.dart';
@@ -9,6 +10,7 @@ import 'package:ssb_runner/ui/main_page/session_panel.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/training_review_overlay.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_voice_replay_cubit.dart';
 
 class MainPage extends StatelessWidget {
   const MainPage({super.key});
@@ -38,6 +40,16 @@ class MainPage extends StatelessWidget {
             appDatabase: context.read(),
             contestManager: context.read(),
           ),
+        ),
+        BlocProvider(
+          create: (context) {
+            final contestManager = context.read<ContestManager>();
+            return QsoVoiceReplayCubit(
+              contestManager: contestManager,
+              audioLoader: contestManager.audioLoader,
+              audioPlayer: contestManager.audioPlayer,
+            );
+          },
         ),
       ],
       child: const Stack(

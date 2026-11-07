@@ -5,6 +5,7 @@ import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_row.dart';
+import 'package:ssb_runner/ui/qso_result_table/qso_voice_replay_dialog.dart';
 
 class QsoLogPanel extends StatelessWidget {
   const QsoLogPanel({super.key});
@@ -16,9 +17,8 @@ class QsoLogPanel extends StatelessWidget {
 
     return BlocBuilder<QsoRecordListCubit, List<QsoResult>>(
       builder: (context, qsos) {
-        final corrections = qsos
-            .where((qso) => qso.corrections.isNotEmpty)
-            .length;
+        final correctionRows = qsos.where((qso) => qso.hasCorrection).toList();
+        final corrections = correctionRows.length;
 
         return Container(
           decoration: BoxDecoration(
@@ -72,6 +72,8 @@ class QsoLogPanel extends StatelessWidget {
                           background: scheme.errorContainer,
                           foreground: scheme.onErrorContainer,
                           icon: Icons.error_outline,
+                          onTap: () =>
+                              showQsoVoiceReplayDialog(context, correctionRows),
                         ),
                       ],
                     ],
@@ -95,16 +97,18 @@ class _LogChip extends StatelessWidget {
     required this.background,
     required this.foreground,
     this.icon,
+    this.onTap,
   });
 
   final String label;
   final Color background;
   final Color foreground;
   final IconData? icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final chip = Container(
       height: 26,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
@@ -126,6 +130,15 @@ class _LogChip extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (onTap == null) {
+      return chip;
+    }
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Semantics(button: true, child: chip),
     );
   }
 }
@@ -152,29 +165,35 @@ class _LogHeader extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: qsoUtcColumnWidth,
-            child: _headerCell(l10n.tableUtc, style),
-          ),
-          Expanded(
-            flex: qsoCallColumnFlex.toInt(),
-            child: _headerCell(l10n.tableCall, style),
-          ),
-          SizedBox(
-            width: qsoRstColumnWidth,
-            child: _headerCell(l10n.tableRst, style),
-          ),
-          Expanded(
-            flex: qsoExchangeColumnFlex.toInt(),
-            child: _headerCell(l10n.tableExchange, style),
-          ),
-          SizedBox(
-            width: qsoCorrectionsColumnWidth,
-            child: _headerCell(l10n.tableCorrections, style),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showReplay = constraints.maxWidth >= qsoReplayColumnMinWidth;
+          return Row(
+            children: [
+              SizedBox(
+                width: qsoUtcColumnWidth,
+                child: _headerCell(l10n.tableUtc, style),
+              ),
+              Expanded(
+                flex: qsoCallColumnFlex.toInt(),
+                child: _headerCell(l10n.tableCall, style),
+              ),
+              SizedBox(
+                width: qsoRstColumnWidth,
+                child: _headerCell(l10n.tableRst, style),
+              ),
+              Expanded(
+                flex: qsoExchangeColumnFlex.toInt(),
+                child: _headerCell(l10n.tableExchange, style),
+              ),
+              SizedBox(
+                width: qsoCorrectionsColumnWidth,
+                child: _headerCell(l10n.tableCorrections, style),
+              ),
+              if (showReplay) const SizedBox(width: qsoReplayColumnWidth),
+            ],
+          );
+        },
       ),
     );
   }

@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' show Value;
-import 'package:ssb_runner/common/extract_prefix.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/generated/prefix_data.g.dart';
 import 'package:ssb_runner/dxcc/prefix_data.dart';
@@ -15,31 +14,21 @@ class DxccManager {
   Map<String, PrefixRow> _prefixByCall = const <String, PrefixRow>{};
 
   int findCallsignDxccId(String callsign) =>
-      _findMatchPrefixData(extractPrefix(callsign))?.dxccId ?? -1;
+      _findMatch(callsign)?.dxccId ?? -1;
 
   /// CQ zone for a callsign, or null when the cty data has no match.
-  int? findCallsignCqZone(String callsign) =>
-      _findMatchPrefixData(extractPrefix(callsign))?.cqz;
+  int? findCallsignCqZone(String callsign) => _findMatch(callsign)?.cqz;
 
   /// ITU zone for a callsign, or null when the cty data has no match.
-  int? findCallsignItuZone(String callsign) =>
-      _findMatchPrefixData(extractPrefix(callsign))?.ituz;
+  int? findCallsignItuZone(String callsign) => _findMatch(callsign)?.ituz;
 
   String findCallSignContinent(String callsign) =>
-      _findMatchPrefixData(extractPrefix(callsign))?.continent ?? '';
+      _findMatch(callsign)?.continent ?? '';
 
-  /// Walks the callsign prefix back one character at a time until a row matches.
-  PrefixRow? _findMatchPrefixData(String prefix) {
-    var checked = prefix;
-    while (checked.isNotEmpty) {
-      final match = _prefixByCall[checked];
-      if (match != null) {
-        return match;
-      }
-      checked = checked.substring(0, checked.length - 1);
-    }
-    return null;
-  }
+  /// Slash-aware lookup; the rule itself lives in
+  /// [lookupCallsignPrefix] so tools can reuse it without a database.
+  PrefixRow? _findMatch(String callsign) =>
+      lookupCallsignPrefix(_prefixByCall, callsign);
 
   Future<void> loadDxcc() async {
     final snapshot = await _loadSnapshot();

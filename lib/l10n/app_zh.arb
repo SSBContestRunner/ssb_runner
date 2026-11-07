@@ -142,6 +142,16 @@
   "statRate": "速率",
   "statCallErrors": "呼号错误",
   "statExchangeErrors": "交换错误",
+  "statDuration": "有效时长",
+  "statPaused": "暂停时长",
+  "pausedCount": "{count} 次",
+  "@pausedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "practiceSeedLine": "练习种子：{seed}",
   "replayThisSession": "重放本局",
   "contestExchangeCqWpx": "59 序号",
@@ -168,6 +178,12 @@
   "logSubtitle": "按 UTC 顺序自动记录",
   "logCount": "{count} 条",
   "logCorrections": "{count} 处更正",
+  "correctionsDialogTitle": "更正记录 · {count}",
+  "correctionsDialogSubtitle": "重放只播正确呼号与序号，点击 ▶ 逐条试听。",
+  "replayMissingCorrectValue": "正确值缺失（老数据）",
+  "replayUnavailable": "不可重放",
+  "replayInterrupted": "已打断 {from}，开始重放 {to}",
+  "replayStopped": "已停止重放 {call}",
   "autoLabel": "自动",
   "autoUppercase": "自动大写",
   "sessionTitle": "本次练习",
@@ -226,5 +242,46 @@
   "cancelReplay": "取消重放",
   "replayCancelledToast": "已取消重放",
   "replayAbortedToast": "无法重放 {contest}；已按当前设置开始新一局。",
-  "pastSessionsUnavailableWhileRunning": "比赛进行中无法打开历史练习。"
+  "pastSessionsUnavailableWhileRunning": "比赛进行中无法打开历史练习。",
+  "sessionStatusPaused": "已暂停",
+  "sessionStatusResuming": "恢复中",
+  "sessionPausedTooltip": "{status} · 暂停 {duration}（{count} 次）",
+  "@sessionPausedTooltip": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pauseTraining": "暂停训练",
+  "resumeTraining": "继续训练",
+  "endSession": "结束本局",
+  "sessionPausedNote": "输入与 F1–F8 已锁定 · 日志只读",
+  "resumeCountdown": "{seconds} 秒后继续",
+  "@resumeCountdown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "resumeSkip": "立即恢复",
+  "resumeHint": "从暂停点继续播放，不回到本题开头",
+  "endPausedTitle": "结束本局？",
+  "endPausedBody": "结束后无法继续本次练习：未完成的题目和剩余时间都会丢失；已记录的 {count} 条 QSO 会保留并写入回顾。",
+  "@endPausedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "endPausedConfirm": "结束并查看回顾",
+  "endRunningBody": "未完成的题目与剩余时间将丢失，已记录的 QSO 会保留。"
 }

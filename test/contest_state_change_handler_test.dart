@@ -1366,6 +1366,9 @@ class _SilentAudioEngine implements AudioEngine {
   void setNoiseBedVolume(double volume) {}
 
   @override
+  void setNoiseBedPaused(bool paused) {}
+
+  @override
   void fadeNoiseBedVolume(double volume, Duration time) {}
 
   @override
