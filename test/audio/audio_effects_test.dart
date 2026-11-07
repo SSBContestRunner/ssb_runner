@@ -157,6 +157,9 @@ class _RecordingEngine implements AudioEngine {
   void setNoiseBedVolume(double volume) {}
 
   @override
+  void setNoiseBedPaused(bool paused) {}
+
+  @override
   void fadeNoiseBedVolume(double volume, Duration time) {}
 
   @override

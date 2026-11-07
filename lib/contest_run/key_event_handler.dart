@@ -12,8 +12,12 @@ List<FunctionKeyBinding> get defaultFunctionKeyBindings => [
 ];
 
 class KeyEventHandler {
-  KeyEventHandler({List<FunctionKeyBinding>? bindings})
+  KeyEventHandler({List<FunctionKeyBinding>? bindings, this.isPaused})
     : _bindings = bindings ?? defaultFunctionKeyBindings;
+
+  /// Gates every shortcut while the session is paused. Pause and resume are
+  /// button-only, and a paused run must not react to Enter/Esc/Space/`;`/F-keys.
+  final bool Function()? isPaused;
 
   final List<FunctionKeyBinding> _bindings;
 
@@ -77,6 +81,12 @@ class KeyEventHandler {
   /// [KeyRepeatEvent] is deliberately not handled: holding a shortcut down
   /// sends a key once, and auto-repeat must not storm the state machine.
   void _handleKeyPressed(KeyEvent event) {
+    // Swallow the key entirely rather than letting it fall through: an event
+    // that reaches the manager could still surface as an ignored shortcut.
+    if (isPaused?.call() ?? false) {
+      return;
+    }
+
     final key = event.logicalKey;
 
     if (_actionByKey.containsKey(key)) {

@@ -160,7 +160,6 @@ class QsoConsole extends StatelessWidget {
         builder: (context, state) {
           final showHint =
               state != null && context.read<QsoConsoleCubit>().showPhaseHint;
-          final isCompact = MediaQuery.sizeOf(context).height <= 700;
           final scheme = Theme.of(context).colorScheme;
 
           return Container(
@@ -168,9 +167,7 @@ class QsoConsole extends StatelessWidget {
               color: scheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
             ),
-            padding: isCompact
-                ? const EdgeInsets.fromLTRB(14, 10, 14, 12)
-                : const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -179,7 +176,7 @@ class QsoConsole extends StatelessWidget {
                   const _PhaseHintBar(),
                   const SizedBox(height: 8),
                 ],
-                _QsoInputArea(fieldHeight: isCompact ? 58 : 64),
+                const _QsoInputArea(fieldHeight: 64),
                 const SizedBox(height: 12),
                 ExcludeFocus(
                   child: _ActionRow(
@@ -313,6 +310,32 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
   late final Map<int, void Function()> _inputControlMap;
 
   StreamSubscription<OperationEvent>? _ignoredShortcutSubscription;
+  StreamSubscription<ContestSessionPhase>? _sessionPhaseSubscription;
+
+  /// While the run is paused (including the 3-2-1 resume window), both editable
+  /// fields become read-only. This is the single gate for text entry: the
+  /// controllers keep their drafts, and nothing reaches the input cubit.
+  bool _inputLocked = false;
+
+  static bool _locksInput(ContestSessionPhase phase) =>
+      phase == ContestSessionPhase.paused ||
+      phase == ContestSessionPhase.resuming;
+
+  @override
+  void initState() {
+    super.initState();
+    final contestManager = context.read<ContestManager>();
+    _inputLocked = _locksInput(contestManager.sessionPhase);
+    _sessionPhaseSubscription = contestManager.sessionPhaseStream.listen((
+      phase,
+    ) {
+      final locked = _locksInput(phase);
+      if (!mounted || locked == _inputLocked) {
+        return;
+      }
+      setState(() => _inputLocked = locked);
+    });
+  }
 
   _QsoInputAreaState() {
     _inputControlMap = {
@@ -393,6 +416,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
             height: widget.fieldHeight,
             controller: _callSignEditorController,
             focusNode: _callSignFocusNode,
+            locked: _inputLocked,
             label: l10n.callLabel,
             suffix: l10n.autoUppercase,
             inputFormatters: [
@@ -416,6 +440,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
             focusable: false,
             striped: true,
             fillColor: scheme.surfaceContainerHighest,
+            horizontalPadding: 10,
             onChanged: null,
           ),
         ),
@@ -434,6 +459,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
                 height: widget.fieldHeight,
                 controller: _exchangeEditorController,
                 focusNode: _exchangeFocusNode,
+                locked: _inputLocked,
                 label: l10n.exchangeFieldLabel,
                 inputFormatters: [
                   UpperCaseTextFormatter(),
@@ -456,6 +482,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _rstEditorController.dispose();
     _exchangeEditorController.dispose();
     _ignoredShortcutSubscription?.cancel();
+    _sessionPhaseSubscription?.cancel();
 
     _callSignFocusNode.dispose();
     _exchangeFocusNode.dispose();
@@ -471,6 +498,7 @@ class _QsoField extends StatelessWidget {
     this.fieldKey,
     this.focusNode,
     this.readOnly = false,
+    this.locked = false,
     this.focusable = true,
     this.striped = false,
     this.fillColor,
@@ -478,6 +506,7 @@ class _QsoField extends StatelessWidget {
     this.suffixIcon,
     this.inputFormatters,
     this.onChanged,
+    this.horizontalPadding = 13,
   });
 
   final double height;
@@ -486,6 +515,10 @@ class _QsoField extends StatelessWidget {
   final Key? fieldKey;
   final FocusNode? focusNode;
   final bool readOnly;
+
+  /// Session-level lock (training paused). Unlike [readOnly] this keeps the
+  /// enabled styling, so the field does not look broken while it is locked.
+  final bool locked;
 
   /// Read-only projections (RST, sent exchange) must not join the Tab order or
   /// steal focus from the F2 → received-exchange flow.
@@ -499,6 +532,10 @@ class _QsoField extends StatelessWidget {
   final Widget? suffixIcon;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
+
+  /// Horizontal inset of the text inside the decorated box. The RST cell is
+  /// the narrowest one and needs the extra room to keep two digits intact.
+  final double horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +568,7 @@ class _QsoField extends StatelessWidget {
             textInputAction: TextInputAction.none,
             controller: controller,
             focusNode: focusNode,
-            readOnly: readOnly,
+            readOnly: readOnly || locked,
             canRequestFocus: focusable,
             inputFormatters: inputFormatters,
             onChanged: onChanged,
@@ -556,7 +593,12 @@ class _QsoField extends StatelessWidget {
               filled: !striped,
               fillColor: striped ? null : fill,
               isDense: true,
-              contentPadding: const EdgeInsets.fromLTRB(13, 20, 13, 8),
+              contentPadding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                20,
+                horizontalPadding,
+                8,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: borderColor),

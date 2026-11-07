@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
+import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_answer_generator.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
@@ -39,6 +40,8 @@ class ContestRunningManager with WidgetsBindingObserver {
 
   late final ContestInputHandler _inputHandler =
       _contestDataManager.inputHandler;
+
+  late final AudioPlayer _audioPlayer = _contestDataManager.audioPlayer;
 
   late final StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
   _stateMachine;
@@ -96,8 +99,11 @@ class ContestRunningManager with WidgetsBindingObserver {
         onAbandonRound: _contestStateChangeHandler.abandonRound,
       );
 
+  bool _isPaused = false;
+
   late final _keyEventManager = KeyEventHandler(
     bindings: functionKeysFromSettings(_contestDataManager.appSettings),
+    isPaused: () => _isPaused,
   );
 
   /// Operation events that were recognised but had nothing to do in the
@@ -232,6 +238,30 @@ class ContestRunningManager with WidgetsBindingObserver {
     if (state != AppLifecycleState.resumed) {
       _keyEventManager.resetPressedKeys();
     }
+  }
+
+  /// Freezes this run: keyboard shortcuts are swallowed, the automatic
+  /// follow-up timers stop, and audio keeps its position.
+  void pause() {
+    if (_isPaused) {
+      return;
+    }
+    _isPaused = true;
+    _contestStateChangeHandler.pause();
+    contestOperationEventHandler.pause();
+    _audioPlayer.pause();
+  }
+
+  /// Continues from the exact pause point. The keyboard gate is lifted before
+  /// audio resumes so the queued segment can finish and advance normally.
+  void resume() {
+    if (!_isPaused) {
+      return;
+    }
+    _isPaused = false;
+    contestOperationEventHandler.resume();
+    _audioPlayer.resume();
+    _contestStateChangeHandler.resume();
   }
 
   void stop() {

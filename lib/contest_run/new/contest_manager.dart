@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
+import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/common/normalize_callsign.dart';
@@ -19,10 +20,15 @@ import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
 import 'package:ssb_runner/training/session_review.dart';
 import 'package:ssb_runner/training/training_profile.dart';
 import 'package:uuid/uuid.dart';
+
+/// Lifecycle of a timed run. [resuming] is the 3-2-1 window before a paused
+/// run continues; audio and the clock stay frozen until it completes.
+enum ContestSessionPhase { idle, running, paused, resuming }
 
 class ContestManager {
   final ContestDataManager _contestDataManager;
@@ -55,9 +61,32 @@ class ContestManager {
 
   bool get isContestRunning => _isContestRunning;
 
+  ContestSessionPhase _sessionPhase = ContestSessionPhase.idle;
+  final _sessionPhaseStreamController =
+      StreamController<ContestSessionPhase>.broadcast();
+
+  Stream<ContestSessionPhase> get sessionPhaseStream =>
+      _sessionPhaseStreamController.stream;
+
+  ContestSessionPhase get sessionPhase => _sessionPhase;
+
+  void _setSessionPhase(ContestSessionPhase phase) {
+    if (_sessionPhase == phase) {
+      return;
+    }
+    _sessionPhase = phase;
+    _sessionPhaseStreamController.sink.add(phase);
+  }
+
   late final AudioPlayer _audioPlayer = _contestDataManager.audioPlayer;
   late final ContestInputHandler _contestInputHandler =
       _contestDataManager.inputHandler;
+
+  AudioLoader get audioLoader => _contestDataManager.audioLoader;
+
+  AudioPlayer get audioPlayer => _audioPlayer;
+
+  AppSettings get appSettings => _contestDataManager.appSettings;
 
   final _contestTypeStreamController =
       StreamController<ContestType>.broadcast();
@@ -71,6 +100,10 @@ class ContestManager {
 
   TrainingRunMetadata? _activeRun;
   ContestType? _activeContestType;
+
+  /// Contest type of the latest run; kept after the run stops so the QSO
+  /// replay can restore the serial's spoken form.
+  ContestType? get contestType => _activeContestType;
   final List<TrainingRunEvent> _eventLog = [];
   String _answerSourceName = 'live';
 
@@ -336,6 +369,7 @@ class ContestManager {
     _currentContestRunId = runId;
     _isContestRunning = true;
     _isContestRunningStreamController.sink.add(true);
+    _setSessionPhase(ContestSessionPhase.running);
 
     return RunStartResult(
       started: true,
@@ -392,6 +426,37 @@ class ContestManager {
     );
   }
 
+  /// Freezes the run. Pause and resume are button-only: no keyboard shortcut
+  /// exists by design.
+  void pauseContest() {
+    if (_sessionPhase != ContestSessionPhase.running) {
+      return;
+    }
+    _setSessionPhase(ContestSessionPhase.paused);
+    contestTimer.pause();
+    contestRunningManager?.pause();
+  }
+
+  /// Enters the 3-2-1 window. Audio and the clock stay frozen until
+  /// [completeResume] runs, so the countdown never counts as practice time.
+  void beginResume() {
+    if (_sessionPhase != ContestSessionPhase.paused) {
+      return;
+    }
+    _setSessionPhase(ContestSessionPhase.resuming);
+  }
+
+  /// Ends the countdown (finished or skipped) and continues from the pause
+  /// point. No rewind, no replay, no re-enqueue.
+  void completeResume() {
+    if (_sessionPhase != ContestSessionPhase.resuming) {
+      return;
+    }
+    _setSessionPhase(ContestSessionPhase.running);
+    contestRunningManager?.resume();
+    contestTimer.resume();
+  }
+
   void stopContest({String reason = 'stopped'}) {
     if (!_isContestRunning) {
       return;
@@ -418,6 +483,7 @@ class ContestManager {
 
     _isContestRunning = false;
     _isContestRunningStreamController.sink.add(false);
+    _setSessionPhase(ContestSessionPhase.idle);
 
     if (run != null && contestType != null) {
       _saveReview(run, contestType, endReason: reason);
@@ -526,6 +592,8 @@ class ContestManager {
       qsos: qsos,
       score: contestType.scoreCalculator.calculateScore(qsos).score,
       endReason: endReason,
+      pauseCount: contestTimer.pauseCount,
+      pausedDuration: contestTimer.pausedDuration,
     );
     _contestDataManager.appSettings.saveSessionReview(review);
     _reviewStreamController.add(review);

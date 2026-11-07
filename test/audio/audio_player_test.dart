@@ -181,6 +181,13 @@ class FakeAudioEngine implements AudioEngine {
     noiseBedVolume = volume;
   }
 
+  bool noiseBedPaused = false;
+
+  @override
+  void setNoiseBedPaused(bool paused) {
+    noiseBedPaused = paused;
+  }
+
   @override
   void fadeNoiseBedVolume(double volume, Duration time) {
     noiseBedVolume = volume;
@@ -203,6 +210,7 @@ class FakeAudioSegment implements AudioSegment {
   bool started = false;
   bool stopped = false;
   bool disposed = false;
+  bool paused = false;
 
   @override
   Stream<void> get finished => _finished.stream;
@@ -210,6 +218,16 @@ class FakeAudioSegment implements AudioSegment {
   @override
   void start() {
     started = true;
+  }
+
+  @override
+  void pause() {
+    paused = true;
+  }
+
+  @override
+  void resume() {
+    paused = false;
   }
 
   @override

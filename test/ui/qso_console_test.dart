@@ -433,6 +433,93 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('暂停期输入框拒绝键入且不丢草稿，恢复后可继续编辑', (tester) async {
+    final harness = await _createHarness();
+    final phases = StreamController<ContestSessionPhase>.broadcast();
+    addTearDown(phases.close);
+    final manager = _PhaseContestManager(
+      contestDataManager: harness.dataManager,
+      runningManager: _FakeRunningManager(),
+      phaseController: phases,
+      initial: ContestSessionPhase.running,
+    );
+    final list = _StubQsoRecordListCubit(
+      appDatabase: harness.dataManager.appDatabase,
+      contestManager: manager,
+    );
+    await _pumpConsole(
+      tester,
+      harness,
+      manager: manager,
+      recordListCubit: list,
+      width: 1024,
+      consoleWidth: 668,
+      withToastOverlay: true,
+    );
+
+    final callField = find.byKey(const Key('call-field'));
+    await tester.enterText(callField, 'JA1ABC');
+    await tester.pump();
+    expect(_callText(tester), 'JA1ABC');
+
+    manager.setPhase(ContestSessionPhase.paused);
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(callField).readOnly,
+      isTrue,
+      reason: 'paused runs must refuse typing, paste and IME',
+    );
+    expect(
+      tester.widget<TextField>(callField).focusNode!.hasFocus,
+      isTrue,
+      reason: 'the lock must not move focus away from the field',
+    );
+
+    await tester.enterText(callField, 'XX9XXX');
+    await tester.pump();
+    expect(
+      _callText(tester),
+      'JA1ABC',
+      reason: 'pausing must freeze the draft instead of clearing it',
+    );
+    expect(list.state, isEmpty, reason: 'no QSO may be recorded while paused');
+    expect(find.text('Nothing to send right now'), findsNothing);
+
+    manager.setPhase(ContestSessionPhase.resuming);
+    await tester.pump();
+    await tester.enterText(callField, 'XX9XXX');
+    await tester.pump();
+    expect(
+      _callText(tester),
+      'JA1ABC',
+      reason: 'the 3-2-1 window is still locked',
+    );
+
+    manager.setPhase(ContestSessionPhase.running);
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(callField).readOnly,
+      isFalse,
+      reason: 'completing the resume restores the original editing path',
+    );
+    expect(
+      tester.widget<TextField>(callField).focusNode!.hasFocus,
+      isTrue,
+      reason: 'focus survives the pause and resume round trip',
+    );
+
+    await tester.enterText(callField, 'K2XYZ');
+    await tester.pump();
+    expect(
+      _callText(tester),
+      'K2XYZ',
+      reason: 'resuming restores normal editing and keeps focus',
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the lock is disabled while a session runs', (tester) async {
     final harness = await _createHarness();
     final manager = _RunningContestManager(
@@ -520,6 +607,31 @@ class _RunningContestManager extends ContestManager {
   ContestRunningManager? get contestRunningManager => runningManager;
 }
 
+/// Reports a running session whose phase the test can drive, so the console's
+/// pause lock can be exercised without a real running manager.
+class _PhaseContestManager extends _RunningContestManager {
+  _PhaseContestManager({
+    required super.contestDataManager,
+    required super.runningManager,
+    required this.phaseController,
+    ContestSessionPhase initial = ContestSessionPhase.idle,
+  }) : _phase = initial;
+
+  final StreamController<ContestSessionPhase> phaseController;
+  ContestSessionPhase _phase;
+
+  @override
+  ContestSessionPhase get sessionPhase => _phase;
+
+  @override
+  Stream<ContestSessionPhase> get sessionPhaseStream => phaseController.stream;
+
+  void setPhase(ContestSessionPhase phase) {
+    _phase = phase;
+    phaseController.add(phase);
+  }
+}
+
 /// The only members [QsoConsoleCubit] touches while it binds to a session.
 class _FakeRunningManager
     with WidgetsBindingObserver
@@ -558,6 +670,12 @@ class _FakeRunningManager
   ScoreManager get scoreManager => throw UnimplementedError();
 
   @override
+  void pause() {}
+
+  @override
+  void resume() {}
+
+  @override
   void stop() {}
 
   final _operationHandler = _FakeOperationHandler();
@@ -585,6 +703,12 @@ class _FakeOperationHandler implements ContestOperationEventHandler {
 
   @override
   void transition(SingleCallRunEvent event) {}
+
+  @override
+  void pause() {}
+
+  @override
+  void resume() {}
 }
 
 /// Lets a test set the raw logged-row count (DUPE rows included) directly,
@@ -610,6 +734,11 @@ class _StubQsoRecordListCubit extends QsoRecordListCubit {
 
 String _sentText(WidgetTester tester) => tester
     .widget<TextField>(find.byKey(const Key('sent-exchange-field')))
+    .controller!
+    .text;
+
+String _callText(WidgetTester tester) => tester
+    .widget<TextField>(find.byKey(const Key('call-field')))
     .controller!
     .text;
 

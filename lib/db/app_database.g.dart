@@ -490,6 +490,50 @@ class $QsoTableTable extends QsoTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _accentDirMeta = const VerificationMeta(
+    'accentDir',
+  );
+  @override
+  late final GeneratedColumn<String> accentDir = GeneratedColumn<String>(
+    'accent_dir',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _phonicTypeMeta = const VerificationMeta(
+    'phonicType',
+  );
+  @override
+  late final GeneratedColumn<String> phonicType = GeneratedColumn<String>(
+    'phonic_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _callPhonicDirsMeta = const VerificationMeta(
+    'callPhonicDirs',
+  );
+  @override
+  late final GeneratedColumn<String> callPhonicDirs = GeneratedColumn<String>(
+    'call_phonic_dirs',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exchangePhonicDirsMeta =
+      const VerificationMeta('exchangePhonicDirs');
+  @override
+  late final GeneratedColumn<String> exchangePhonicDirs =
+      GeneratedColumn<String>(
+        'exchange_phonic_dirs',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -500,6 +544,10 @@ class $QsoTableTable extends QsoTable
     callsignCorrect,
     exchange,
     exchangeCorrect,
+    accentDir,
+    phonicType,
+    callPhonicDirs,
+    exchangePhonicDirs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -584,6 +632,36 @@ class $QsoTableTable extends QsoTable
     } else if (isInserting) {
       context.missing(_exchangeCorrectMeta);
     }
+    if (data.containsKey('accent_dir')) {
+      context.handle(
+        _accentDirMeta,
+        accentDir.isAcceptableOrUnknown(data['accent_dir']!, _accentDirMeta),
+      );
+    }
+    if (data.containsKey('phonic_type')) {
+      context.handle(
+        _phonicTypeMeta,
+        phonicType.isAcceptableOrUnknown(data['phonic_type']!, _phonicTypeMeta),
+      );
+    }
+    if (data.containsKey('call_phonic_dirs')) {
+      context.handle(
+        _callPhonicDirsMeta,
+        callPhonicDirs.isAcceptableOrUnknown(
+          data['call_phonic_dirs']!,
+          _callPhonicDirsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('exchange_phonic_dirs')) {
+      context.handle(
+        _exchangePhonicDirsMeta,
+        exchangePhonicDirs.isAcceptableOrUnknown(
+          data['exchange_phonic_dirs']!,
+          _exchangePhonicDirsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -625,6 +703,22 @@ class $QsoTableTable extends QsoTable
         DriftSqlType.string,
         data['${effectivePrefix}exchange_correct'],
       )!,
+      accentDir: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}accent_dir'],
+      ),
+      phonicType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phonic_type'],
+      ),
+      callPhonicDirs: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}call_phonic_dirs'],
+      ),
+      exchangePhonicDirs: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exchange_phonic_dirs'],
+      ),
     );
   }
 
@@ -643,6 +737,20 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
   final String callsignCorrect;
   final String exchange;
   final String exchangeCorrect;
+
+  /// Accent directory the incoming station was heard in. Null on rows logged
+  /// before v7, which makes the QSO voice replay unavailable.
+  final String? accentDir;
+
+  /// Phonic mode used when the QSO was played (standard / location / mixed).
+  final String? phonicType;
+
+  /// Resolved phonic directory per callsign character, so a mixed-mode replay
+  /// reproduces the exact letters that were heard.
+  final String? callPhonicDirs;
+
+  /// Resolved phonic directory per exchange character.
+  final String? exchangePhonicDirs;
   const QsoTableData({
     required this.id,
     required this.utcInSeconds,
@@ -652,6 +760,10 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     required this.callsignCorrect,
     required this.exchange,
     required this.exchangeCorrect,
+    this.accentDir,
+    this.phonicType,
+    this.callPhonicDirs,
+    this.exchangePhonicDirs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -664,6 +776,18 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     map['callsign_correct'] = Variable<String>(callsignCorrect);
     map['exchange'] = Variable<String>(exchange);
     map['exchange_correct'] = Variable<String>(exchangeCorrect);
+    if (!nullToAbsent || accentDir != null) {
+      map['accent_dir'] = Variable<String>(accentDir);
+    }
+    if (!nullToAbsent || phonicType != null) {
+      map['phonic_type'] = Variable<String>(phonicType);
+    }
+    if (!nullToAbsent || callPhonicDirs != null) {
+      map['call_phonic_dirs'] = Variable<String>(callPhonicDirs);
+    }
+    if (!nullToAbsent || exchangePhonicDirs != null) {
+      map['exchange_phonic_dirs'] = Variable<String>(exchangePhonicDirs);
+    }
     return map;
   }
 
@@ -677,6 +801,18 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       callsignCorrect: Value(callsignCorrect),
       exchange: Value(exchange),
       exchangeCorrect: Value(exchangeCorrect),
+      accentDir: accentDir == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accentDir),
+      phonicType: phonicType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phonicType),
+      callPhonicDirs: callPhonicDirs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(callPhonicDirs),
+      exchangePhonicDirs: exchangePhonicDirs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exchangePhonicDirs),
     );
   }
 
@@ -694,6 +830,12 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       callsignCorrect: serializer.fromJson<String>(json['callsignCorrect']),
       exchange: serializer.fromJson<String>(json['exchange']),
       exchangeCorrect: serializer.fromJson<String>(json['exchangeCorrect']),
+      accentDir: serializer.fromJson<String?>(json['accentDir']),
+      phonicType: serializer.fromJson<String?>(json['phonicType']),
+      callPhonicDirs: serializer.fromJson<String?>(json['callPhonicDirs']),
+      exchangePhonicDirs: serializer.fromJson<String?>(
+        json['exchangePhonicDirs'],
+      ),
     );
   }
   @override
@@ -708,6 +850,10 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       'callsignCorrect': serializer.toJson<String>(callsignCorrect),
       'exchange': serializer.toJson<String>(exchange),
       'exchangeCorrect': serializer.toJson<String>(exchangeCorrect),
+      'accentDir': serializer.toJson<String?>(accentDir),
+      'phonicType': serializer.toJson<String?>(phonicType),
+      'callPhonicDirs': serializer.toJson<String?>(callPhonicDirs),
+      'exchangePhonicDirs': serializer.toJson<String?>(exchangePhonicDirs),
     };
   }
 
@@ -720,6 +866,10 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     String? callsignCorrect,
     String? exchange,
     String? exchangeCorrect,
+    Value<String?> accentDir = const Value.absent(),
+    Value<String?> phonicType = const Value.absent(),
+    Value<String?> callPhonicDirs = const Value.absent(),
+    Value<String?> exchangePhonicDirs = const Value.absent(),
   }) => QsoTableData(
     id: id ?? this.id,
     utcInSeconds: utcInSeconds ?? this.utcInSeconds,
@@ -729,6 +879,14 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     callsignCorrect: callsignCorrect ?? this.callsignCorrect,
     exchange: exchange ?? this.exchange,
     exchangeCorrect: exchangeCorrect ?? this.exchangeCorrect,
+    accentDir: accentDir.present ? accentDir.value : this.accentDir,
+    phonicType: phonicType.present ? phonicType.value : this.phonicType,
+    callPhonicDirs: callPhonicDirs.present
+        ? callPhonicDirs.value
+        : this.callPhonicDirs,
+    exchangePhonicDirs: exchangePhonicDirs.present
+        ? exchangePhonicDirs.value
+        : this.exchangePhonicDirs,
   );
   QsoTableData copyWithCompanion(QsoTableCompanion data) {
     return QsoTableData(
@@ -748,6 +906,16 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
       exchangeCorrect: data.exchangeCorrect.present
           ? data.exchangeCorrect.value
           : this.exchangeCorrect,
+      accentDir: data.accentDir.present ? data.accentDir.value : this.accentDir,
+      phonicType: data.phonicType.present
+          ? data.phonicType.value
+          : this.phonicType,
+      callPhonicDirs: data.callPhonicDirs.present
+          ? data.callPhonicDirs.value
+          : this.callPhonicDirs,
+      exchangePhonicDirs: data.exchangePhonicDirs.present
+          ? data.exchangePhonicDirs.value
+          : this.exchangePhonicDirs,
     );
   }
 
@@ -761,7 +929,11 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
           ..write('callsign: $callsign, ')
           ..write('callsignCorrect: $callsignCorrect, ')
           ..write('exchange: $exchange, ')
-          ..write('exchangeCorrect: $exchangeCorrect')
+          ..write('exchangeCorrect: $exchangeCorrect, ')
+          ..write('accentDir: $accentDir, ')
+          ..write('phonicType: $phonicType, ')
+          ..write('callPhonicDirs: $callPhonicDirs, ')
+          ..write('exchangePhonicDirs: $exchangePhonicDirs')
           ..write(')'))
         .toString();
   }
@@ -776,6 +948,10 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
     callsignCorrect,
     exchange,
     exchangeCorrect,
+    accentDir,
+    phonicType,
+    callPhonicDirs,
+    exchangePhonicDirs,
   );
   @override
   bool operator ==(Object other) =>
@@ -788,7 +964,11 @@ class QsoTableData extends DataClass implements Insertable<QsoTableData> {
           other.callsign == this.callsign &&
           other.callsignCorrect == this.callsignCorrect &&
           other.exchange == this.exchange &&
-          other.exchangeCorrect == this.exchangeCorrect);
+          other.exchangeCorrect == this.exchangeCorrect &&
+          other.accentDir == this.accentDir &&
+          other.phonicType == this.phonicType &&
+          other.callPhonicDirs == this.callPhonicDirs &&
+          other.exchangePhonicDirs == this.exchangePhonicDirs);
 }
 
 class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
@@ -800,6 +980,10 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
   final Value<String> callsignCorrect;
   final Value<String> exchange;
   final Value<String> exchangeCorrect;
+  final Value<String?> accentDir;
+  final Value<String?> phonicType;
+  final Value<String?> callPhonicDirs;
+  final Value<String?> exchangePhonicDirs;
   const QsoTableCompanion({
     this.id = const Value.absent(),
     this.utcInSeconds = const Value.absent(),
@@ -809,6 +993,10 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     this.callsignCorrect = const Value.absent(),
     this.exchange = const Value.absent(),
     this.exchangeCorrect = const Value.absent(),
+    this.accentDir = const Value.absent(),
+    this.phonicType = const Value.absent(),
+    this.callPhonicDirs = const Value.absent(),
+    this.exchangePhonicDirs = const Value.absent(),
   });
   QsoTableCompanion.insert({
     this.id = const Value.absent(),
@@ -819,6 +1007,10 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     required String callsignCorrect,
     required String exchange,
     required String exchangeCorrect,
+    this.accentDir = const Value.absent(),
+    this.phonicType = const Value.absent(),
+    this.callPhonicDirs = const Value.absent(),
+    this.exchangePhonicDirs = const Value.absent(),
   }) : utcInSeconds = Value(utcInSeconds),
        runId = Value(runId),
        stationCallsign = Value(stationCallsign),
@@ -835,6 +1027,10 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     Expression<String>? callsignCorrect,
     Expression<String>? exchange,
     Expression<String>? exchangeCorrect,
+    Expression<String>? accentDir,
+    Expression<String>? phonicType,
+    Expression<String>? callPhonicDirs,
+    Expression<String>? exchangePhonicDirs,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -845,6 +1041,11 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
       if (callsignCorrect != null) 'callsign_correct': callsignCorrect,
       if (exchange != null) 'exchange': exchange,
       if (exchangeCorrect != null) 'exchange_correct': exchangeCorrect,
+      if (accentDir != null) 'accent_dir': accentDir,
+      if (phonicType != null) 'phonic_type': phonicType,
+      if (callPhonicDirs != null) 'call_phonic_dirs': callPhonicDirs,
+      if (exchangePhonicDirs != null)
+        'exchange_phonic_dirs': exchangePhonicDirs,
     });
   }
 
@@ -857,6 +1058,10 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     Value<String>? callsignCorrect,
     Value<String>? exchange,
     Value<String>? exchangeCorrect,
+    Value<String?>? accentDir,
+    Value<String?>? phonicType,
+    Value<String?>? callPhonicDirs,
+    Value<String?>? exchangePhonicDirs,
   }) {
     return QsoTableCompanion(
       id: id ?? this.id,
@@ -867,6 +1072,10 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
       callsignCorrect: callsignCorrect ?? this.callsignCorrect,
       exchange: exchange ?? this.exchange,
       exchangeCorrect: exchangeCorrect ?? this.exchangeCorrect,
+      accentDir: accentDir ?? this.accentDir,
+      phonicType: phonicType ?? this.phonicType,
+      callPhonicDirs: callPhonicDirs ?? this.callPhonicDirs,
+      exchangePhonicDirs: exchangePhonicDirs ?? this.exchangePhonicDirs,
     );
   }
 
@@ -897,6 +1106,18 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
     if (exchangeCorrect.present) {
       map['exchange_correct'] = Variable<String>(exchangeCorrect.value);
     }
+    if (accentDir.present) {
+      map['accent_dir'] = Variable<String>(accentDir.value);
+    }
+    if (phonicType.present) {
+      map['phonic_type'] = Variable<String>(phonicType.value);
+    }
+    if (callPhonicDirs.present) {
+      map['call_phonic_dirs'] = Variable<String>(callPhonicDirs.value);
+    }
+    if (exchangePhonicDirs.present) {
+      map['exchange_phonic_dirs'] = Variable<String>(exchangePhonicDirs.value);
+    }
     return map;
   }
 
@@ -910,7 +1131,11 @@ class QsoTableCompanion extends UpdateCompanion<QsoTableData> {
           ..write('callsign: $callsign, ')
           ..write('callsignCorrect: $callsignCorrect, ')
           ..write('exchange: $exchange, ')
-          ..write('exchangeCorrect: $exchangeCorrect')
+          ..write('exchangeCorrect: $exchangeCorrect, ')
+          ..write('accentDir: $accentDir, ')
+          ..write('phonicType: $phonicType, ')
+          ..write('callPhonicDirs: $callPhonicDirs, ')
+          ..write('exchangePhonicDirs: $exchangePhonicDirs')
           ..write(')'))
         .toString();
   }
@@ -1573,6 +1798,10 @@ typedef $$QsoTableTableCreateCompanionBuilder =
       required String callsignCorrect,
       required String exchange,
       required String exchangeCorrect,
+      Value<String?> accentDir,
+      Value<String?> phonicType,
+      Value<String?> callPhonicDirs,
+      Value<String?> exchangePhonicDirs,
     });
 typedef $$QsoTableTableUpdateCompanionBuilder =
     QsoTableCompanion Function({
@@ -1584,6 +1813,10 @@ typedef $$QsoTableTableUpdateCompanionBuilder =
       Value<String> callsignCorrect,
       Value<String> exchange,
       Value<String> exchangeCorrect,
+      Value<String?> accentDir,
+      Value<String?> phonicType,
+      Value<String?> callPhonicDirs,
+      Value<String?> exchangePhonicDirs,
     });
 
 class $$QsoTableTableFilterComposer
@@ -1632,6 +1865,26 @@ class $$QsoTableTableFilterComposer
 
   ColumnFilters<String> get exchangeCorrect => $composableBuilder(
     column: $table.exchangeCorrect,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accentDir => $composableBuilder(
+    column: $table.accentDir,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phonicType => $composableBuilder(
+    column: $table.phonicType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get callPhonicDirs => $composableBuilder(
+    column: $table.callPhonicDirs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get exchangePhonicDirs => $composableBuilder(
+    column: $table.exchangePhonicDirs,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1684,6 +1937,26 @@ class $$QsoTableTableOrderingComposer
     column: $table.exchangeCorrect,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get accentDir => $composableBuilder(
+    column: $table.accentDir,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phonicType => $composableBuilder(
+    column: $table.phonicType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get callPhonicDirs => $composableBuilder(
+    column: $table.callPhonicDirs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get exchangePhonicDirs => $composableBuilder(
+    column: $table.exchangePhonicDirs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$QsoTableTableAnnotationComposer
@@ -1724,6 +1997,24 @@ class $$QsoTableTableAnnotationComposer
 
   GeneratedColumn<String> get exchangeCorrect => $composableBuilder(
     column: $table.exchangeCorrect,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get accentDir =>
+      $composableBuilder(column: $table.accentDir, builder: (column) => column);
+
+  GeneratedColumn<String> get phonicType => $composableBuilder(
+    column: $table.phonicType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get callPhonicDirs => $composableBuilder(
+    column: $table.callPhonicDirs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get exchangePhonicDirs => $composableBuilder(
+    column: $table.exchangePhonicDirs,
     builder: (column) => column,
   );
 }
@@ -1767,6 +2058,10 @@ class $$QsoTableTableTableManager
                 Value<String> callsignCorrect = const Value.absent(),
                 Value<String> exchange = const Value.absent(),
                 Value<String> exchangeCorrect = const Value.absent(),
+                Value<String?> accentDir = const Value.absent(),
+                Value<String?> phonicType = const Value.absent(),
+                Value<String?> callPhonicDirs = const Value.absent(),
+                Value<String?> exchangePhonicDirs = const Value.absent(),
               }) => QsoTableCompanion(
                 id: id,
                 utcInSeconds: utcInSeconds,
@@ -1776,6 +2071,10 @@ class $$QsoTableTableTableManager
                 callsignCorrect: callsignCorrect,
                 exchange: exchange,
                 exchangeCorrect: exchangeCorrect,
+                accentDir: accentDir,
+                phonicType: phonicType,
+                callPhonicDirs: callPhonicDirs,
+                exchangePhonicDirs: exchangePhonicDirs,
               ),
           createCompanionCallback:
               ({
@@ -1787,6 +2086,10 @@ class $$QsoTableTableTableManager
                 required String callsignCorrect,
                 required String exchange,
                 required String exchangeCorrect,
+                Value<String?> accentDir = const Value.absent(),
+                Value<String?> phonicType = const Value.absent(),
+                Value<String?> callPhonicDirs = const Value.absent(),
+                Value<String?> exchangePhonicDirs = const Value.absent(),
               }) => QsoTableCompanion.insert(
                 id: id,
                 utcInSeconds: utcInSeconds,
@@ -1796,6 +2099,10 @@ class $$QsoTableTableTableManager
                 callsignCorrect: callsignCorrect,
                 exchange: exchange,
                 exchangeCorrect: exchangeCorrect,
+                accentDir: accentDir,
+                phonicType: phonicType,
+                callPhonicDirs: callPhonicDirs,
+                exchangePhonicDirs: exchangePhonicDirs,
               ),
           withReferenceMapper: (p0) => p0
               .map(

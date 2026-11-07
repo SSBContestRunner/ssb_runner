@@ -18,6 +18,15 @@ abstract interface class AudioSegment {
   /// Starts playback. Called exactly once.
   void start();
 
+  /// Pauses the voice in place, if one is playing.
+  ///
+  /// Used by the training pause: the segment keeps its playback position so
+  /// resuming continues from the exact pause point instead of restarting.
+  void pause();
+
+  /// Resumes a voice paused by [pause].
+  void resume();
+
   /// Stops the voice, if one is playing.
   Future<void> stop();
 
@@ -51,6 +60,9 @@ abstract interface class AudioEngine {
 
   /// Adjusts the bed gain immediately. A no-op when no bed is active.
   void setNoiseBedVolume(double volume);
+
+  /// Pauses or resumes the looping bed. A no-op when no bed is active.
+  void setNoiseBedPaused(bool paused);
 
   /// Smoothly fades the bed to [volume] over [time].
   ///
@@ -149,6 +161,15 @@ class SoLoudAudioEngine implements AudioEngine {
   }
 
   @override
+  void setNoiseBedPaused(bool paused) {
+    final handle = _noiseHandle;
+    if (handle == null || !SoLoud.instance.isInitialized) {
+      return;
+    }
+    SoLoud.instance.setPause(handle, paused);
+  }
+
+  @override
   void fadeNoiseBedVolume(double volume, Duration time) {
     final handle = _noiseHandle;
     if (handle == null || !SoLoud.instance.isInitialized) {
@@ -194,6 +215,24 @@ class _SoLoudAudioSegment implements AudioSegment {
   @override
   void start() {
     _handle = SoLoud.instance.play(_source);
+  }
+
+  @override
+  void pause() {
+    final handle = _handle;
+    if (handle == null || !SoLoud.instance.isInitialized) {
+      return;
+    }
+    SoLoud.instance.setPause(handle, true);
+  }
+
+  @override
+  void resume() {
+    final handle = _handle;
+    if (handle == null || !SoLoud.instance.isInitialized) {
+      return;
+    }
+    SoLoud.instance.setPause(handle, false);
   }
 
   @override

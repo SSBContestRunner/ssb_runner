@@ -157,13 +157,21 @@ class _MainAppState extends State<MainApp> {
       await windowManager.setResizable(true);
       // The minimum is a *window frame* size: macOS applies it through
       // `NSWindow.minSize` and Windows through WM_GETMINMAXINFO, so the
-      // content area is that much shorter by the title bar. The armed replay
-      // session card needs ~648dp of content at 1024 wide in the worst locale
-      // (Japanese); 700 leaves ~24dp after a macOS title bar (and >=13dp after
-      // a Windows one), so the card no longer scrolls in zh/en/ja while the
-      // window stays much lower than 720.
-      await windowManager.setMinimumSize(const Size(1024, 700));
-      await windowManager.setSize(const Size(1024, 700));
+      // content area is that much shorter by the title bar.
+      //
+      // Width: the read-only RST cell is 1/9 of the QSO row. With the 10dp
+      // text inset, 1084 shows 30.5dp of text, which is 1.1dp short of the
+      // 31.6dp `59` needs at textScale 1.3; the three-digit sent exchange
+      // needs 47.1dp and gets 46.1dp there. 1108 shows 32.9dp and 49.8dp, so
+      // both cells are whole at every supported scale.
+      //
+      // Height: 796 leaves 772dp of content. With the single-row resume strip
+      // the session card no longer scrolls in any of running / armed replay /
+      // paused / resuming at 5 languages x textScale 1.0/1.3, measured at
+      // content 768 already; 772 keeps 4dp of headroom. The wide layout is
+      // therefore the only form, and the old 700dp compact branches are gone.
+      await windowManager.setMinimumSize(const Size(1108, 796));
+      await windowManager.setSize(const Size(1108, 796));
       await windowManager.center();
     } catch (error, stackTrace) {
       log.warn(
