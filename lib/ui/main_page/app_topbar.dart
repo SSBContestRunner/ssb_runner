@@ -22,12 +22,11 @@ class AppTopbar extends StatelessWidget {
     final contest = context.watch<ContestSettingCubit>().state;
     final options = context.watch<TrainingOptionsCubit>().state;
     final callsign = context.watch<StationCallsignCubit>().state;
-    final isCompact = MediaQuery.sizeOf(context).height <= 700;
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SizedBox(
-      height: isCompact ? 60 : 64,
+      height: 64,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(

@@ -160,7 +160,6 @@ class QsoConsole extends StatelessWidget {
         builder: (context, state) {
           final showHint =
               state != null && context.read<QsoConsoleCubit>().showPhaseHint;
-          final isCompact = MediaQuery.sizeOf(context).height <= 700;
           final scheme = Theme.of(context).colorScheme;
 
           return Container(
@@ -168,9 +167,7 @@ class QsoConsole extends StatelessWidget {
               color: scheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
             ),
-            padding: isCompact
-                ? const EdgeInsets.fromLTRB(14, 10, 14, 12)
-                : const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -179,7 +176,7 @@ class QsoConsole extends StatelessWidget {
                   const _PhaseHintBar(),
                   const SizedBox(height: 8),
                 ],
-                _QsoInputArea(fieldHeight: isCompact ? 58 : 64),
+                const _QsoInputArea(fieldHeight: 64),
                 const SizedBox(height: 12),
                 ExcludeFocus(
                   child: _ActionRow(
