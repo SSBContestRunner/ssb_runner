@@ -101,76 +101,89 @@ class QsoRecordRow extends StatelessWidget {
       scheme.surfaceContainerLow,
     );
 
-    return Container(
+    return SizedBox(
       height: 42,
-      decoration: BoxDecoration(
-        color: isPlaying
-            ? scheme.primaryContainer.withValues(alpha: 0.42)
-            : isLatest
-            ? highlight
-            : Colors.transparent,
-        border: Border(
-          bottom: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.55),
+      child: DecoratedBox(
+        // Two layers keep the cells centred:
+        // 1. The Stack must stay `StackFit.passthrough`. Its default loose fit
+        //    would give the Row a loose height constraint, so the Row collapses
+        //    to its text height and pins to the top of the 42 dp row.
+        // 2. The divider must not consume layout height: Container folds a
+        //    decoration's border into its padding, leaving a 41 dp content box
+        //    and pushing the centred text 1 dp off the row centre. Hence
+        //    SizedBox + DecoratedBox instead of Container.
+        decoration: BoxDecoration(
+          color: isPlaying
+              ? scheme.primaryContainer.withValues(alpha: 0.42)
+              : isLatest
+              ? highlight
+              : Colors.transparent,
+          border: Border(
+            bottom: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.55),
+            ),
           ),
         ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Stack(
-        children: [
-          Row(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Stack(
+            fit: StackFit.passthrough,
             children: [
-              SizedBox(
-                width: qsoUtcColumnWidth,
-                child: _cell(item.utc, mutedStyle),
+              Row(
+                children: [
+                  SizedBox(
+                    width: qsoUtcColumnWidth,
+                    child: _cell(item.utc, mutedStyle),
+                  ),
+                  Expanded(
+                    flex: qsoCallColumnFlex.toInt(),
+                    child: _cell(item.call.data, callStyle),
+                  ),
+                  SizedBox(
+                    width: qsoRstColumnWidth,
+                    child: _cell(
+                      item.rst,
+                      baseStyle.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                  Expanded(
+                    flex: qsoExchangeColumnFlex.toInt(),
+                    child: _cell(item.exchange.data, exchangeStyle),
+                  ),
+                  SizedBox(
+                    width: qsoCorrectionsColumnWidth,
+                    child: _cell(
+                      item.corrections.isEmpty ? '—' : item.corrections,
+                      correctionsStyle,
+                    ),
+                  ),
+                  if (showReplayColumn)
+                    SizedBox(
+                      width: qsoReplayColumnWidth,
+                      child: showReplayButton
+                          ? Center(
+                              child: QsoVoiceReplayButton(
+                                isPlaying: isPlaying,
+                                isDone: isDone,
+                                isInterrupted: isInterrupted,
+                                onTap: onReplay!,
+                              ),
+                            )
+                          : null,
+                    ),
+                ],
               ),
-              Expanded(
-                flex: qsoCallColumnFlex.toInt(),
-                child: _cell(item.call.data, callStyle),
-              ),
-              SizedBox(
-                width: qsoRstColumnWidth,
-                child: _cell(
-                  item.rst,
-                  baseStyle.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ),
-              Expanded(
-                flex: qsoExchangeColumnFlex.toInt(),
-                child: _cell(item.exchange.data, exchangeStyle),
-              ),
-              SizedBox(
-                width: qsoCorrectionsColumnWidth,
-                child: _cell(
-                  item.corrections.isEmpty ? '—' : item.corrections,
-                  correctionsStyle,
-                ),
-              ),
-              if (showReplayColumn)
-                SizedBox(
-                  width: qsoReplayColumnWidth,
-                  child: showReplayButton
-                      ? Center(
-                          child: QsoVoiceReplayButton(
-                            isPlaying: isPlaying,
-                            isDone: isDone,
-                            isInterrupted: isInterrupted,
-                            onTap: onReplay!,
-                          ),
-                        )
-                      : null,
+              if (isPlaying)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 3,
+                  child: ColoredBox(color: scheme.primary),
                 ),
             ],
           ),
-          if (isPlaying)
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 3,
-              child: ColoredBox(color: scheme.primary),
-            ),
-        ],
+        ),
       ),
     );
   }
