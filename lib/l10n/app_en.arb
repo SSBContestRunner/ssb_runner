@@ -270,12 +270,9 @@
   "statExchangeErrors": "Exchange errors",
   "statDuration": "Duration",
   "statPaused": "Paused",
-  "pausedTimeSummary": "{duration} ({count} times)",
-  "@pausedTimeSummary": {
+  "pausedCount": "{count, plural, =1{1 pause} other{{count} pauses}}",
+  "@pausedCount": {
     "placeholders": {
-      "duration": {
-        "type": "String"
-      },
       "count": {
         "type": "int"
       }

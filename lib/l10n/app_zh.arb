@@ -144,12 +144,9 @@
   "statExchangeErrors": "交换错误",
   "statDuration": "有效时长",
   "statPaused": "暂停时长",
-  "pausedTimeSummary": "{duration}（{count} 次）",
-  "@pausedTimeSummary": {
+  "pausedCount": "{count} 次",
+  "@pausedCount": {
     "placeholders": {
-      "duration": {
-        "type": "String"
-      },
       "count": {
         "type": "int"
       }

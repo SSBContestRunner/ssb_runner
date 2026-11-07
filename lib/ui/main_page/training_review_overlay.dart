@@ -104,10 +104,8 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
                         if (review.pausedDuration > Duration.zero)
                           _stat(
                             l10n.statPaused,
-                            l10n.pausedTimeSummary(
-                              formatDuration(review.pausedDuration),
-                              review.pauseCount,
-                            ),
+                            formatDuration(review.pausedDuration),
+                            subValue: l10n.pausedCount(review.pauseCount),
                           ),
                         _stat(l10n.scoreScore, '${review.score}'),
                         _stat(l10n.statCallErrors, '${review.callsignErrors}'),
@@ -161,7 +159,7 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
     );
   }
 
-  Widget _stat(String label, String value) => SizedBox(
+  Widget _stat(String label, String value, {String? subValue}) => SizedBox(
     width: 125,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,6 +169,17 @@ class _TrainingReviewOverlayState extends State<TrainingReviewOverlay> {
           value,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
+        if (subValue != null)
+          Text(
+            subValue,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              height: 18 / 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
       ],
     ),
   );

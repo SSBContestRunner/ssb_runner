@@ -443,6 +443,7 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
             focusable: false,
             striped: true,
             fillColor: scheme.surfaceContainerHighest,
+            horizontalPadding: 10,
             onChanged: null,
           ),
         ),
@@ -508,6 +509,7 @@ class _QsoField extends StatelessWidget {
     this.suffixIcon,
     this.inputFormatters,
     this.onChanged,
+    this.horizontalPadding = 13,
   });
 
   final double height;
@@ -533,6 +535,10 @@ class _QsoField extends StatelessWidget {
   final Widget? suffixIcon;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
+
+  /// Horizontal inset of the text inside the decorated box. The RST cell is
+  /// the narrowest one and needs the extra room to keep two digits intact.
+  final double horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -590,7 +596,12 @@ class _QsoField extends StatelessWidget {
               filled: !striped,
               fillColor: striped ? null : fill,
               isDense: true,
-              contentPadding: const EdgeInsets.fromLTRB(13, 20, 13, 8),
+              contentPadding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                20,
+                horizontalPadding,
+                8,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: borderColor),

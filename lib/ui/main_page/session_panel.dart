@@ -56,7 +56,6 @@ class _SessionCard extends StatelessWidget {
     final dxccManager = context.read<DxccManager>();
     final contest = context.watch<ContestSettingCubit>().state;
     final options = context.watch<TrainingOptionsCubit>().state;
-    final isCompact = MediaQuery.sizeOf(context).height <= 700;
 
     return BlocBuilder<_RunBtnCubit, ContestSessionPhase>(
       builder: (context, phase) {
@@ -107,10 +106,7 @@ class _SessionCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _TimerBlock(
-                            compact: isCompact,
-                            totalDuration: totalDuration,
-                          ),
+                          _TimerBlock(totalDuration: totalDuration),
                           const SizedBox(height: 10),
                           _ProgressBlock(totalDuration: totalDuration),
                           const SizedBox(height: 14),
@@ -595,9 +591,7 @@ class _PauseDurationTooltipState extends State<_PauseDurationTooltip> {
 }
 
 class _TimerBlock extends StatelessWidget {
-  const _TimerBlock({required this.compact, required this.totalDuration});
-
-  final bool compact;
+  const _TimerBlock({required this.totalDuration});
 
   /// Frozen at start by [_SessionCard], so a settings edit cannot re-scale the
   /// remaining time mid-run.
@@ -636,8 +630,8 @@ class _TimerBlock extends StatelessWidget {
                   maxLines: 1,
                   style: AppDataText.style(
                     context,
-                    fontSize: compact ? 34 : 42,
-                    height: compact ? 40 / 34 : 48 / 42,
+                    fontSize: 42,
+                    height: 48 / 42,
                     letterSpacing: 2,
                   ),
                 ),
@@ -978,6 +972,7 @@ class _RunSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      key: const Key('runSection'),
       children: [
         // The resume strip replaces the primary button: the countdown and the
         // skip action are the only things the operator can do in that window.
@@ -1159,6 +1154,11 @@ class _EndButton extends StatelessWidget {
 
 /// 3-2-1 resume window. Replaces the primary button, announces the countdown,
 /// and can be skipped to resume immediately.
+///
+/// A single row keeps the strip shorter than the two-line variant it used to
+/// have: the hint moves to the tooltip and the semantics hint instead of
+/// occupying a second line, so the session body never has to scroll while the
+/// countdown runs.
 class _ResumeStrip extends StatefulWidget {
   const _ResumeStrip();
 
@@ -1210,72 +1210,65 @@ class _ResumeStripState extends State<_ResumeStrip> {
     final scheme = Theme.of(context).colorScheme;
     final foreground = scheme.onTertiaryContainer;
 
+    final countdown = Tooltip(
+      message: l10n.resumeHint,
+      child: Semantics(
+        hint: l10n.resumeHint,
+        child: Text(
+          l10n.resumeCountdown(_seconds),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: foreground,
+          ),
+        ),
+      ),
+    );
+
+    final row = Row(
+      children: [
+        Text(
+          '$_seconds',
+          style: AppDataText.style(
+            context,
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            color: foreground,
+            height: 28 / 26,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: countdown),
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: foreground,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            minimumSize: const Size(0, 28),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+          onPressed: _skip,
+          child: Text(l10n.resumeSkip),
+        ),
+      ],
+    );
+
     return Semantics(
       container: true,
       liveRegion: true,
       child: Container(
+        key: const Key('resumeStrip'),
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: scheme.tertiaryContainer,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '$_seconds',
-                  style: AppDataText.style(
-                    context,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: foreground,
-                    height: 28 / 26,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    l10n.resumeCountdown(_seconds),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: foreground,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: foreground,
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    minimumSize: const Size(0, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                  onPressed: _skip,
-                  child: Text(l10n.resumeSkip),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Padding(
-              padding: const EdgeInsets.only(left: 34),
-              child: Text(
-                l10n.resumeHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  letterSpacing: 0.2,
-                  color: foreground.withValues(alpha: 0.85),
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: row,
       ),
     );
   }

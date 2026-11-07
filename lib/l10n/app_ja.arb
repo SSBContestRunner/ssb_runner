@@ -144,12 +144,9 @@
   "statExchangeErrors": "交換情報の誤り",
   "statDuration": "有効時間",
   "statPaused": "一時停止時間",
-  "pausedTimeSummary": "{duration}（{count} 回）",
-  "@pausedTimeSummary": {
+  "pausedCount": "{count} 回",
+  "@pausedCount": {
     "placeholders": {
-      "duration": {
-        "type": "String"
-      },
       "count": {
         "type": "int"
       }
