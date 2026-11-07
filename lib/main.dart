@@ -7,7 +7,7 @@ import 'package:ssb_runner/error_handling.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/logging_bootstrap.dart';
 import 'package:ssb_runner/ui/main_app/main_app.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:window_manager/legacy.dart';
 
 void main() {
   runZonedGuarded(

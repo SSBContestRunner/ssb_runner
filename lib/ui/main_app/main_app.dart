@@ -25,7 +25,7 @@ import 'package:ssb_runner/ui/main_app/exit_flow.dart';
 import 'package:ssb_runner/ui/main_app/home_page.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
 import 'package:toastification/toastification.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:window_manager/legacy.dart';
 import 'package:worker_manager/worker_manager.dart';
 
 class MainApp extends StatefulWidget {
