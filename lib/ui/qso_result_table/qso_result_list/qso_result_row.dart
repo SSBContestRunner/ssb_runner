@@ -31,8 +31,6 @@ class QsoRecordRow extends StatelessWidget {
     required this.item,
     this.isLatest = false,
     this.isPlaying = false,
-    this.isDone = false,
-    this.isInterrupted = false,
     this.onReplay,
   });
 
@@ -43,8 +41,6 @@ class QsoRecordRow extends StatelessWidget {
 
   /// Row-level replay playback state. Only one row can be playing at a time.
   final bool isPlaying;
-  final bool isDone;
-  final bool isInterrupted;
   final VoidCallback? onReplay;
 
   @override
@@ -164,8 +160,6 @@ class QsoRecordRow extends StatelessWidget {
                           ? Center(
                               child: QsoVoiceReplayButton(
                                 isPlaying: isPlaying,
-                                isDone: isDone,
-                                isInterrupted: isInterrupted,
                                 onTap: onReplay!,
                               ),
                             )

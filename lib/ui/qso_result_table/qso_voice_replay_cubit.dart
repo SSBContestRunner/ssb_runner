@@ -25,21 +25,10 @@ class QsoVoiceReplayNotice {
 }
 
 class QsoVoiceReplayState {
-  const QsoVoiceReplayState({
-    this.playingId,
-    this.doneId,
-    this.interruptedId,
-    this.notice,
-  });
+  const QsoVoiceReplayState({this.playingId, this.notice});
 
   /// Id of the row currently playing. Only one row can hold it (last wins).
   final int? playingId;
-
-  /// Id of the row whose replay just finished.
-  final int? doneId;
-
-  /// Id of the row that was interrupted by a newer replay.
-  final int? interruptedId;
 
   final QsoVoiceReplayNotice? notice;
 }
@@ -49,12 +38,15 @@ class QsoVoiceReplayCubit extends Cubit<QsoVoiceReplayState> {
     required ContestManager contestManager,
     required AudioLoader audioLoader,
     required AudioPlayer audioPlayer,
+    QsoVoiceReplayService? service,
   }) : _contestManager = contestManager,
-       _service = QsoVoiceReplayService(
-         audioLoader: audioLoader,
-         audioPlayer: audioPlayer,
-         appSettings: contestManager.appSettings,
-       ),
+       _service =
+           service ??
+           QsoVoiceReplayService(
+             audioLoader: audioLoader,
+             audioPlayer: audioPlayer,
+             appSettings: contestManager.appSettings,
+           ),
        super(const QsoVoiceReplayState()) {
     _phaseSubscription = contestManager.sessionPhaseStream.listen(_onPhase);
     _sessionIdle = !contestManager.isContestRunning;
@@ -125,7 +117,6 @@ class QsoVoiceReplayCubit extends Cubit<QsoVoiceReplayState> {
       emit(
         QsoVoiceReplayState(
           playingId: row.id,
-          interruptedId: previous.id,
           notice: QsoVoiceReplayNotice(
             seq: _noticeSeq,
             kind: QsoVoiceReplayNoticeKind.interrupted,
@@ -190,20 +181,8 @@ class QsoVoiceReplayCubit extends Cubit<QsoVoiceReplayState> {
       return;
     }
 
-    emit(QsoVoiceReplayState(doneId: row.id));
-    // The audio already ended; a following click must not report an
-    // interruption of the finished row.
-    _current = null;
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (token != _token) {
-      return;
-    }
-    emit(const QsoVoiceReplayState());
-    if (_sessionIdle) {
-      _service.finish();
-    } else {
-      _service.abandon();
-    }
+    // Playback ended on its own: go straight back to ▶.
+    _finishState(token);
   }
 
   void stop() {
@@ -224,7 +203,6 @@ class QsoVoiceReplayCubit extends Cubit<QsoVoiceReplayState> {
     _noticeSeq++;
     emit(
       QsoVoiceReplayState(
-        interruptedId: current.id,
         notice: QsoVoiceReplayNotice(
           seq: _noticeSeq,
           kind: QsoVoiceReplayNoticeKind.stopped,

@@ -88,8 +88,6 @@ class QsoVoiceReplayDialog extends StatelessWidget {
                       return _QsoVoiceReplayEntryRow(
                         item: item,
                         isPlaying: playback.playingId == item.id,
-                        isDone: playback.doneId == item.id,
-                        isInterrupted: playback.interruptedId == item.id,
                       );
                     },
                   );
@@ -120,14 +118,10 @@ class _QsoVoiceReplayEntryRow extends StatelessWidget {
   const _QsoVoiceReplayEntryRow({
     required this.item,
     required this.isPlaying,
-    required this.isDone,
-    required this.isInterrupted,
   });
 
   final QsoResult item;
   final bool isPlaying;
-  final bool isDone;
-  final bool isInterrupted;
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +186,6 @@ class _QsoVoiceReplayEntryRow extends StatelessWidget {
     if (item.canReplay) {
       return QsoVoiceReplayButton(
         isPlaying: isPlaying,
-        isDone: isDone,
-        isInterrupted: isInterrupted,
         hitHeight: 48,
         onTap: () => cubit.play(item),
       );

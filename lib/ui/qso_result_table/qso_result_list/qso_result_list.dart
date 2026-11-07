@@ -69,8 +69,6 @@ class _QsoResultListState extends State<QsoRecordList> {
                       item: item,
                       isLatest: index == qsos.length - 1,
                       isPlaying: playback.playingId == item.id,
-                      isDone: playback.doneId == item.id,
-                      isInterrupted: playback.interruptedId == item.id,
                       onReplay: item.canReplay ? () => cubit.play(item) : null,
                     );
                   },
