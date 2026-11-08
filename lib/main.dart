@@ -7,7 +7,7 @@ import 'package:ssb_runner/error_handling.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/logging_bootstrap.dart';
 import 'package:ssb_runner/ui/main_app/main_app.dart';
-import 'package:window_manager/legacy.dart';
+import 'package:window_manager/window_manager.dart';
 
 void main() {
   runZonedGuarded(
@@ -48,12 +48,13 @@ void main() {
 /// stays "visible" and therefore does not terminate, while still drawing no
 /// white frame. [MainApp] makes it opaque again after the first frame.
 ///
-/// `ensureInitialized` must come first: every other method dereferences the
-/// native window, which macOS only binds to the plugin during that call.
+/// `WindowManager.instance.getCurrent()` resolves the app's own window from the
+/// native window manager (macOS enumerates `[NSApplication windows]`), so there
+/// is no initialisation step to wait for before touching it.
 Future<void> _hideWindowUntilFirstFrame() async {
   try {
-    await windowManager.ensureInitialized();
-    await windowManager.setOpacity(0);
+    final window = WindowManager.instance.getCurrent();
+    window?.opacity = 0;
   } catch (error, stackTrace) {
     log.warn(
       'window hide failed',
