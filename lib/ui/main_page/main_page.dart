@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
+import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/app_topbar.dart';
 import 'package:ssb_runner/ui/main_page/qso_console.dart';
@@ -12,8 +13,32 @@ import 'package:ssb_runner/ui/main_page/training_review_overlay.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_voice_replay_cubit.dart';
 
-class MainPage extends StatelessWidget {
+class MainPage extends StatefulWidget {
   const MainPage({super.key});
+
+  @override
+  State<MainPage> createState() => _MainPageState();
+}
+
+class _MainPageState extends State<MainPage> {
+  @override
+  void initState() {
+    super.initState();
+    // The console reads the F1–F12 table during the first build, so a repaired
+    // configuration is queued before this callback runs. Consuming the flag
+    // here keeps the notice to a single SnackBar per repair.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!context.read<AppSettings>().takeFunctionKeyRepairNotice()) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).functionKeysAutoRepaired,
+          ),
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

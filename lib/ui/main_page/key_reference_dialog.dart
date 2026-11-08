@@ -299,9 +299,23 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
     };
   }
 
+  /// The editor draft in [FunctionKey.values] order, resolved through the same
+  /// normalizer the loader uses so the inline hint and the save guard can
+  /// never disagree.
+  List<FunctionKeyBinding> get _draft => [
+    for (final key in FunctionKey.values)
+      FunctionKeyBinding(key, OperationAction.fromId(bindings[key])),
+  ];
+
+  List<FunctionKeyIssue> get _issues =>
+      normalizeFunctionKeyBindings(_draft).issues;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final issues = _issues;
+
     return AlertDialog(
       scrollable: true,
       title: Text(l10n.functionKeysTitle),
@@ -309,6 +323,32 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
         width: 360,
         child: Column(
           children: [
+            if (issues.isNotEmpty)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final issue in issues)
+                      Text(
+                        l10n.functionKeysConflict(
+                          issue.action!.label,
+                          issue.winner!.label,
+                          issue.key.label,
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onErrorContainer,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             for (final key in FunctionKey.values)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -323,6 +363,7 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
                     for (final action in OperationAction.values)
                       DropdownMenuItem(
                         value: action.id,
+                        enabled: !_usedByOtherKey(key, action),
                         child: Text(action.label),
                       ),
                   ],
@@ -341,25 +382,39 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            final assigned = bindings.values
-                .where((id) => id != _spareBindingValue)
-                .toList();
-            if (assigned.toSet().length != assigned.length) {
+            if (_issues.isNotEmpty) {
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text(l10n.functionKeysUnique)));
               return;
             }
-            await widget.settings.setFunctionKeyBindings([
+            final saved = await widget.settings.setFunctionKeyBindings([
               for (final key in FunctionKey.values)
                 FunctionKeyBinding(key, OperationAction.fromId(bindings[key])),
             ]);
+            if (!saved) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.functionKeysUnique)),
+                );
+              }
+              return;
+            }
             if (context.mounted) Navigator.pop(context);
           },
           child: Text(l10n.save),
         ),
       ],
     );
+  }
+
+  /// An action stays selectable on the key that owns it, so an existing
+  /// conflict can be resolved by changing only the losing side.
+  bool _usedByOtherKey(FunctionKey key, OperationAction action) {
+    for (final entry in bindings.entries) {
+      if (entry.key != key && entry.value == action.id) return true;
+    }
+    return false;
   }
 }
 

@@ -102,6 +102,21 @@
   "verboseLoggingSubtitle": "Record debug details for troubleshooting",
   "functionKeysTitle": "Function keys",
   "functionKeysUnique": "Each command needs a different function key.",
+  "functionKeysConflict": "{action} is assigned to both {first} and {second}.",
+  "@functionKeysConflict": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "functionKeysAutoRepaired": "Function key conflicts were repaired automatically.",
   "questionSeedLabel": "Question seed",
   "questionSeedHelper": "Callsigns, exchanges, pile-up, phonic",
   "lockQuestionSeed": "Lock question seed",

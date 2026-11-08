@@ -43,6 +43,10 @@ class KeyEventHandler {
   /// framework updates its pressed state before calling the handlers, so it
   /// cannot go stale if a key-up is missed (e.g. released while the window was
   /// inactive), which used to disable `;`, Enter, Esc and Space silently.
+  /// Any modifier turns a function key into someone else's shortcut, so the
+  /// F1–F12 branch stays silent while Shift, Ctrl, Alt or Meta is held and only
+  /// a bare function key dispatches. Fixed shortcuts keep their own rules
+  /// below; in particular `;` still accepts Shift.
   bool get _hasModifierPressed =>
       HardwareKeyboard.instance.isShiftPressed ||
       HardwareKeyboard.instance.isControlPressed ||
@@ -90,7 +94,15 @@ class KeyEventHandler {
     final key = event.logicalKey;
 
     if (_actionByKey.containsKey(key)) {
-      _handleFunctionKeyPressed(key);
+      if (_hasModifierPressed) {
+        log.debug(
+          'function key ignored: modifier held',
+          tag: 'key',
+          fields: {'key': key.debugName, 'modifiers': _modifierLabel},
+        );
+      } else {
+        _handleFunctionKeyPressed(key);
+      }
     }
 
     _checkSingleKeyPressed(event, LogicalKeyboardKey.enter, () {
@@ -101,10 +113,9 @@ class KeyEventHandler {
       _operationEventController.add(OperationEvent.cancel);
     });
 
-    // Shift is allowed for `;`: on several layouts the semicolon itself is the
-    // shifted character, and a Shift-only press must still mean `;` there.
-    // The physical key is also accepted so a layout that reports `:` for
-    // Shift+`;` keeps working.
+    // Only a bare `;` counts. The physical key is still accepted so a layout
+    // that reports `:` for the same key keeps working, but Shift is treated as
+    // a modifier like everywhere else and suppresses the shortcut.
     _checkSingleKeyPressed(
       event,
       LogicalKeyboardKey.semicolon,
@@ -112,7 +123,6 @@ class KeyEventHandler {
         _operationEventController.add(OperationEvent.hisCallAndMyExchange);
       },
       referencePhysicalKey: PhysicalKeyboardKey.semicolon,
-      allowShift: true,
     );
 
     _checkSingleKeyPressed(event, LogicalKeyboardKey.space, () {
@@ -125,7 +135,6 @@ class KeyEventHandler {
     LogicalKeyboardKey referenceKey,
     void Function() block, {
     PhysicalKeyboardKey? referencePhysicalKey,
-    bool allowShift = false,
   }) {
     final matches =
         event.logicalKey == referenceKey ||
@@ -135,12 +144,7 @@ class KeyEventHandler {
       return;
     }
 
-    final blocked = allowShift
-        ? HardwareKeyboard.instance.isControlPressed ||
-              HardwareKeyboard.instance.isAltPressed ||
-              HardwareKeyboard.instance.isMetaPressed
-        : _hasModifierPressed;
-    if (blocked) {
+    if (_hasModifierPressed) {
       log.debug(
         'shortcut ignored: modifier held',
         tag: 'key',
