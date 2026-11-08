@@ -205,7 +205,7 @@
   "phaseHintListening": "Listening — copy his call, then Enter",
   "phaseHintCallNotCopied": "Call not copied — F5 to submit, F7 to repeat",
   "phaseHintHeWantsSerial": "He wants his serial — type it, Enter to send; F1 abandons this round",
-  "phaseHintReportSent": "Your report is sent — type his serial, then Enter; F5/F7 repeats (a mis-copied call is logged as copied)",
+  "phaseHintReportSent": "Your report is sent — type his serial, then Enter; F5/F7 repeats",
   "phaseHintSendingReport": "Sending your report…",
   "phaseHintQsoComplete": "QSO complete — starting the next one",
   "phaseHintSpListening": "Listening — Enter to pounce, F1 for another CQ",

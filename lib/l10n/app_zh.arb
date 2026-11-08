@@ -103,7 +103,7 @@
   "phaseHintListening": "守听中 — 抄下对方呼号，然后按 Enter",
   "phaseHintCallNotCopied": "呼号未抄收 — F5 提交，F7 重听",
   "phaseHintHeWantsSerial": "对方要序号 — 输入后按 Enter 发送；F1 放弃本轮",
-  "phaseHintReportSent": "报告已发送 — 输入对方序号，然后按 Enter；F5/F7 重听（抄错的呼号会按原样记录）",
+  "phaseHintReportSent": "报告已发送 — 输入对方序号，然后按 Enter；F5/F7 重听",
   "phaseHintSendingReport": "正在发送报告…",
   "phaseHintQsoComplete": "QSO 完成 — 正在开始下一轮",
   "phaseHintSpListening": "守听中 — 按 Enter 抢答，F1 重新主叫",
