@@ -19,7 +19,7 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  testWidgets('lists every function key and all seven global shortcuts', (
+  testWidgets('lists every function key and all six fixed shortcuts', (
     tester,
   ) async {
     final settings = await _createSettings();
@@ -27,13 +27,14 @@ void main() {
 
     expect(find.text('Keyboard reference'), findsOneWidget);
     expect(find.text('Function keys'), findsOneWidget);
-    expect(find.text('Shortcuts'), findsOneWidget);
+    expect(find.text('Fixed shortcuts'), findsOneWidget);
 
     for (var index = 1; index <= 11; index++) {
       expect(find.text('F$index'), findsOneWidget);
     }
-    // F12 appears both as a function key and in the Esc shortcut hint.
-    expect(find.text('F12'), findsNWidgets(2));
+    // F12 is listed once as a function key; it no longer appears as a static
+    // "clear the input" shortcut because the binding is configurable.
+    expect(find.text('F12'), findsOneWidget);
     expect(find.text('Unassigned'), findsNWidgets(3));
     expect(find.text('CQ'), findsOneWidget);
     expect(find.text('Wipe'), findsOneWidget);
@@ -43,10 +44,9 @@ void main() {
     expect(find.text('Space'), findsOneWidget);
     expect(find.text(';'), findsOneWidget);
     expect(find.text('Enter'), findsOneWidget);
-    expect(find.text('F12'), findsWidgets);
     expect(find.text('Esc'), findsOneWidget);
 
-    expect(find.text('clear the input fields'), findsOneWidget);
+    expect(find.text('clear the input fields'), findsNothing);
     expect(
       find.text('stop sending (does not abandon the round)'),
       findsOneWidget,
