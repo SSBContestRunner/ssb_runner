@@ -483,6 +483,10 @@ jobs:
       - smoke-test-windows
       - smoke-test-windows-installer
       - smoke-test-macos
+    # Only tag pushes create a draft release: on workflow_dispatch the ref is
+    # refs/heads/<branch>, so action-gh-release cannot derive tag_name and fails with
+    # 400 "Missing tag_name parameter".
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
