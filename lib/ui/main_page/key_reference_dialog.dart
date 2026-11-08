@@ -299,9 +299,23 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
     };
   }
 
+  /// The editor draft in [FunctionKey.values] order, resolved through the same
+  /// normalizer the loader uses so the inline hint and the save guard can
+  /// never disagree.
+  List<FunctionKeyBinding> get _draft => [
+    for (final key in FunctionKey.values)
+      FunctionKeyBinding(key, OperationAction.fromId(bindings[key])),
+  ];
+
+  List<FunctionKeyIssue> get _issues =>
+      normalizeFunctionKeyBindings(_draft).issues;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final issues = _issues;
+
     return AlertDialog(
       scrollable: true,
       title: Text(l10n.functionKeysTitle),
@@ -309,11 +323,38 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
         width: 360,
         child: Column(
           children: [
+            if (issues.isNotEmpty)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final issue in issues)
+                      Text(
+                        l10n.functionKeysConflict(
+                          issue.action!.label,
+                          issue.winner!.label,
+                          issue.key.label,
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onErrorContainer,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             for (final key in FunctionKey.values)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: DropdownButtonFormField<String>(
                   initialValue: bindings[key],
+                  isExpanded: true,
                   decoration: InputDecoration(labelText: key.label),
                   items: [
                     DropdownMenuItem(
@@ -321,10 +362,7 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
                       child: Text(l10n.keyReferenceSpare),
                     ),
                     for (final action in OperationAction.values)
-                      DropdownMenuItem(
-                        value: action.id,
-                        child: Text(action.label),
-                      ),
+                      _actionItem(key, action, l10n, scheme),
                   ],
                   onChanged: (id) {
                     if (id != null) setState(() => bindings[key] = id);
@@ -341,25 +379,71 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            final assigned = bindings.values
-                .where((id) => id != _spareBindingValue)
-                .toList();
-            if (assigned.toSet().length != assigned.length) {
+            if (_issues.isNotEmpty) {
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text(l10n.functionKeysUnique)));
               return;
             }
-            await widget.settings.setFunctionKeyBindings([
+            final saved = await widget.settings.setFunctionKeyBindings([
               for (final key in FunctionKey.values)
                 FunctionKeyBinding(key, OperationAction.fromId(bindings[key])),
             ]);
+            if (!saved) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.functionKeysUnique)),
+                );
+              }
+              return;
+            }
             if (context.mounted) Navigator.pop(context);
           },
           child: Text(l10n.save),
         ),
       ],
     );
+  }
+
+  /// A disabled option carries its owner in the item text, so tapping it does
+  /// nothing visible only because the reason is already right there. The text
+  /// is the semantic label too, which a hover-only tooltip could never be.
+  DropdownMenuItem<String> _actionItem(
+    FunctionKey key,
+    OperationAction action,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+  ) {
+    final owner = _ownerOf(key, action);
+    return DropdownMenuItem(
+      value: action.id,
+      enabled: owner == null,
+      child: Text.rich(
+        TextSpan(
+          text: action.label,
+          children: [
+            if (owner != null)
+              TextSpan(
+                text: '  ${l10n.functionKeysUsedByKey(owner.label)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  /// The key that currently owns [action] other than [key], so the editor can
+  /// name the owner instead of just greying the option out.
+  FunctionKey? _ownerOf(FunctionKey key, OperationAction action) {
+    for (final entry in bindings.entries) {
+      if (entry.key != key && entry.value == action.id) return entry.key;
+    }
+    return null;
   }
 }
 
