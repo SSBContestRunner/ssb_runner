@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' hide isNull;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_operation_event_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_running_manager.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
+import 'package:ssb_runner/contest_run/state_machine/single_call/audio_play_type.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_event.dart';
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state.dart';
 import 'package:ssb_runner/db/app_database.dart';
@@ -66,6 +68,13 @@ void main() {
     expect(find.text('F9'), findsNothing);
     expect(find.text('F12'), findsOneWidget);
     expect(find.byIcon(Icons.keyboard_outlined), findsOneWidget);
+
+    // Wipe has no localized action label, so its tooltip carries the
+    // description that used to live on the static F12 shortcut row.
+    final wipeTooltip = tester.widget<Tooltip>(
+      find.ancestor(of: find.text('Wipe'), matching: find.byType(Tooltip)),
+    );
+    expect(wipeTooltip.message, 'clear the input fields');
 
     expect(tester.takeException(), isNull);
   });
@@ -168,13 +177,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('saved bindings refresh the action row immediately', (
+  testWidgets('spare keys hide only the key cap, never the action button', (
     tester,
   ) async {
     final harness = await _createHarness();
     await _pumpConsole(tester, harness);
-
-    expect(find.text('CQ'), findsOneWidget);
 
     await harness.settings.setFunctionKeyBindings([
       for (final key in FunctionKey.values)
@@ -185,9 +192,44 @@ void main() {
     ]);
     await tester.pump();
 
-    expect(find.text('CQ'), findsNothing);
-    expect(find.text('EXCH'), findsOneWidget);
-    expect(find.text('F1'), findsNothing);
+    expect(
+      find.text('CQ'),
+      findsOneWidget,
+      reason: 'the action stays clickable',
+    );
+    expect(
+      find.text('F1'),
+      findsNothing,
+      reason: 'the key cap follows the binding',
+    );
+    final cq = tester.widget<InkWell>(
+      find.ancestor(of: find.text('CQ'), matching: find.byType(InkWell)).first,
+    );
+    expect(cq.onTap != null, isTrue);
+    await tester.tap(find.text('CQ'));
+    await tester.pump();
+
+    await harness.settings.setFunctionKeyBindings([
+      for (final key in FunctionKey.values) FunctionKeyBinding(key, null),
+    ]);
+    await tester.pump();
+
+    for (final label in [
+      'CQ',
+      'EXCH',
+      'TU',
+      '<my>',
+      '<his>',
+      'B4',
+      'AGN',
+      'NIL',
+      'Wipe',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: '$label stays visible');
+    }
+    for (var index = 1; index <= 12; index++) {
+      expect(find.text('F$index'), findsNothing);
+    }
 
     expect(tester.takeException(), isNull);
   });
@@ -552,6 +594,126 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('phase hints never truncate at the minimum window', (
+    tester,
+  ) async {
+    await _ensureAppFonts();
+    final harness = await _createHarness();
+    const locales = [
+      Locale('en'),
+      Locale('zh'),
+      Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+      Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+      Locale('ja'),
+    ];
+    final states = <SingleCallRunState>[
+      WaitingSubmitCall(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+      ),
+      HeRepeatCorrectCallAnswer(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+        submitCall: 'A1AAA',
+      ),
+      HeAskForExchange(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+        submitCall: 'A1AAA',
+        isPlayMyCall: false,
+      ),
+      WaitingSubmitMyExchange(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+        submitCall: 'A1AAA',
+        audioPlayType: NoPlay(),
+        isOperateInput: true,
+      ),
+      ReportMyExchange(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+        submitCall: 'A1AAA',
+        myExchange: '59 001',
+        audioPlayType: NoPlay(),
+        isOperateInput: true,
+      ),
+      QsoEnd(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+        submitCall: 'A1AAA',
+        submitExchange: '59 001',
+      ),
+      SpListeningCq(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+      ),
+      SpWaitingHisExchange(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+      ),
+      SpQsoEnd(
+        currentCallAnswer: 'A1AAA',
+        currentExchangeAnswer: '59 001',
+        myExchange: '59 001',
+      ),
+    ];
+    final truncated = <String>[];
+
+    Future<void> measure(String label) async {
+      final hint = find.byKey(const Key('phase-hint'));
+      expect(hint, findsOneWidget, reason: label);
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.descendant(of: hint, matching: find.byType(RichText)),
+      );
+      if (paragraph.didExceedMaxLines) truncated.add(label);
+    }
+
+    for (final locale in locales) {
+      for (final scale in const [1.0, 1.3]) {
+        for (final state in states) {
+          await _pumpConsole(
+            tester,
+            harness,
+            width: 1108,
+            height: 796,
+            consoleWidth: 678,
+            textScale: scale,
+            locale: locale,
+            manager: _RunningContestManager(
+              contestDataManager: harness.dataManager,
+              runningManager: _FakeRunningManager(state: state),
+            ),
+          );
+          await tester.pump();
+          await measure('$locale x$scale ${state.runtimeType}');
+        }
+
+        final phases = StreamController<ContestSessionPhase>.broadcast();
+        addTearDown(phases.close);
+        await _pumpConsole(
+          tester,
+          harness,
+          width: 1108,
+          height: 796,
+          consoleWidth: 678,
+          textScale: scale,
+          locale: locale,
+          manager: _PhaseContestManager(
+            contestDataManager: harness.dataManager,
+            runningManager: _FakeRunningManager(state: states[2]),
+            phaseController: phases,
+            initial: ContestSessionPhase.paused,
+          ),
+        );
+        await tester.pump();
+        await measure('$locale x$scale paused');
+      }
+    }
+
+    expect(truncated, isEmpty, reason: truncated.join('\n'));
+    expect(tester.takeException(), isNull);
+  });
+
   test(
     'the console cubit follows the contest lifecycle for mouse clicks',
     () async {
@@ -574,6 +736,21 @@ void main() {
       );
     },
   );
+}
+
+bool _appFontsLoaded = false;
+
+Future<void> _ensureAppFonts() async {
+  if (_appFontsLoaded) return;
+  _appFontsLoaded = true;
+  await (FontLoader(
+    'Iosevka',
+  )..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'))).load();
+  await (FontLoader('Noto Sans SC')
+        ..addFont(rootBundle.load('fonts/NotoSansSC-Regular-sub.otf'))
+        ..addFont(rootBundle.load('fonts/NotoSansSC-Medium-sub.otf'))
+        ..addFont(rootBundle.load('fonts/NotoSansSC-Bold-sub.otf')))
+      .load();
 }
 
 class _ContestManagerSpy extends ContestManager {
@@ -636,11 +813,21 @@ class _PhaseContestManager extends _RunningContestManager {
 class _FakeRunningManager
     with WidgetsBindingObserver
     implements ContestRunningManager {
-  _FakeRunningManager({Stream<OperationEvent>? ignoredShortcutStream})
-    : _ignoredShortcutStream =
-          ignoredShortcutStream ?? const Stream<OperationEvent>.empty();
+  _FakeRunningManager({
+    Stream<OperationEvent>? ignoredShortcutStream,
+    SingleCallRunState? state,
+  }) : _ignoredShortcutStream =
+           ignoredShortcutStream ?? const Stream<OperationEvent>.empty(),
+       _state =
+           state ??
+           WaitingSubmitCall(
+             currentCallAnswer: 'A1AAA',
+             currentExchangeAnswer: '59 001',
+             pileupCallsigns: const [],
+           );
 
   final Stream<OperationEvent> _ignoredShortcutStream;
+  final SingleCallRunState _state;
 
   @override
   final String runId = 'test-run';
@@ -649,15 +836,11 @@ class _FakeRunningManager
   final TrainingDifficulty difficulty = TrainingDifficulty.beginner;
 
   @override
-  SingleCallRunState get currentState => WaitingSubmitCall(
-    currentCallAnswer: 'A1AAA',
-    currentExchangeAnswer: '59 001',
-    pileupCallsigns: const [],
-  );
+  SingleCallRunState get currentState => _state;
 
   @override
   Stream<SingleCallRunState> get stateStream =>
-      Stream<SingleCallRunState>.empty();
+      const Stream<SingleCallRunState>.empty();
 
   @override
   Stream<OperationEvent> get ignoredShortcutStream => _ignoredShortcutStream;
@@ -752,13 +935,16 @@ Future<void> _pumpConsole(
   WidgetTester tester,
   _Harness harness, {
   double width = 1280,
+  double height = 720,
   double consoleWidth = 874,
+  double textScale = 1,
+  Locale locale = const Locale('en'),
   ContestManager? manager,
   QsoRecordListCubit? recordListCubit,
   bool withToastOverlay = false,
 }) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = Size(width, 720);
+  tester.view.physicalSize = Size(width, height);
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
 
@@ -766,9 +952,15 @@ Future<void> _pumpConsole(
       manager ?? ContestManager(contestDataManager: harness.dataManager);
   final app = MaterialApp(
     theme: AppTheme.light,
-    locale: const Locale('en'),
+    locale: locale,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.linear(textScale)),
+      child: child!,
+    ),
     home: Scaffold(
       body: MultiRepositoryProvider(
         providers: [
@@ -790,11 +982,10 @@ Future<void> _pumpConsole(
               create: (_) => ContestSettingCubit(appSettings: harness.settings),
             ),
             BlocProvider(
-              create: (_) => StationCallsignCubit(appSettings: harness.settings),
+              create: (_) =>
+                  StationCallsignCubit(appSettings: harness.settings),
             ),
-            BlocProvider(
-              create: (_) => TrainingOptionsCubit(harness.settings),
-            ),
+            BlocProvider(create: (_) => TrainingOptionsCubit(harness.settings)),
             // Mirrors MainPage: the sent-exchange field reads the raw row
             // count (DUPE included) once a run has started.
             BlocProvider(
