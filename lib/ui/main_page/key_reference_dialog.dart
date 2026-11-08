@@ -102,10 +102,6 @@ class KeyReferenceDialog extends StatelessWidget {
                     keys: const ['Enter'],
                   ),
                   _ShortcutRow(
-                    description: l10n.keyTipClearInput,
-                    keys: const ['F12'],
-                  ),
-                  _ShortcutRow(
                     description: l10n.keyTipStopSending,
                     keys: const ['Esc'],
                   ),

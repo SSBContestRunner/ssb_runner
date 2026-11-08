@@ -196,9 +196,9 @@ class QsoConsole extends StatelessWidget {
   }
 }
 
-/// Beginner-only hint: shows what the round is waiting for and which key moves
-/// it on, so a mid-QSO phase (e.g. "he wants his serial") is never a silent
-/// dead end. Higher difficulties keep this out of the UI; the transition
+/// Beginner-only hint: shows what the round is waiting for and which action
+/// moves it on, so a mid-QSO phase (e.g. "he wants his serial") is never a
+/// silent dead end. Higher difficulties keep this out of the UI; the transition
 /// logging still records the same phase changes.
 class _PhaseHintBar extends StatelessWidget {
   const _PhaseHintBar();
@@ -229,6 +229,7 @@ class _PhaseHintBar extends StatelessWidget {
             Expanded(
               child: Text(
                 _phaseHint(l10n, state),
+                key: const Key('phase-hint'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(
@@ -842,9 +843,13 @@ class _ActionRow extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: settings.functionKeysRevision,
       builder: (context, _, _) {
-        final bindings = functionKeysFromSettings(
-          settings,
-        ).where((binding) => !binding.isSpare).toList();
+        // Every action keeps its button even when the operator has unbound its
+        // key: Spare only means "no key cap", so a mouse click still reaches
+        // the action and the phase hints can point at a visible control.
+        final keyByAction = <OperationAction, String>{
+          for (final binding in functionKeysFromSettings(settings))
+            if (!binding.isSpare) binding.action!: binding.key.label,
+        };
 
         // The shortcut icon stays pinned to the right at every width. The
         // buttons share the rest of the row in at most two rows whose item
@@ -858,7 +863,7 @@ class _ActionRow extends StatelessWidget {
                 builder: (context, constraints) {
                   final available =
                       constraints.maxWidth - _gap - _keyReferenceWidth;
-                  final rows = _balancedRows(bindings);
+                  final rows = _balancedRows(OperationAction.values);
                   final buttonWidth = _buttonWidth(available, rows);
 
                   return Column(
@@ -870,14 +875,13 @@ class _ActionRow extends StatelessWidget {
                         Row(
                           spacing: _gap,
                           children: [
-                            for (final binding in row)
+                            for (final action in row)
                               _ActionButton(
                                 width: buttonWidth,
-                                keyLabel: binding.key.label,
-                                action: binding.action!,
-                                onPressed: () => onOperationEvent(
-                                  operationEventFor(binding.action!),
-                                ),
+                                keyLabel: keyByAction[action],
+                                action: action,
+                                onPressed: () =>
+                                    onOperationEvent(operationEventFor(action)),
                               ),
                           ],
                         ),
@@ -901,26 +905,24 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-/// Splits the assigned actions into one or two rows. At most five actions share
+/// Splits the nine actions into one or two rows. At most five actions share
 /// a row, so nine actions become 5 + 4 instead of one long, hard-to-scan row on
 /// a wide console; the counts differ by one, so the last row never holds a
 /// single button while the rows above it are full.
-List<List<FunctionKeyBinding>> _balancedRows(
-  List<FunctionKeyBinding> bindings,
-) {
-  if (bindings.isEmpty) {
+List<List<OperationAction>> _balancedRows(List<OperationAction> actions) {
+  if (actions.isEmpty) {
     return const [];
   }
 
-  final rowCount = (bindings.length + 4) ~/ 5;
-  final perRow = bindings.length ~/ rowCount;
-  final extra = bindings.length % rowCount;
-  final rows = <List<FunctionKeyBinding>>[];
+  final rowCount = (actions.length + 4) ~/ 5;
+  final perRow = actions.length ~/ rowCount;
+  final extra = actions.length % rowCount;
+  final rows = <List<OperationAction>>[];
   var index = 0;
 
   for (var row = 0; row < rowCount; row++) {
     final take = perRow + (row < extra ? 1 : 0);
-    rows.add(bindings.sublist(index, index + take));
+    rows.add(actions.sublist(index, index + take));
     index += take;
   }
 
@@ -930,7 +932,7 @@ List<List<FunctionKeyBinding>> _balancedRows(
 /// One shared cell width for every row, so the rows line up as a grid. The
 /// width is the narrowest cell that still fits the fullest row, capped at
 /// [_ActionRow._maxButtonWidth].
-double _buttonWidth(double available, List<List<FunctionKeyBinding>> rows) {
+double _buttonWidth(double available, List<List<OperationAction>> rows) {
   var width = double.infinity;
 
   for (final row in rows) {
@@ -952,7 +954,7 @@ class _ActionButton extends StatelessWidget {
   });
 
   final double width;
-  final String keyLabel;
+  final String? keyLabel;
   final OperationAction action;
   final VoidCallback onPressed;
 
@@ -960,9 +962,14 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
+    final label = keyLabel;
 
     return Tooltip(
-      message: l10n.sendTooltip('$keyLabel ${action.label}'),
+      message: action == OperationAction.wipe
+          ? l10n.keyTipClearInput
+          : label == null
+          ? action.label
+          : l10n.sendTooltip('$label ${action.label}'),
       child: SizedBox(
         width: width,
         child: Material(
@@ -983,8 +990,10 @@ class _ActionButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _Kbd(label: keyLabel),
-                  const SizedBox(width: 6),
+                  if (label != null) ...[
+                    _Kbd(label: label),
+                    const SizedBox(width: 6),
+                  ],
                   Flexible(
                     child: Text(
                       action.label,
