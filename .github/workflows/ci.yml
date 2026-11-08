@@ -58,6 +58,13 @@ jobs:
         # Only warnings/errors fail the gate; info-level lints are reported but non-blocking.
         run: flutter analyze --no-fatal-infos
 
+      - name: Install Linux test dependencies
+        # window_manager 0.6.0 reaches nativeapi/cnativeapi, whose build hook links
+        # GTK3/X11/Xi via pkg-config during `flutter test`.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libx11-dev libxi-dev
+
       - name: Test
         run: flutter test
 

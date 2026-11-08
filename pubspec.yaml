@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 0.2.1+201003 # VersionCode using scheme: MM_NN_PP_BBB
 
 environment:
-  sdk: ^3.8.1
+  sdk: ^3.13.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -47,7 +47,7 @@ dependencies:
   path_provider: ^2.1.5
   archive: ^4.0.7
   xml: ^7.1.0
-  window_manager: ^0.5.1
+  window_manager: ^0.6.0
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
   worker_manager: ^7.2.7

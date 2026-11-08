@@ -77,7 +77,7 @@ class _MainAppState extends State<MainApp> {
     Timer(Duration(seconds: seconds), () async {
       log.warn('closing window by test hook', tag: 'exit');
       try {
-        await windowManager.close();
+        WindowManager.instance.getCurrent()?.close();
       } catch (error, stackTrace) {
         log.warn(
           'test window close failed',
@@ -152,27 +152,30 @@ class _MainAppState extends State<MainApp> {
 
   Future<void> _revealWindow() async {
     try {
-      // macOS binds the native window to the plugin only during this call.
-      await windowManager.ensureInitialized();
-      await windowManager.setResizable(true);
-      // The minimum is a *window frame* size: macOS applies it through
-      // `NSWindow.minSize` and Windows through WM_GETMINMAXINFO, so the
-      // content area is that much shorter by the title bar.
-      //
-      // Width: the read-only RST cell is 1/9 of the QSO row. With the 10dp
-      // text inset, 1084 shows 30.5dp of text, which is 1.1dp short of the
-      // 31.6dp `59` needs at textScale 1.3; the three-digit sent exchange
-      // needs 47.1dp and gets 46.1dp there. 1108 shows 32.9dp and 49.8dp, so
-      // both cells are whole at every supported scale.
-      //
-      // Height: 796 leaves 772dp of content. With the single-row resume strip
-      // the session card no longer scrolls in any of running / armed replay /
-      // paused / resuming at 5 languages x textScale 1.0/1.3, measured at
-      // content 768 already; 772 keeps 4dp of headroom. The wide layout is
-      // therefore the only form, and the old 700dp compact branches are gone.
-      await windowManager.setMinimumSize(const Size(1108, 796));
-      await windowManager.setSize(const Size(1108, 796));
-      await windowManager.center();
+      // 0.6.0 resolves the app's own window from the native window manager,
+      // so there is no `ensureInitialized` step before these calls.
+      final window = WindowManager.instance.getCurrent();
+      if (window != null) {
+        window.isResizable = true;
+        // The minimum is a *window frame* size: macOS applies it through
+        // `NSWindow.minSize` and Windows through WM_GETMINMAXINFO, so the
+        // content area is that much shorter by the title bar.
+        //
+        // Width: the read-only RST cell is 1/9 of the QSO row. With the 10dp
+        // text inset, 1084 shows 30.5dp of text, which is 1.1dp short of the
+        // 31.6dp `59` needs at textScale 1.3; the three-digit sent exchange
+        // needs 47.1dp and gets 46.1dp there. 1108 shows 32.9dp and 49.8dp, so
+        // both cells are whole at every supported scale.
+        //
+        // Height: 796 leaves 772dp of content. With the single-row resume strip
+        // the session card no longer scrolls in any of running / armed replay /
+        // paused / resuming at 5 languages x textScale 1.0/1.3, measured at
+        // content 768 already; 772 keeps 4dp of headroom. The wide layout is
+        // therefore the only form, and the old 700dp compact branches are gone.
+        window.minimumSize = const Size(1108, 796).toNative();
+        window.setSize(const Size(1108, 796).toNative(), false);
+        window.center();
+      }
     } catch (error, stackTrace) {
       log.warn(
         'window configure failed',
@@ -183,10 +186,16 @@ class _MainAppState extends State<MainApp> {
     }
 
     try {
-      // Always restore opacity, even when the configuration above failed.
-      await windowManager.setOpacity(1);
-      await windowManager.show();
-      await windowManager.focus();
+      final window = WindowManager.instance.getCurrent();
+      if (window != null) {
+        // Always restore opacity, even when the configuration above failed.
+        if (window.isMinimized) {
+          window.restore();
+        }
+        window.opacity = 1;
+        window.show();
+        window.focus();
+      }
     } catch (error, stackTrace) {
       log.error(
         'window show failed',
