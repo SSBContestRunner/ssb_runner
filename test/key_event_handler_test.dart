@@ -39,7 +39,7 @@ void main() {
   });
 
   group('修饰键', () {
-    test('分号键允许 Shift（部分键盘布局靠 Shift 打出分号）', () async {
+    test('分号键按住 Shift 时不派发', () async {
       final handler = KeyEventHandler();
       final operations = <OperationEvent>[];
       handler.operationEventStream.listen(operations.add);
@@ -48,16 +48,17 @@ void main() {
       _press(handler, LogicalKeyboardKey.semicolon, PhysicalKeyboardKey.semicolon);
       await pumpEventQueue();
 
-      expect(operations, [OperationEvent.hisCallAndMyExchange]);
+      expect(operations, isEmpty);
+      HardwareKeyboard.instance.clearState();
     });
 
-    test('分号键按住 Shift 且逻辑键为冒号时按物理键识别', () async {
-      // Shift+`;` 在 US 布局上是 `:`；物理键兜底让这个组合仍然表示分号。
+    test('逻辑键为冒号时按物理键识别', () async {
+      // 某些布局把同一个物理键报成 `:`；无修饰键时物理键兜底仍表示分号。
+      HardwareKeyboard.instance.clearState();
       final handler = KeyEventHandler();
       final operations = <OperationEvent>[];
       handler.operationEventStream.listen(operations.add);
 
-      _holdModifier(LogicalKeyboardKey.shiftLeft, PhysicalKeyboardKey.shiftLeft);
       _press(handler, LogicalKeyboardKey.colon, PhysicalKeyboardKey.semicolon);
       await pumpEventQueue();
 

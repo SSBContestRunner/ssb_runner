@@ -39,6 +39,10 @@ class AppSettings {
   /// session is already running. AppSettings does not own the manager.
   bool Function()? contestRunningCheck;
 
+  /// Set once per instance when a stored F1–F12 table had to be repaired, so
+  /// the warning is logged and the notice queued exactly once.
+  bool _functionKeyRepairReported = false;
+
   AppSettings({
     required SharedPreferencesWithCache prefs,
     ValueNotifier<AppLanguage>? languageNotifier,
@@ -177,36 +181,87 @@ class AppSettings {
 
   /// Function key bindings are key-centric: every key F1–F12 always exists and
   /// may map to an [OperationAction] or to Spare (`action == null`).
+  ///
+  /// Stored values are normalized on read. A value that is not a known action
+  /// id becomes Spare, and when one action appears on several keys the lowest
+  /// F number keeps it while the later keys become Spare. A repair is
+  /// persisted once and announced through [takeFunctionKeyRepairNotice].
   List<FunctionKeyBinding> get functionKeyBindings {
-    final values = <FunctionKey, OperationAction?>{};
+    final candidates = <FunctionKeyBinding>[];
+    final invalidKeys = <FunctionKey>[];
     var hasNewSettings = false;
+
     for (final key in FunctionKey.values) {
       final raw = _prefs.getString('$_settingFunctionKeyPrefix${key.label}');
       if (raw != null) hasNewSettings = true;
-      values[key] = _actionForStoredValue(raw, fallback: key.defaultAction);
+      if (raw == null) {
+        candidates.add(FunctionKeyBinding(key, key.defaultAction));
+        continue;
+      }
+      if (raw == _spareValue) {
+        candidates.add(FunctionKeyBinding(key, null));
+        continue;
+      }
+      final action = OperationAction.fromId(raw);
+      if (action == null) invalidKeys.add(key);
+      candidates.add(FunctionKeyBinding(key, action));
     }
 
-    if (hasNewSettings) {
-      return [
-        for (final key in FunctionKey.values)
-          FunctionKeyBinding(key, values[key]),
-      ];
+    if (!hasNewSettings) {
+      final normalized = normalizeFunctionKeyBindings(_migrateLegacyBindings());
+      _persistFunctionKeyBindings(normalized.bindings);
+      _reportFunctionKeyRepair(normalized.issues);
+      return normalized.bindings;
     }
 
-    final migrated = _migrateLegacyBindings();
-    if (migrated.isNotEmpty) _persistFunctionKeyBindings(migrated);
-    return migrated;
+    final normalized = normalizeFunctionKeyBindings(candidates);
+    final issues = [
+      for (final key in invalidKeys)
+        FunctionKeyIssue(type: FunctionKeyIssueType.invalidActionId, key: key),
+      ...normalized.issues,
+    ];
+    if (issues.isEmpty) return normalized.bindings;
+
+    _persistFunctionKeyBindings(normalized.bindings);
+    _reportFunctionKeyRepair(issues);
+    return normalized.bindings;
   }
 
-  Future<void> setFunctionKeyBindings(List<FunctionKeyBinding> bindings) async {
+  /// Persists the complete F1–F12 table.
+  ///
+  /// Returns `false` and writes nothing when the table is incomplete or binds
+  /// one action to more than one key, so a caller can never turn a valid
+  /// configuration into a conflicting one.
+  Future<bool> setFunctionKeyBindings(List<FunctionKeyBinding> bindings) async {
+    final normalized = normalizeFunctionKeyBindings(bindings);
+    final keys = bindings.map((binding) => binding.key).toSet();
+    final complete =
+        bindings.length == FunctionKey.values.length &&
+        keys.length == FunctionKey.values.length &&
+        FunctionKey.values.every(keys.contains);
+
+    if (!normalized.isClean || !complete) {
+      log.warn(
+        'function key bindings rejected',
+        tag: 'settings',
+        fields: {
+          'issueCount': normalized.issues.length,
+          'bindingCount': bindings.length,
+          'keyCount': keys.length,
+        },
+      );
+      return false;
+    }
+
     await Future.wait([
-      for (final binding in bindings)
+      for (final binding in normalized.bindings)
         _prefs.setString(
           '$_settingFunctionKeyPrefix${binding.key.label}',
           binding.action?.id ?? _spareValue,
         ),
     ]);
     functionKeysRevision.value++;
+    return true;
   }
 
   void _persistFunctionKeyBindings(List<FunctionKeyBinding> bindings) {
@@ -218,13 +273,40 @@ class AppSettings {
     }
   }
 
-  OperationAction? _actionForStoredValue(
-    String? raw, {
-    required OperationAction? fallback,
-  }) {
-    if (raw == null) return fallback;
-    if (raw == _spareValue) return null;
-    return OperationAction.fromId(raw) ?? fallback;
+  /// True while an automatically repaired F1–F12 table has not been shown yet.
+  bool get functionKeyRepairNoticePending =>
+      _prefs.getBool(_settingFunctionKeyRepairNotice) ?? false;
+
+  /// Consumes the one-shot repair notice so it is shown at most once, even
+  /// across restarts.
+  bool takeFunctionKeyRepairNotice() {
+    if (!functionKeyRepairNoticePending) return false;
+    _prefs.remove(_settingFunctionKeyRepairNotice);
+    return true;
+  }
+
+  /// Logs a one-off repair and leaves a persisted flag so the UI can tell the
+  /// operator once. Repeated reads in one session must not re-report.
+  void _reportFunctionKeyRepair(List<FunctionKeyIssue> issues) {
+    if (issues.isEmpty || _functionKeyRepairReported) return;
+    _functionKeyRepairReported = true;
+    log.warn(
+      'function key bindings repaired',
+      tag: 'settings',
+      fields: {
+        'duplicateActions': [
+          for (final issue in issues)
+            if (issue.type == FunctionKeyIssueType.duplicateAction)
+              '${issue.action!.label}:${issue.winner!.label}->${issue.key.label}',
+        ],
+        'invalidActionKeys': [
+          for (final issue in issues)
+            if (issue.type == FunctionKeyIssueType.invalidActionId)
+              issue.key.label,
+        ],
+      },
+    );
+    _prefs.setBool(_settingFunctionKeyRepairNotice, true);
   }
 
   /// One-time migration from the old action-centric settings. The new default
@@ -520,6 +602,7 @@ const _settingAudioVolume = 'setting_audio_volume';
 /// Legacy, action-centric key bindings. Kept only for migration; never written.
 const _settingKeyBindingPrefix = 'setting_key_binding_';
 const _settingFunctionKeyPrefix = 'setting_function_key_';
+const _settingFunctionKeyRepairNotice = 'setting_function_key_repair_notice';
 const _spareValue = 'spare';
 const _settingSessionHistory = 'setting_session_history';
 const _settingQuestionSeed = 'setting_question_seed';
@@ -616,4 +699,91 @@ class FunctionKeyBinding {
   final OperationAction? action;
 
   bool get isSpare => action == null;
+}
+
+/// Why one F-key could not keep its stored action.
+enum FunctionKeyIssueType {
+  /// The stored value is not a known [OperationAction] id.
+  invalidActionId,
+
+  /// The same action was claimed by an earlier key in the table.
+  duplicateAction,
+}
+
+/// One normalization problem.
+///
+/// [key] is the key that loses its action and becomes Spare. For
+/// [FunctionKeyIssueType.duplicateAction], [winner] is the lowest-numbered key
+/// that keeps [action]. [action] is null for
+/// [FunctionKeyIssueType.invalidActionId] because the id could not be resolved.
+class FunctionKeyIssue {
+  const FunctionKeyIssue({
+    required this.type,
+    required this.key,
+    this.action,
+    this.winner,
+  });
+
+  final FunctionKeyIssueType type;
+  final FunctionKey key;
+  final OperationAction? action;
+  final FunctionKey? winner;
+}
+
+/// A complete, conflict-free table plus the problems that had to be repaired
+/// to reach it.
+class FunctionKeyNormalization {
+  const FunctionKeyNormalization({
+    required this.bindings,
+    required this.issues,
+  });
+
+  final List<FunctionKeyBinding> bindings;
+  final List<FunctionKeyIssue> issues;
+
+  bool get isClean => issues.isEmpty;
+}
+
+/// Enforces one action per table and one binding per key.
+///
+/// The result always follows [FunctionKey.values] order. When an action
+/// appears on several keys the lowest F number keeps it and every later key
+/// becomes Spare, which is the single rule shared by the loader and the
+/// settings dialog.
+FunctionKeyNormalization normalizeFunctionKeyBindings(
+  List<FunctionKeyBinding> bindings,
+) {
+  final actionByKey = {
+    for (final binding in bindings) binding.key: binding.action,
+  };
+  final normalized = <FunctionKeyBinding>[];
+  final issues = <FunctionKeyIssue>[];
+  final owner = <OperationAction, FunctionKey>{};
+
+  for (final key in FunctionKey.values) {
+    final action = actionByKey[key];
+    if (action == null) {
+      normalized.add(FunctionKeyBinding(key, null));
+      continue;
+    }
+
+    final winner = owner[action];
+    if (winner != null) {
+      issues.add(
+        FunctionKeyIssue(
+          type: FunctionKeyIssueType.duplicateAction,
+          key: key,
+          action: action,
+          winner: winner,
+        ),
+      );
+      normalized.add(FunctionKeyBinding(key, null));
+      continue;
+    }
+
+    owner[action] = key;
+    normalized.add(FunctionKeyBinding(key, action));
+  }
+
+  return FunctionKeyNormalization(bindings: normalized, issues: issues);
 }

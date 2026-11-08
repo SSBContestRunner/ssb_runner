@@ -265,6 +265,177 @@ void main() {
     await _press(handler, LogicalKeyboardKey.f1, PhysicalKeyboardKey.f1);
     expect(events, [OperationEvent.cq]);
   });
+
+  test('a duplicate stored action keeps the lowest F key and spares the rest', (
+  ) async {
+    final harness = await _createHarness();
+    await harness.prefs.setString('setting_function_key_F1', 'exchange');
+    await harness.prefs.setString('setting_function_key_F2', 'exchange');
+    await harness.prefs.setString('setting_function_key_F5', 'exchange');
+
+    final bindings = harness.settings.functionKeyBindings;
+
+    expect(bindings[0].action, OperationAction.exchange);
+    expect(bindings[1].isSpare, isTrue);
+    expect(bindings[4].isSpare, isTrue);
+
+    // The repair is persisted, so a later launch starts clean.
+    expect(harness.prefs.getString('setting_function_key_F2'), 'spare');
+    expect(harness.prefs.getString('setting_function_key_F5'), 'spare');
+    expect(harness.settings.functionKeyRepairNoticePending, isTrue);
+  });
+
+  test('an unknown stored action id becomes Spare, not the default', () async {
+    final harness = await _createHarness();
+    await harness.prefs.setString('setting_function_key_F1', 'not-an-action');
+
+    final bindings = harness.settings.functionKeyBindings;
+
+    expect(bindings[0].isSpare, isTrue);
+    expect(harness.prefs.getString('setting_function_key_F1'), 'spare');
+    expect(harness.settings.functionKeyRepairNoticePending, isTrue);
+  });
+
+  test('a duplicated table is rejected and leaves storage untouched', () async {
+    final harness = await _createHarness();
+    final before = harness.settings.functionKeyBindings;
+
+    final accepted = await harness.settings.setFunctionKeyBindings([
+      for (final key in FunctionKey.values)
+        FunctionKeyBinding(
+          key,
+          switch (key) {
+            FunctionKey.f1 => OperationAction.cq,
+            FunctionKey.f2 => OperationAction.cq,
+            _ => null,
+          },
+        ),
+    ]);
+
+    expect(accepted, isFalse);
+    expect(harness.settings.functionKeysRevision.value, 0);
+    expect(
+      harness.settings.functionKeyBindings.map((binding) => binding.action),
+      before.map((binding) => binding.action),
+    );
+    expect(harness.prefs.getString('setting_function_key_F2'), 'exchange');
+  });
+
+  test('an incomplete table is rejected', () async {
+    final harness = await _createHarness();
+
+    final accepted = await harness.settings.setFunctionKeyBindings([
+      for (final key in FunctionKey.values.take(11))
+        FunctionKeyBinding(key, null),
+    ]);
+
+    expect(accepted, isFalse);
+    expect(harness.settings.functionKeysRevision.value, 0);
+  });
+
+  test('the repair notice is consumed exactly once', () async {
+    final harness = await _createHarness();
+    await harness.prefs.setString('setting_function_key_F1', 'exchange');
+    await harness.prefs.setString('setting_function_key_F2', 'exchange');
+
+    expect(harness.settings.functionKeyBindings[1].isSpare, isTrue);
+    expect(harness.settings.takeFunctionKeyRepairNotice(), isTrue);
+    expect(harness.settings.takeFunctionKeyRepairNotice(), isFalse);
+    expect(harness.settings.functionKeyRepairNoticePending, isFalse);
+
+    // A fresh instance sees the persisted repair and announces nothing.
+    final restarted = AppSettings(prefs: harness.prefs);
+    expect(restarted.functionKeyBindings[1].isSpare, isTrue);
+    expect(restarted.functionKeyRepairNoticePending, isFalse);
+  });
+
+  testWidgets('Shift, Ctrl, Alt and Meta keep function keys silent', (
+    tester,
+  ) async {
+    final handler = KeyEventHandler();
+    final events = <OperationEvent>[];
+    handler.operationEventStream.listen(events.add);
+
+    bool onKeyEvent(KeyEvent event) {
+      handler.onKeyEvent(event);
+      return false;
+    }
+
+    ServicesBinding.instance.keyboard.addHandler(onKeyEvent);
+    addTearDown(
+      () => ServicesBinding.instance.keyboard.removeHandler(onKeyEvent),
+    );
+
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(child: TextField(focusNode: focusNode)),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+
+    for (final modifier in [
+      LogicalKeyboardKey.shiftLeft,
+      LogicalKeyboardKey.controlLeft,
+      LogicalKeyboardKey.altLeft,
+      LogicalKeyboardKey.metaLeft,
+    ]) {
+      await tester.sendKeyDownEvent(modifier);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.f12);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.f12);
+      await tester.sendKeyUpEvent(modifier);
+    }
+    await tester.pump();
+    expect(events, isEmpty);
+
+    // Releasing the modifiers must make the next press work again.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.f12);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.f12);
+    await tester.pump();
+    expect(events, [OperationEvent.wipe]);
+  });
+
+  testWidgets('Shift + semicolon stays silent, a bare semicolon still works', (
+    tester,
+  ) async {
+    final handler = KeyEventHandler();
+    final events = <OperationEvent>[];
+    handler.operationEventStream.listen(events.add);
+
+    bool onKeyEvent(KeyEvent event) {
+      handler.onKeyEvent(event);
+      return false;
+    }
+
+    ServicesBinding.instance.keyboard.addHandler(onKeyEvent);
+    addTearDown(
+      () => ServicesBinding.instance.keyboard.removeHandler(onKeyEvent),
+    );
+
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(child: TextField(focusNode: focusNode)),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.semicolon);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.semicolon);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(events, isEmpty);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.semicolon);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.semicolon);
+    await tester.pump();
+    expect(events, [OperationEvent.hisCallAndMyExchange]);
+  });
 }
 
 Future<void> _press(

@@ -80,20 +80,133 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('running sessions hide customization and explain the lock', (
+  testWidgets('conflicts are listed inline and saving keeps the dialog open', (
     tester,
   ) async {
-    final settings = await _createSettings();
-    await _openReference(tester, settings, canCustomize: false);
+    final prefs = await _createPrefs();
+    final settings = _ConflictingSettings(prefs: prefs);
+    await _openReference(tester, settings);
 
-    expect(find.text('Customize function keys'), findsNothing);
-    expect(
-      find.text("Function keys can't be changed while a session runs."),
-      findsOneWidget,
-    );
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
+    expect(find.text('CQ is assigned to both F1 and F2.'), findsOneWidget);
+
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(KeyBindingsDialog), findsOneWidget);
+    expect(prefs.getString('setting_function_key_F1'), isNull);
+    expect(prefs.getString('setting_function_key_F2'), isNull);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('an action owned by another key is disabled in the editor', (
+    tester,
+  ) async {
+    final prefs = await _createPrefs();
+    final settings = _ConflictingSettings(prefs: prefs);
+    await _openReference(tester, settings);
+
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final buttons = tester
+        .widgetList<DropdownButton<String>>(find.byType(DropdownButton<String>))
+        .toList();
+    expect(buttons, hasLength(12));
+
+    final f2Items = buttons[1].items!;
+    final cq = f2Items.firstWhere((item) => item.value == 'cq');
+    final spare = f2Items.firstWhere((item) => item.value == 'spare');
+    final tu = f2Items.firstWhere((item) => item.value == 'tu');
+    expect(cq.enabled, isFalse);
+    expect(spare.enabled, isTrue);
+    expect(tu.enabled, isTrue);
+
+    // The disabled option names its owner, so a tap that does nothing is
+    // explained instead of silently rejected.
+    expect((cq.child as Text).textSpan!.toPlainText(), contains('Used by F1'));
+
+    final semantics = tester.ensureSemantics();
+    try {
+      expect(find.bySemanticsLabel(RegExp('Used by F1')), findsWidgets);
+    } finally {
+      semantics.dispose();
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('clearing the owner re-enables the action and drops the suffix', (
+    tester,
+  ) async {
+    final prefs = await _createPrefs();
+    final settings = _ConflictingSettings(prefs: prefs);
+    await _openReference(tester, settings);
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    expect(_f2CqItem(tester).enabled, isFalse);
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unassigned').hitTestable());
+    await tester.pumpAndSettle();
+
+    final cq = _f2CqItem(tester);
+    expect(cq.enabled, isTrue);
+    expect((cq.child as Text).textSpan!.toPlainText(), 'CQ');
+  });
+
+  for (final scale in [1.0, 1.3]) {
+    testWidgets('the function key menu has no overflow at ${scale}x text scale', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      final prefs = await _createPrefs();
+      final settings = _ConflictingSettings(prefs: prefs);
+      await _openReference(tester, settings);
+      await tester.tap(find.text('Customize function keys'));
+      await tester.pumpAndSettle();
+
+      final f2 = find.byType(DropdownButtonFormField<String>).at(1);
+      await tester.ensureVisible(f2);
+      await tester.tap(f2);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+  }
+}
+
+DropdownMenuItem<String> _f2CqItem(WidgetTester tester) {
+  final buttons = tester
+      .widgetList<DropdownButton<String>>(find.byType(DropdownButton<String>))
+      .toList();
+  return buttons[1].items!.firstWhere((item) => item.value == 'cq');
+}
+
+/// Forces the editor to open with a conflicting draft, which the normal loader
+/// would already have repaired.
+class _ConflictingSettings extends AppSettings {
+  _ConflictingSettings({required super.prefs});
+
+  @override
+  List<FunctionKeyBinding> get functionKeyBindings => [
+    for (final key in FunctionKey.values)
+      FunctionKeyBinding(
+        key,
+        switch (key) {
+          FunctionKey.f1 || FunctionKey.f2 => OperationAction.cq,
+          _ => null,
+        },
+      ),
+  ];
 }
 
 Future<void> _openReference(
@@ -129,9 +242,13 @@ Future<void> _openReference(
   await tester.pump(const Duration(milliseconds: 400));
 }
 
-Future<AppSettings> _createSettings() async {
-  final prefs = await SharedPreferencesWithCache.create(
+Future<SharedPreferencesWithCache> _createPrefs() async {
+  return SharedPreferencesWithCache.create(
     cacheOptions: const SharedPreferencesWithCacheOptions(),
   );
+}
+
+Future<AppSettings> _createSettings() async {
+  final prefs = await _createPrefs();
   return AppSettings(prefs: prefs);
 }
