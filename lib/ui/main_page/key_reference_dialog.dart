@@ -354,6 +354,7 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: DropdownButtonFormField<String>(
                   initialValue: bindings[key],
+                  isExpanded: true,
                   decoration: InputDecoration(labelText: key.label),
                   items: [
                     DropdownMenuItem(
@@ -361,11 +362,7 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
                       child: Text(l10n.keyReferenceSpare),
                     ),
                     for (final action in OperationAction.values)
-                      DropdownMenuItem(
-                        value: action.id,
-                        enabled: !_usedByOtherKey(key, action),
-                        child: Text(action.label),
-                      ),
+                      _actionItem(key, action, l10n, scheme),
                   ],
                   onChanged: (id) {
                     if (id != null) setState(() => bindings[key] = id);
@@ -408,13 +405,45 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
     );
   }
 
-  /// An action stays selectable on the key that owns it, so an existing
-  /// conflict can be resolved by changing only the losing side.
-  bool _usedByOtherKey(FunctionKey key, OperationAction action) {
+  /// A disabled option carries its owner in the item text, so tapping it does
+  /// nothing visible only because the reason is already right there. The text
+  /// is the semantic label too, which a hover-only tooltip could never be.
+  DropdownMenuItem<String> _actionItem(
+    FunctionKey key,
+    OperationAction action,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+  ) {
+    final owner = _ownerOf(key, action);
+    return DropdownMenuItem(
+      value: action.id,
+      enabled: owner == null,
+      child: Text.rich(
+        TextSpan(
+          text: action.label,
+          children: [
+            if (owner != null)
+              TextSpan(
+                text: '  ${l10n.functionKeysUsedByKey(owner.label)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  /// The key that currently owns [action] other than [key], so the editor can
+  /// name the owner instead of just greying the option out.
+  FunctionKey? _ownerOf(FunctionKey key, OperationAction action) {
     for (final entry in bindings.entries) {
-      if (entry.key != key && entry.value == action.id) return true;
+      if (entry.key != key && entry.value == action.id) return entry.key;
     }
-    return false;
+    return null;
   }
 }
 

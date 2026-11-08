@@ -68,6 +68,7 @@
   "functionKeysTitle": "ファンクションキー",
   "functionKeysUnique": "各コマンドに異なるファンクションキーを割り当ててください。",
   "functionKeysConflict": "{action} は {first} と {second} の両方に割り当てられています。",
+  "functionKeysUsedByKey": "{key} で使用中",
   "functionKeysAutoRepaired": "ファンクションキーの競合を自動修正しました。",
   "questionSeedLabel": "問題シード",
   "questionSeedHelper": "コールサイン、交換情報、パイルアップ、フォネティック",

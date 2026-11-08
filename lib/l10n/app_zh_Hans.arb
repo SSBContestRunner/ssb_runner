@@ -68,6 +68,7 @@
   "functionKeysTitle": "功能键",
   "functionKeysUnique": "每个命令需要使用不同的功能键。",
   "functionKeysConflict": "{action} 同时绑定在 {first} 与 {second} 上。",
+  "functionKeysUsedByKey": "已由 {key} 使用",
   "functionKeysAutoRepaired": "功能键冲突已自动修复。",
   "questionSeedLabel": "题目种子",
   "questionSeedHelper": "呼号、交换信息、叠呼、音标",

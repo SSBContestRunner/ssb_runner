@@ -116,6 +116,14 @@
       }
     }
   },
+  "functionKeysUsedByKey": "Used by {key}",
+  "@functionKeysUsedByKey": {
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
   "functionKeysAutoRepaired": "Function key conflicts were repaired automatically.",
   "questionSeedLabel": "Question seed",
   "questionSeedHelper": "Callsigns, exchanges, pile-up, phonic",

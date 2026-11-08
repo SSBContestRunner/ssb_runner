@@ -126,8 +126,69 @@ void main() {
     expect(cq.enabled, isFalse);
     expect(spare.enabled, isTrue);
     expect(tu.enabled, isTrue);
+
+    // The disabled option names its owner, so a tap that does nothing is
+    // explained instead of silently rejected.
+    expect((cq.child as Text).textSpan!.toPlainText(), contains('Used by F1'));
+
+    final semantics = tester.ensureSemantics();
+    try {
+      expect(find.bySemanticsLabel(RegExp('Used by F1')), findsWidgets);
+    } finally {
+      semantics.dispose();
+    }
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('clearing the owner re-enables the action and drops the suffix', (
+    tester,
+  ) async {
+    final prefs = await _createPrefs();
+    final settings = _ConflictingSettings(prefs: prefs);
+    await _openReference(tester, settings);
+    await tester.tap(find.text('Customize function keys'));
+    await tester.pumpAndSettle();
+
+    expect(_f2CqItem(tester).enabled, isFalse);
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unassigned').hitTestable());
+    await tester.pumpAndSettle();
+
+    final cq = _f2CqItem(tester);
+    expect(cq.enabled, isTrue);
+    expect((cq.child as Text).textSpan!.toPlainText(), 'CQ');
+  });
+
+  for (final scale in [1.0, 1.3]) {
+    testWidgets('the function key menu has no overflow at ${scale}x text scale', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      final prefs = await _createPrefs();
+      final settings = _ConflictingSettings(prefs: prefs);
+      await _openReference(tester, settings);
+      await tester.tap(find.text('Customize function keys'));
+      await tester.pumpAndSettle();
+
+      final f2 = find.byType(DropdownButtonFormField<String>).at(1);
+      await tester.ensureVisible(f2);
+      await tester.tap(f2);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+  }
+}
+
+DropdownMenuItem<String> _f2CqItem(WidgetTester tester) {
+  final buttons = tester
+      .widgetList<DropdownButton<String>>(find.byType(DropdownButton<String>))
+      .toList();
+  return buttons[1].items!.firstWhere((item) => item.value == 'cq');
 }
 
 /// Forces the editor to open with a conflicting draft, which the normal loader
