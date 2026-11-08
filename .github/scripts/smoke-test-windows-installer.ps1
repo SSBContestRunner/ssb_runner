@@ -28,7 +28,7 @@ $required = @(
   'ssb_runner.exe',
   'flutter_windows.dll',
   'flutter_soloud_plugin.dll',
-  'window_manager_plugin.dll',
+  'cnativeapi.dll',
   'msvcp140.dll',
   'vcruntime140.dll',
   'vcruntime140_1.dll',
