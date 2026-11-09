@@ -491,6 +491,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Checks out .github/scripts/generate-checksums.sh; no submodules or build inputs
+      # are needed here, everything else comes from the downloaded artifacts.
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download all artifacts
         uses: actions/download-artifact@v8
         with:
@@ -505,9 +510,22 @@ jobs:
           find dist -type f -exec cp {} release/ \;
           ls -la release
 
+      # The checksums in the release notes and the SHA256SUMS.txt asset both come from
+      # this step, so they cannot drift. It also asserts the manifest covers every file
+      # and re-verifies each hash, failing the job instead of publishing a partial list.
+      #
+      # If assets are replaced or added by hand while the draft is being edited, rerun
+      # this step: the previously published notes would still describe the old files.
+      - name: Generate SHA-256 checksums
+        run: bash .github/scripts/generate-checksums.sh release notes/checksums.md
+
       - name: Create draft release
         uses: softprops/action-gh-release@v3
         with:
           files: release/*
+          # body_path is prepended to the generated notes (not a replacement), so the
+          # fingerprints sit above the auto-generated changelog. notes/ stays outside
+          # release/ so the markdown is not uploaded as an asset.
+          body_path: notes/checksums.md
           draft: true
           generate_release_notes: true
