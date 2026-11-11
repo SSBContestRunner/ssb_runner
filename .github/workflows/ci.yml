@@ -59,34 +59,30 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Install Linux test dependencies
-        id: linux-test-deps
         # window_manager 0.6.0 reaches nativeapi/cnativeapi, whose build hook links
         # GTK3/X11/Xi via pkg-config during `flutter test`.
         #
-        # Those .debs come from the runner's apt mirror and security.ubuntu.com. A transient
-        # DNS failure there aborted run 43034797431 with exit code 100, so keep them in the
-        # Actions cache: a hit reinstalls them with dpkg and never touches a mirror, a miss
-        # falls through to a normal network install. The cache key includes the resolved
-        # package versions, so it is invalidated when the runner image moves them.
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        continue-on-error: true
-        with:
-          packages: libgtk-3-dev libx11-dev libxi-dev
-          version: 1.0
-
-      - name: Install Linux test dependencies (network fallback)
-        # Reached only on a cold cache whose network install failed. Acquire::Retries
-        # re-fetches individual .debs; the loop also redoes `apt-get update`.
-        if: steps.linux-test-deps.outcome == 'failure'
+        # The runner's mirror is intermittently unresolvable (ubuntu-26.04 sources go
+        # through mirror+file:/etc/apt/apt-mirrors.txt -> azure.archive.ubuntu.com ->
+        # security.ubuntu.com). apt waits ~20s per archive and libgtk-3-dev pulls 97 of
+        # them, so run 43034797431 sat here for 68 minutes before exiting 100. Every
+        # attempt is bounded, and the step asserts the headers with pkg-config instead of
+        # trusting apt's exit code: awalsh128/cache-apt-pkgs-action@v1 reported success on
+        # run 43060885441 after apt had fetched nothing ("Caching 0 installed packages"),
+        # which skipped the old retry step and failed `flutter test` instead.
+        timeout-minutes: 8
         run: |
           set -euo pipefail
+          apt_opts=(-o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
           for attempt in 1 2 3; do
-            if sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=60 update &&
-               sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=60 install -y \
-                 libgtk-3-dev libx11-dev libxi-dev; then
+            timeout 120 sudo apt-get "${apt_opts[@]}" update ||
+              echo "::warning::apt-get update failed on attempt $attempt/3"
+            timeout 180 sudo apt-get "${apt_opts[@]}" install -y libgtk-3-dev libx11-dev libxi-dev ||
+              echo "::warning::apt-get install failed on attempt $attempt/3"
+            if pkg-config --exists gtk+-3.0 x11 xi; then
+              echo "GTK3/X11/Xi development files are present."
               exit 0
             fi
-            echo "::warning::apt failed on attempt $attempt/3"
             sleep $((attempt * 15))
           done
           echo "::error::could not install Linux test dependencies after 3 attempts"
@@ -163,27 +159,24 @@ jobs:
           cache: true
 
       - name: Install Linux build dependencies
-        id: linux-build-deps
-        # Same cache-first rationale as the analyze job's test dependencies: keep the .debs in
-        # the Actions cache so a hit needs no mirror access. libfuse2 is required to execute
-        # appimagetool, which only ships as an AppImage.
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        continue-on-error: true
-        with:
-          packages: ninja-build libgtk-3-dev liblzma-dev libstdc++-12-dev libfuse2
-          version: 1.0
-
-      - name: Install Linux build dependencies (network fallback)
-        if: steps.linux-build-deps.outcome == 'failure'
+        # Same bounded-retry rationale as the analyze job's test dependencies (see the
+        # comment there); the step verifies the toolchain itself instead of trusting apt's
+        # exit code. libfuse2 is required to execute appimagetool, which only ships as an
+        # AppImage.
+        timeout-minutes: 8
         run: |
           set -euo pipefail
+          apt_opts=(-o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
           for attempt in 1 2 3; do
-            if sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=60 update &&
-               sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=60 install -y \
-                 ninja-build libgtk-3-dev liblzma-dev libstdc++-12-dev libfuse2; then
+            timeout 120 sudo apt-get "${apt_opts[@]}" update ||
+              echo "::warning::apt-get update failed on attempt $attempt/3"
+            timeout 180 sudo apt-get "${apt_opts[@]}" install -y \
+              ninja-build libgtk-3-dev liblzma-dev libstdc++-12-dev libfuse2 ||
+              echo "::warning::apt-get install failed on attempt $attempt/3"
+            if pkg-config --exists gtk+-3.0 x11 xi && command -v ninja > /dev/null; then
+              echo "Linux build dependencies are present."
               exit 0
             fi
-            echo "::warning::apt failed on attempt $attempt/3"
             sleep $((attempt * 15))
           done
           echo "::error::could not install Linux build dependencies after 3 attempts"
