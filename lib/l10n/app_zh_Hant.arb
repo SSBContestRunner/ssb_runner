@@ -11,7 +11,6 @@
   "diagnosticsCopied": "診斷資訊已複製",
   "copyDiagnosticsFailed": "無法自動複製，請手動選取下方程式文字。",
   "audioUnavailable": "目前瀏覽器無法播放音訊，訓練將繼續但沒有聲音。",
-  "immersiveModeUnavailable": "全螢幕或鍵盤鎖定被拒絕，請使用螢幕按鈕。",
   "exportedTo": "已匯出至 {path}",
   "logExportFailed": "日誌匯出失敗",
   "backupHistory": "備份歷史",

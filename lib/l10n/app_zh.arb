@@ -11,7 +11,6 @@
   "diagnosticsCopied": "诊断信息已复制",
   "copyDiagnosticsFailed": "无法自动复制，请手动选择下方文本。",
   "audioUnavailable": "当前浏览器无法播放音频，训练将继续但没有声音。",
-  "immersiveModeUnavailable": "全屏或键盘锁定被拒绝，请使用屏幕按钮。",
   "exportedTo": "已导出到 {path}",
   "logExportFailed": "日志导出失败",
   "backupHistory": "备份历史",

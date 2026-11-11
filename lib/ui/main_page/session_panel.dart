@@ -1049,13 +1049,10 @@ class _RunButtonState extends State<_RunButton> {
 
     final l10n = AppLocalizations.of(context);
 
-    // The browser needs the click that starts the run to unlock audio and,
-    // when available, fullscreen plus the function-key lock.
-    var inputModeGranted = true;
+    // The browser needs the click that starts the run to unlock audio. The key
+    // guard keeps F1–F12, Space and Tab away from the browser's own handling
+    // while the session is running.
     if (proceed && PlatformCapabilities.supportsImmersiveInput) {
-      inputModeGranted = await enterTrainingInputMode();
-      // Even when fullscreen is refused, Space and Tab must not scroll the
-      // page or move browser focus away from the console.
       installTrainingKeyGuard();
     }
     final audioReady = await ensureAudioInitialized();
@@ -1064,13 +1061,6 @@ class _RunButtonState extends State<_RunButton> {
     if (!audioReady) {
       toastification.show(
         title: Text(l10n.audioUnavailable),
-        autoCloseDuration: const Duration(seconds: 6),
-        type: ToastificationType.warning,
-        style: ToastificationStyle.fillColored,
-      );
-    } else if (!inputModeGranted) {
-      toastification.show(
-        title: Text(l10n.immersiveModeUnavailable),
         autoCloseDuration: const Duration(seconds: 6),
         type: ToastificationType.warning,
         style: ToastificationStyle.fillColored,
@@ -1498,7 +1488,6 @@ class _RunBtnCubit extends Cubit<ContestSessionPhase> {
       emit(phase);
       if (phase == ContestSessionPhase.idle) {
         removeTrainingKeyGuard();
-        unawaited(leaveTrainingInputMode());
       }
     });
   }

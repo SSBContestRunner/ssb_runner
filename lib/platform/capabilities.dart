@@ -11,7 +11,8 @@ abstract final class PlatformCapabilities {
   /// Desktop window controls (size, opacity, focus) only exist natively.
   static bool get hasNativeWindow => !isWeb;
 
-  /// Browsers can request fullscreen and lock the keyboard.
+  /// Browsers own the F1–F12 and Space/Tab defaults, so a run needs a key
+  /// guard; native apps receive the shortcuts directly.
   static bool get supportsImmersiveInput => isWeb;
 
   /// A save dialog that returns a filesystem path only exists natively.

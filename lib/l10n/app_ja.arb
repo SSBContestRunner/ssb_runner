@@ -11,7 +11,6 @@
   "diagnosticsCopied": "診断情報をコピーしました",
   "copyDiagnosticsFailed": "自動コピーできませんでした。下のテキストを選択してください。",
   "audioUnavailable": "このブラウザでは音声を再生できません。トレーニングは無音で続行します。",
-  "immersiveModeUnavailable": "全画面またはキーボードロックが拒否されました。画面のボタンを使用してください。",
   "exportedTo": "{path} にエクスポートしました",
   "logExportFailed": "ログのエクスポートに失敗しました",
   "backupHistory": "履歴をバックアップ",

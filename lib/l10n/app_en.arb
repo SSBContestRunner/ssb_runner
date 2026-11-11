@@ -11,7 +11,6 @@
   "diagnosticsCopied": "Diagnostics copied",
   "copyDiagnosticsFailed": "Could not copy automatically. Select the text below.",
   "audioUnavailable": "Audio is unavailable in this browser. Training continues without sound.",
-  "immersiveModeUnavailable": "Fullscreen or keyboard lock was refused. Use the on-screen buttons.",
   "exportedTo": "Exported to {path}",
   "@exportedTo": {
     "placeholders": {
