@@ -1,19 +1,17 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui';
+import 'dart:ui' show AppExitResponse;
 
 import 'package:catcher_2/catcher_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_init_tracker.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
-import 'package:ssb_runner/audio/audio_output_monitor.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/db/database_bootstrap.dart';
+import 'package:ssb_runner/db/history_maintenance.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
@@ -21,15 +19,21 @@ import 'package:ssb_runner/l10n/locale_resolution.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/boot_trace.dart';
 import 'package:ssb_runner/logging/logging_bootstrap.dart';
+import 'package:ssb_runner/platform/audio/audio_bootstrap.dart';
+import 'package:ssb_runner/platform/audio/audio_monitor_ui.dart';
+import 'package:ssb_runner/platform/capabilities.dart';
+import 'package:ssb_runner/platform/database/database_health.dart';
+import 'package:ssb_runner/platform/exit/exit_port.dart';
+import 'package:ssb_runner/platform/multi_tab/multi_tab_monitor.dart';
+import 'package:ssb_runner/platform/multi_tab/multi_tab_status.dart';
+import 'package:ssb_runner/platform/restart/restart_app.dart';
+import 'package:ssb_runner/platform/window/window_port.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/diagnostics_actions.dart';
-import 'package:ssb_runner/ui/main_app/exit_flow.dart';
 import 'package:ssb_runner/ui/main_app/home_page.dart';
 import 'package:ssb_runner/ui/main_app/window_geometry.dart';
-import 'package:ssb_runner/ui/main_app/window_visibility.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
 import 'package:toastification/toastification.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
 class MainApp extends StatefulWidget {
@@ -44,6 +48,13 @@ class MainApp extends StatefulWidget {
 class _MainAppState extends State<MainApp> {
   late final AppLifecycleListener _listener;
 
+  /// One database instance for the whole app: the provider, the startup health
+  /// probe and the history backup entry all share it.
+  late final AppDatabase _database = AppDatabase();
+
+  /// Toasts are only shown once the overlay exists.
+  bool _uiReady = false;
+
   /// Owned here so the MaterialApp can rebuild when the language changes.
   final ValueNotifier<AppLanguage> _language = ValueNotifier(AppLanguage.auto);
 
@@ -51,21 +62,12 @@ class _MainAppState extends State<MainApp> {
   final ValueNotifier<ThemeMode> _themeMode = ValueNotifier(ThemeMode.light);
 
   /// Restores the saved window size after prefs load and records later
-  /// resizes. The window itself is configured in [_revealWindow].
+  /// resizes. The window itself is configured in [revealWindow].
   final WindowGeometryController _geometry = WindowGeometryController();
 
   /// Tracks the audio initialisation so the exit path knows whether it is safe
   /// to answer the platform's exit request (see `_handleExitRequest`).
   final AudioInitTracker _audio = AudioInitTracker();
-
-  /// Watches the system output so the topbar badge can warn about a mute, a
-  /// too-low volume, a missing device or an engine that never started.
-  ///
-  /// Owned at the root because the warning must work on standby too, not only
-  /// while a session runs (design §4.1.1).
-  final AudioOutputMonitor _audioMonitor = AudioOutputMonitor(
-    visibilityFactory: WindowManagerVisibility.attach,
-  );
 
   /// Set by the exit path so the boot sequence stops dispatching new steps.
   final _ExitSignal _exitSignal = _ExitSignal();
@@ -74,14 +76,19 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
     _listener = AppLifecycleListener(onExitRequested: _handleExitRequest);
+    installPlatformExitHooks(onPageHide: deinitializeAudioForExit);
+    startMultiTabMonitor();
+
+    storagePressureRevision.addListener(_showStoragePressureWarning);
+    backupReminderRevision.addListener(_showBackupReminder);
+    multiTabRevision.addListener(_showMultiTabWarning);
 
     // The window is hidden until the first frame is on screen, so it appears
-    // straight into the loading view instead of as a blank window. `_revealWindow`
-    // has no awaits in its body, so it finishes synchronously here and the
-    // "first frame visible" record lands before `_BootGate` starts any IO.
+    // straight into the loading view instead of as a blank window.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       boot.markFirstFrame();
-      unawaited(_revealWindow());
+      _uiReady = true;
+      unawaited(revealWindow());
       log.info(
         'first frame visible',
         tag: 'boot',
@@ -92,95 +99,23 @@ class _MainAppState extends State<MainApp> {
       );
     });
 
-    _scheduleTestWindowClose();
-  }
-
-  /// CI only: closes the window the way a user does, so the macOS and Linux
-  /// smoke tests can assert that closing it ends the process.
-  ///
-  /// Neither platform can be closed from the outside in a CI session: macOS
-  /// would need Accessibility/automation permissions, and the Linux container
-  /// has no window manager to deliver a close request. window_manager's
-  /// `close()` is `[NSWindow performClose]` / `gtk_window_close`, i.e. the same
-  /// native path as clicking the close button.
-  void _scheduleTestWindowClose() {
-    final seconds = int.tryParse(
-      Platform.environment['SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER'] ?? '',
-    );
-    if (seconds == null) {
-      return;
-    }
-
-    Timer(Duration(seconds: seconds), () async {
-      log.warn('closing window by test hook', tag: 'exit');
-      try {
-        WindowManager.instance.getCurrent()?.close();
-      } catch (error, stackTrace) {
-        log.warn(
-          'test window close failed',
-          tag: 'exit',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      }
-    });
+    scheduleTestWindowClose();
   }
 
   /// Last line of defence for "the window closed but the process stays".
   ///
-  /// The Windows runner tears the FlutterEngine down synchronously inside
-  /// WM_DESTROY and only then posts WM_QUIT (windows/runner/win32_window.cpp).
-  /// If any teardown step blocks, the window is already gone but the message
-  /// loop never quits, leaving an idle process in Task Manager. The exit path
-  /// therefore has a hard bound: whatever the cleanup does, the process ends.
-  ///
-  /// The timer below only covers a stuck *cleanup*; it cannot cover a hang
-  /// inside `ExitProcess`, because that happens after the Dart VM is gone. The
-  /// native exit watchdog (windows/runner/exit_watchdog.cpp) covers that phase.
-  /// On the normal path the process is already gone by then.
-  ///
-  /// Invariant (docs/design/desktop_exit_design.md §3): `AppExitResponse.exit`
-  /// is only answered when the audio engine is either never initialised or
-  /// fully disposed. Any other state ends in a forced termination instead,
-  /// because `ExitProcess` runs the plugin's DLL detach and that wait can be
-  /// permanent once the Dart VM is gone.
-  Future<AppExitResponse> _handleExitRequest() async {
+  /// The bounded cleanup, the audio settle step and the force-exit fallback live
+  /// in the desktop exit port; the browser only gets best-effort pagehide
+  /// cleanup.
+  Future<AppExitResponse> _handleExitRequest() {
     _exitSignal.requested = true;
-    _exitTrace('enter');
-    Timer(const Duration(seconds: 5), _forceExit);
-
-    // CI only: keeps the request unanswered so the smoke test can prove that
-    // the fallback above ends the process on its own.
-    if (Platform.environment['SSB_RUNNER_TEST_EXIT_HANG'] == '1') {
-      await Completer<void>().future;
-    }
-
-    log.info('exit requested', tag: 'exit');
-    _exitTrace('logged');
 
     // A resize within the last 500ms may still be debounced.
     _geometry.flush();
-    _exitTrace('geometry_flushed');
-
-    // Stop probing before the engine is torn down, so no platform read can run
-    // concurrently with `deinitAsync()`.
-    _audioMonitor.stop();
-    _exitTrace('audio_monitor_stopped');
-
-    // 1) Let an in-flight initialisation settle (normally 28-411 ms). Closing
-    // the window inside that window used to skip the deinit and answer `exit`,
-    // which hangs inside ExitProcess (mechanism B in the design doc).
-    final settled = await _audio.settledWithin(const Duration(seconds: 2));
-    _exitTrace(settled ? 'settled' : 'settled_timeout');
-    if (!settled) {
-      await _hardExit('hard_exit_init_running');
-    }
-
-    // 2) Always dispose, bounded, whether the engine is running, never
-    // initialised or failed to initialise; see §4.1 for why no state is
-    // allowed to skip this.
-    final disposed = await runBoundedExitCleanup(
-      deinitAudio: _deinitAudio,
+    return handlePlatformExitRequest(
+      audio: _audio,
+      stopAudioMonitor: () async => stopAudioMonitor(),
+      deinitAudio: deinitializeAudioForExit,
       flushLogs: flushLogs,
       onError: (step, error, stackTrace) => log.warn(
         '$step failed',
@@ -189,244 +124,160 @@ class _MainAppState extends State<MainApp> {
         stackTrace: stackTrace,
       ),
     );
-    _exitTrace(disposed ? 'deinit_done' : 'deinit_unfinished');
-    if (!disposed) {
-      await _hardExit('hard_exit_deinit_unfinished');
-    }
-
-    _exitTrace('answering_exit');
-    return AppExitResponse.exit;
   }
 
-  /// Ends the process without answering the exit request.
-  ///
-  /// Used when the engine cannot be brought to a settled, disposed state.
-  /// `exit()` would enter `ExitProcess` and its DLL detach, which is exactly
-  /// where the process hangs; `Process.killPid` skips CRT and DLL teardown.
-  /// Logs are flushed first so the trace survives the termination.
-  Future<AppExitResponse> _hardExit(String reason) async {
-    _exitTrace(reason);
-    await runBoundedExitStep(
-      step: 'log flush',
-      action: flushLogs,
-      timeout: const Duration(milliseconds: 500),
-      onError: (step, error, stackTrace) => log.warn(
-        '$step failed',
-        tag: 'exit',
-        error: error,
-        stackTrace: stackTrace,
-      ),
+  void _showStoragePressureWarning() {
+    _showMaintenanceWarning(
+      AppL10n.current.storageAlmostFull,
+      AppL10n.current.storageBackupHint,
     );
-    if (!Process.killPid(pid)) {
-      exit(1);
-    }
-    // The process is being terminated; never answer the request.
-    return Completer<AppExitResponse>().future;
   }
 
-  /// Appends one line to the exit trace, written synchronously.
-  ///
-  /// The app logger is buffered, so nothing it wrote after this point survives
-  /// a process that hangs inside engine teardown. This file is created next to
-  /// the native startup timeline (`--boot-trace-dir`) and never throws.
-  void _exitTrace(String mark) {
-    final directory = boot.nativeTraceDirectory;
-    if (directory == null) {
+  void _showBackupReminder() {
+    // The reminder is a web storage concern; desktop history is a normal file.
+    if (!PlatformCapabilities.isWeb) {
       return;
     }
-    try {
-      final line =
-          '${DateTime.now().toUtc().toIso8601String()} mark=$mark'
-          ' pid=$pid step=${boot.stepIndex} lastStep=${boot.lastStep ?? '-'}'
-          ' phase=${boot.phase}\n';
-      File('$directory/exit_$pid.log')
-          .writeAsStringSync(line, mode: FileMode.append, flush: true);
-    } catch (_) {
-      // Tracing must never affect the exit path.
-    }
+    _showMaintenanceWarning(
+      AppL10n.current.historyBackupReminder,
+      AppL10n.current.storageBackupHint,
+    );
   }
 
-  /// Ends the process when the bounded cleanup never answers.
-  ///
-  /// Scope: a stuck cleanup only. A hang in the process-exit phase is invisible
-  /// here (Dart is already gone) and is handled by the native exit watchdog.
-  ///
-  /// `exit(0)` is deliberately not the first attempt: it runs CRT and DLL
-  /// teardown handlers, and on Windows the engine is torn down while still
-  /// holding an unanswered exit request, so a plugin thread blocked there keeps
-  /// the process alive even though `exit()` was called (observed in CI). A
-  /// termination signal skips every teardown handler.
-  void _forceExit() {
-    _exitTrace('fallback_fired');
-    log.warn('exit fallback fired', tag: 'exit');
-    if (Process.killPid(pid)) {
+  void _showMultiTabWarning() {
+    _showMaintenanceWarning(AppL10n.current.multiTabWarning, null);
+  }
+
+  void _showMaintenanceWarning(String title, String? description) {
+    if (!_uiReady) {
       return;
     }
-    exit(0);
-  }
-
-  /// Releases the audio device off the UI isolate.
-  ///
-  /// Unconditional: `SoLoud.isInitialized` is false for the whole
-  /// initialisation, so gating on it is what let a half-initialised engine
-  /// reach `ExitProcess`. On an engine that never initialised, `deinitAsync()`
-  /// only spawns an isolate and the native `dispose()` returns immediately.
-  ///
-  /// The synchronous `deinit()` is forbidden here: it runs the native teardown
-  /// on the UI isolate, and a blocked teardown would freeze the 5 s fallback
-  /// timer with it.
-  Future<void> _deinitAudio() => SoLoud.instance.deinitAsync();
-
-  Future<void> _revealWindow() async {
-    // 0.6.0 resolves the app's own window from the native window manager,
-    // so there is no `ensureInitialized` step before these calls. Resolution
-    // itself never throws; a null handle leaves the window as the runner
-    // already shows it (visible, at its default size).
-    Window? window;
-
-    try {
-      window = resolveAppWindow();
-      if (window != null) {
-        final stopwatch = Stopwatch()..start();
-        window.isResizable = true;
-        // Content is the contract; the frame minimum is derived from the
-        // platform chrome measured at runtime.
-        applyWindowGeometry(window);
-        log.info(
-          'window geometry',
-          tag: 'boot',
-          fields: <String, Object?>{
-            'frame': '${window.size.width}x${window.size.height}',
-            'content':
-                '${window.contentSize.width}x${window.contentSize.height}',
-            'minimum':
-                '${window.minimumSize.width}x${window.minimumSize.height}',
-            'durMs': stopwatch.elapsedMilliseconds,
-          },
-        );
-      }
-    } catch (error, stackTrace) {
-      log.warn(
-        'window configure failed',
-        tag: 'boot',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    try {
-      if (window != null) {
-        // Always restore opacity, even when the configuration above failed.
-        if (window.isMinimized) {
-          window.restore();
-        }
-        window.opacity = 1;
-        window.show();
-        window.focus();
-      }
-    } catch (error, stackTrace) {
-      log.error(
-        'window show failed',
-        tag: 'boot',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
+    toastification.show(
+      title: Text(title),
+      description: description == null ? null : Text(description),
+      autoCloseDuration: const Duration(seconds: 8),
+      type: ToastificationType.warning,
+      style: ToastificationStyle.fillColored,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return ToastificationWrapper(
-      child: ValueListenableBuilder<AppLanguage>(
-        valueListenable: _language,
-        builder: (context, language, _) {
-          return ValueListenableBuilder<ThemeMode>(
-            valueListenable: _themeMode,
-            builder: (context, themeMode, _) => MaterialApp(
-              navigatorKey: Catcher2.navigatorKey,
-              title: 'SSB Runner',
-              locale: appLanguageLocale(language),
-              localeListResolutionCallback: resolveAppLocale,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              builder: (context, child) {
-                AppL10n.update(AppLocalizations.of(context));
-                return child ?? const SizedBox.shrink();
-              },
-              theme: AppTheme.light,
-              darkTheme: AppTheme.dark,
-              themeMode: themeMode,
-              home: MultiRepositoryProvider(
-                providers: [
-                  RepositoryProvider(create: (context) => AppDatabase()),
-                  RepositoryProvider(create: (context) => AudioLoader()),
-                  RepositoryProvider(create: (context) => AudioPlayer()),
-                  RepositoryProvider(create: (context) => CallsignLoader()),
-                  RepositoryProvider<AudioOutputMonitor>.value(
-                    value: _audioMonitor,
-                  ),
-                  RepositoryProvider(
-                    create: (context) => DxccManager(database: context.read()),
-                  ),
-                ],
-                child: BlocProvider(
-                  // No `load()` here: the first frame must only paint the
-                  // splash. `_BootGate` starts the IO after it.
-                  create: (context) => _MainAppCubit(
-                    language: _language,
-                    themeMode: _themeMode,
-                    audio: _audio,
-                    exitSignal: _exitSignal,
-                  ),
-                  child: _BootGate(
-                    geometry: _geometry,
-                    child: BlocListener<_MainAppCubit, _AppState>(
-                      listenWhen: (previous, current) =>
-                          current is _Ready && current.deps.warning != null,
-                      listener: (context, state) {
-                        final warning = (state as _Ready).deps.warning;
-                        if (warning == null) {
-                          return;
-                        }
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      // The browser only allows audio to start inside a user gesture, so the
+      // first click anywhere unlocks the engine instead of waiting for the run
+      // button to do it.
+      onPointerDown: (_) {
+        if (!initializesAudioAtStartup) {
+          unawaited(ensureAudioInitialized());
+        }
+      },
+      child: ToastificationWrapper(
+        child: ValueListenableBuilder<AppLanguage>(
+          valueListenable: _language,
+          builder: (context, language, _) {
+            return ValueListenableBuilder<ThemeMode>(
+              valueListenable: _themeMode,
+              builder: (context, themeMode, _) => MaterialApp(
+                navigatorKey: Catcher2.navigatorKey,
+                title: 'SSB Runner',
+                locale: appLanguageLocale(language),
+                localeListResolutionCallback: resolveAppLocale,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) {
+                  AppL10n.update(AppLocalizations.of(context));
+                  return child ?? const SizedBox.shrink();
+                },
+                theme: AppTheme.light,
+                darkTheme: AppTheme.dark,
+                themeMode: themeMode,
+                home: MultiRepositoryProvider(
+                  providers: [
+                    RepositoryProvider<AppDatabase>.value(value: _database),
+                    RepositoryProvider(create: (context) => AudioLoader()),
+                    RepositoryProvider(create: (context) => AudioPlayer()),
+                    RepositoryProvider(create: (context) => CallsignLoader()),
+                    RepositoryProvider(
+                      create: (context) =>
+                          DxccManager(database: context.read()),
+                    ),
+                  ],
+                  child: wrapWithAudioMonitor(
+                    BlocProvider(
+                      // No `load()` here: the first frame must only paint the
+                      // splash. `_BootGate` starts the IO after it.
+                      create: (context) => _MainAppCubit(
+                        language: _language,
+                        themeMode: _themeMode,
+                        audio: _audio,
+                        exitSignal: _exitSignal,
+                      ),
+                      child: _BootGate(
+                        geometry: _geometry,
+                        child: BlocListener<_MainAppCubit, _AppState>(
+                          listenWhen: (previous, current) =>
+                              current is _Ready && current.deps.warning != null,
+                          listener: (context, state) {
+                            final warning = (state as _Ready).deps.warning;
+                            if (warning == null) {
+                              return;
+                            }
 
-                        // The overlay may not be mounted yet when startup finishes
-                        // before the first frame.
-                        WidgetsBinding.instance.addPostFrameCallback(
-                          (_) => _showStartupWarning(warning),
-                        );
-                      },
-                      child: BlocBuilder<_MainAppCubit, _AppState>(
-                        builder: (context, state) {
-                          switch (state) {
-                            case _Loading():
-                              return Container(
-                                color: ColorScheme.of(context).surface,
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            case _Ready(:final deps):
-                              return HomePage(settings: deps.settings);
-                            case _Failed(:final message):
-                              return _StartupFailure(message: message);
-                          }
-                        },
+                            // The overlay may not be mounted yet when startup
+                            // finishes before the first frame.
+                            WidgetsBinding.instance.addPostFrameCallback(
+                              (_) => _showStartupWarning(warning),
+                            );
+                          },
+                          child: BlocBuilder<_MainAppCubit, _AppState>(
+                            builder: (context, state) {
+                              switch (state) {
+                                case _Loading():
+                                  return Container(
+                                    color: ColorScheme.of(context).surface,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                case _Ready(:final deps):
+                                  return HomePage(settings: deps.settings);
+                                case _Failed(
+                                  :final message,
+                                  :final retryable,
+                                  :final storage,
+                                ):
+                                  return _StartupFailure(
+                                    message: message,
+                                    retryable: retryable,
+                                    storage: storage,
+                                    onRetry: restartApplication,
+                                  );
+                              }
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 
   @override
   void dispose() {
-    _audioMonitor.dispose();
+    disposeAudioMonitor();
     _geometry.dispose();
+    storagePressureRevision.removeListener(_showStoragePressureWarning);
+    backupReminderRevision.removeListener(_showBackupReminder);
+    multiTabRevision.removeListener(_showMultiTabWarning);
+    unawaited(_database.close());
     _listener.dispose();
     _language.dispose();
     _themeMode.dispose();
@@ -478,9 +329,13 @@ class _BootGateState extends State<_BootGate> {
 
     final cubit = context.read<_MainAppCubit>();
     await cubit.load(
+      database: context.read(),
       dxccManager: context.read(),
       callsignLoader: context.read(),
-      onSettingsReady: widget.geometry.attach,
+      // Desktop window controls do not exist in the browser.
+      onSettingsReady: PlatformCapabilities.hasNativeWindow
+          ? widget.geometry.attach
+          : null,
     );
 
     // Only a complete boot starts the monitor: a failed start or an abort by
@@ -488,7 +343,7 @@ class _BootGateState extends State<_BootGate> {
     if (!mounted || cubit.state is! _Ready) {
       return;
     }
-    context.read<AudioOutputMonitor>().start();
+    startAudioMonitor();
   }
 
   @override
@@ -519,9 +374,16 @@ class _Ready extends _AppState {
 }
 
 class _Failed extends _AppState {
-  const _Failed(this.message);
+  const _Failed(this.message, {this.retryable = false, this.storage = false});
 
   final String message;
+
+  /// Whether the page offers a reload. Only web storage failures do.
+  final bool retryable;
+
+  /// Whether the failure is about history storage, so the page can explain it
+  /// instead of showing a raw driver error.
+  final bool storage;
 }
 
 /// Set once the platform asked the app to exit.
@@ -551,6 +413,7 @@ class _MainAppCubit extends Cubit<_AppState> {
   }) : super(const _Loading());
 
   Future<void> load({
+    required AppDatabase database,
     required DxccManager dxccManager,
     required CallsignLoader callsignLoader,
     bool Function(AppSettings settings)? onSettingsReady,
@@ -569,10 +432,13 @@ class _MainAppCubit extends Cubit<_AppState> {
 
       // Started first, awaited before `_Ready`: the engine takes 80-165 ms and
       // must be up before the first voice segment is played. The tracker wraps
-      // this call in place; it must not delay or serialize the start.
-      final audioReady = _audio.start(
-        () => boot.step('soloud_init', _initAudio),
-      );
+      // this call in place so the exit path can wait for a settled engine; the
+      // browser only allows audio after a user gesture and starts on click.
+      final audioReady = initializesAudioAtStartup
+          ? _audio.start(
+              () => boot.step('soloud_init', ensureAudioInitialized),
+            )
+          : Future<void>.value();
 
       final prefs = await boot.step(
         'prefs_ready',
@@ -611,9 +477,43 @@ class _MainAppCubit extends Cubit<_AppState> {
 
       // Resolve the database folder before drift opens it: the result reports
       // whether the history could be carried over from older versions.
-      final database = await boot.step('db_ready', ensureDatabaseReady);
-      if (database.warning != null) {
-        warnings.add(database.warning!);
+      final bootstrap = await boot.step('db_ready', ensureDatabaseReady);
+      if (bootstrap.warning != null) {
+        warnings.add(bootstrap.warning!);
+      }
+
+      // On the web a WASM failure must not silently continue with an in-memory
+      // database: that would lose history on refresh. The probe makes the
+      // failure explicit and the page offers a reload. A stuck worker becomes
+      // the same retryable page instead of leaving the loading spinner up.
+      final health = await boot.step(
+        'db_health',
+        () => verifyDatabaseHealth(database).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => const DatabaseHealth(
+            error: 'database open timed out',
+            persistent: false,
+          ),
+        ),
+      );
+      if (!health.ok) {
+        log.error(
+          'database is not usable for history',
+          tag: 'db',
+          fields: <String, Object?>{
+            'error': health.error,
+            'implementation': health.implementation,
+            'persistent': health.persistent,
+          },
+        );
+        emit(
+          _Failed(
+            health.error!,
+            retryable: PlatformCapabilities.isWeb,
+            storage: true,
+          ),
+        );
+        return;
       }
       if (aborted()) {
         return;
@@ -661,40 +561,6 @@ class _MainAppCubit extends Cubit<_AppState> {
       emit(_Failed('$error'));
     }
   }
-
-  /// Environment variable that skips audio initialisation when set to `1`.
-  ///
-  /// SoLoud starts its engine on a worker isolate, and on hosts whose CoreAudio
-  /// stack is unusable (the headless macOS VMs used by CI, for example) that
-  /// call dies inside Apple's `AVAudioSession` with a SIGSEGV. A native crash
-  /// cannot be intercepted by the `catch` below and takes the whole process
-  /// down, so callers that only need the rest of the app to run--notably the
-  /// macOS smoke test--use this to opt out.
-  static const String _disableAudioEnv = 'SSB_RUNNER_DISABLE_AUDIO';
-
-  Future<void> _initAudio() async {
-    if (Platform.environment[_disableAudioEnv] == '1') {
-      log.warn(
-        'SoLoud init skipped by environment',
-        tag: 'audio.soloud',
-        fields: <String, Object?>{'env': _disableAudioEnv},
-      );
-      return;
-    }
-
-    try {
-      await SoLoud.instance.init(channels: Channels.mono);
-      log.info('SoLoud initialized', tag: 'audio.soloud');
-    } catch (error, stackTrace) {
-      // Audio failure must not stop the rest of the app from starting.
-      log.error(
-        'SoLoud init failed, audio disabled',
-        tag: 'audio.soloud',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-  }
 }
 
 /// Reports a non-fatal startup problem, such as the history not being where the
@@ -710,9 +576,17 @@ void _showStartupWarning(String message) {
 }
 
 class _StartupFailure extends StatelessWidget {
-  const _StartupFailure({required this.message});
+  const _StartupFailure({
+    required this.message,
+    required this.retryable,
+    required this.storage,
+    required this.onRetry,
+  });
 
   final String message;
+  final bool retryable;
+  final bool storage;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -728,6 +602,12 @@ class _StartupFailure extends StatelessWidget {
               const SizedBox(height: 16),
               Text(l10n.startupFailedTitle),
               const SizedBox(height: 8),
+              Text(
+                storage ? l10n.startupStorageFailed : message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
               SelectableText(
                 message,
                 textAlign: TextAlign.center,
@@ -736,7 +616,15 @@ class _StartupFailure extends StatelessWidget {
               const SizedBox(height: 24),
               Wrap(
                 spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
                 children: [
+                  if (retryable)
+                    FilledButton.icon(
+                      onPressed: () => onRetry(),
+                      icon: const Icon(Icons.refresh),
+                      label: Text(l10n.retry),
+                    ),
                   OutlinedButton(
                     onPressed: () => copyDiagnosticSummary(context),
                     child: Text(l10n.copyDiagnostics),

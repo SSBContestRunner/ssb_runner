@@ -4,13 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 
 import 'app_log_printer.dart';
-import 'log_paths.dart';
+import 'redaction.dart';
 
 /// Tag used when no subsystem is given.
 const String defaultTag = 'app';
 
 const int _contextBufferSize = 200;
 const int _preFrameBufferSize = 512;
+
+/// Lines kept for the web diagnostic buffer. The export and "copy diagnostics"
+/// read this instead of a file, so it is larger than the crash context ring.
+const int _diagnosticBufferSize = 5000;
 const int _maxLogFileSizeKb = 5 * 1024;
 const int _maxRotatedFileCount = 10;
 const String _latestLogFileName = 'latest.log';
@@ -171,6 +175,41 @@ class AppLogger {
     return List<OutputEvent>.of(ring.buffer);
   }
 
+  /// Logger backed by an in-memory ring buffer only.
+  ///
+  /// Used on the web, where there is no writable filesystem. The buffer is what
+  /// "copy diagnostics" and the log export read, so it keeps more lines than
+  /// the crash context ring. [pending] replays the pre-frame records.
+  factory AppLogger.memoryBacked({
+    List<OutputEvent> pending = const <OutputEvent>[],
+  }) {
+    final primaryFilter = ProductionFilter()..level = _defaultLevel;
+    final ring = MemoryOutput(bufferSize: _diagnosticBufferSize);
+    for (final event in pending) {
+      ring.output(event);
+    }
+
+    final primary = Logger(
+      filter: primaryFilter,
+      output: ring,
+      printer: AppLogPrinter(),
+    );
+
+    final filters = <LogFilter>[primaryFilter];
+    Logger? console;
+    if (!kReleaseMode) {
+      final consoleFilter = ProductionFilter()..level = _defaultLevel;
+      filters.add(consoleFilter);
+      console = Logger(
+        filter: consoleFilter,
+        output: ConsoleOutput(),
+        printer: AppLogPrinter(),
+      );
+    }
+
+    return AppLogger._(primary, console, filters, ring, null);
+  }
+
   final Logger _primary;
   final Logger? _console;
   final List<LogFilter> _filters;
@@ -283,6 +322,20 @@ class AppLogger {
 
   /// Completes when the underlying outputs have been initialized.
   Future<void> get ready => _primary.init;
+
+  /// Records held in memory, oldest first.
+  ///
+  /// The native backend exposes its crash context ring here as well, but the
+  /// diagnostic export reads the log file instead; the web backend has no file
+  /// and uses this buffer.
+  List<String> get diagnosticLines {
+    final ring = _ring;
+    if (ring == null) {
+      return const <String>[];
+    }
+
+    return <String>[for (final event in ring.buffer) ...event.lines];
+  }
 
   /// Switches between the default level and trace-level verbose logging.
   void setVerbose(bool verbose) {

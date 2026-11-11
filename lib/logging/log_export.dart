@@ -1,28 +1,7 @@
-import 'dart:io';
-
 import 'package:archive/archive.dart';
-import 'package:file_selector/file_selector.dart';
-
-import 'log_paths.dart';
-import 'log_session.dart';
-
-/// Collects the log files currently stored on disk.
-List<File> listLogFiles(String directoryPath) {
-  final directory = Directory(directoryPath);
-  if (!directory.existsSync()) {
-    return const <File>[];
-  }
-
-  final files =
-      directory
-          .listSync()
-          .whereType<File>()
-          .where((file) => file.path.endsWith('.log'))
-          .toList()
-        ..sort((a, b) => a.path.compareTo(b.path));
-
-  return files;
-}
+import 'package:ssb_runner/logging/log_session.dart';
+import 'package:ssb_runner/platform/export/export_port.dart';
+import 'package:ssb_runner/platform/logging/log_source_port.dart';
 
 /// Human readable summary that can be pasted into a chat when reporting a bug.
 ///
@@ -37,7 +16,6 @@ Future<String> diagnosticSummary({
   int tailLines = 100,
   bool currentSessionOnly = false,
 }) async {
-  final location = LogSession.location ?? await resolveLogDirectory();
   final buffer = StringBuffer()
     ..writeln('SSB Runner diagnostic summary')
     ..writeln('generated=${DateTime.now().toUtc().toIso8601String()}');
@@ -46,17 +24,12 @@ Future<String> diagnosticSummary({
     buffer.writeln(line);
   }
 
-  final latest = File('${location.path}/latest.log');
-  List<String>? lines;
-  if (latest.existsSync()) {
-    lines = await latest.readAsLines();
-    if (currentSessionOnly) {
-      lines = _currentSessionLines(lines);
-    }
+  var lines = await logSource.latestLogLines();
+  if (currentSessionOnly) {
+    lines = _currentSessionLines(lines);
   }
 
-  final startupLines =
-      lines?.where(_isStartupLine).toList() ?? const <String>[];
+  final startupLines = lines.where(_isStartupLine).toList();
   final startupStart = startupLines.length > _maxStartupLines
       ? startupLines.length - _maxStartupLines
       : 0;
@@ -65,7 +38,9 @@ Future<String> diagnosticSummary({
     buffer.writeln(line);
   }
 
-  if (lines != null) {
+  if (lines.isEmpty) {
+    buffer.writeln('--- latest.log not found ---');
+  } else {
     final start = lines.length > tailLines ? lines.length - tailLines : 0;
     buffer.writeln(
       '--- latest.log (${currentSessionOnly ? 'current session ' : 'last '}'
@@ -74,8 +49,6 @@ Future<String> diagnosticSummary({
     for (final line in lines.sublist(start)) {
       buffer.writeln(line);
     }
-  } else {
-    buffer.writeln('--- latest.log not found ---');
   }
 
   return buffer.toString();
@@ -104,40 +77,30 @@ List<String> _currentSessionLines(List<String> lines) {
   return lines.sublist(bodyStart);
 }
 
-/// Zips the log directory plus the diagnostic summary into the location the
-/// user picks in the system save dialog.
+/// Zips the diagnostic summary and the log files into one archive and saves it
+/// through the platform save path.
 ///
-/// Returns `null` when the user cancels the dialog.
-Future<File?> exportLogArchive({String fileTypeLabel = 'Zip archive'}) async {
-  final target = await getSaveLocation(
-    suggestedName: 'ssb-runner-diagnostics-${_timestamp()}.zip',
-    acceptedTypeGroups: [
-      XTypeGroup(label: fileTypeLabel, extensions: const ['zip']),
-    ],
-  );
-  if (target == null) {
-    return null;
-  }
-
-  final location = LogSession.location ?? await resolveLogDirectory();
+/// Returns null when the user cancels; on the web the browser download always
+/// starts, so the result only carries the file name.
+Future<ExportResult?> exportLogArchive({
+  String fileTypeLabel = 'Zip archive',
+}) async {
   final archive = Archive()
     ..addFile(
       ArchiveFile.string('diagnostic-summary.txt', await diagnosticSummary()),
     );
 
-  for (final file in listLogFiles(location.path)) {
-    archive.addFile(
-      ArchiveFile.bytes('logs/${_fileName(file)}', await file.readAsBytes()),
-    );
+  for (final file in await logSource.logFiles()) {
+    archive.addFile(ArchiveFile.bytes('logs/${file.name}', file.bytes));
   }
 
   final encoded = ZipEncoder().encode(archive);
-  final output = File(target.path);
-  await output.writeAsBytes(encoded, flush: true);
-  return output;
+  return saveBytes(
+    suggestedName: 'ssb-runner-diagnostics-${_timestamp()}.zip',
+    bytes: encoded,
+    fileTypeLabel: fileTypeLabel,
+  );
 }
-
-String _fileName(File file) => file.uri.pathSegments.last;
 
 String _timestamp() {
   final now = DateTime.now();

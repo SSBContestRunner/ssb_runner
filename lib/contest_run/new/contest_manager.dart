@@ -19,6 +19,7 @@ import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
+import 'package:ssb_runner/db/history_maintenance.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
@@ -50,6 +51,9 @@ class ContestManager {
   Stream<String> get contestRunIdStream => _contestRunIdStreamController.stream;
 
   late final AppDatabase _appDatabase = _contestDataManager.appDatabase;
+
+  /// Shared database used by the history backup and restore entry.
+  AppDatabase get database => _appDatabase;
 
   ContestRunningManager? contestRunningManager;
 
@@ -344,6 +348,19 @@ class ContestManager {
     );
     _audioPlayer.startPlay();
 
+    // Warm the clips this session is most likely to need without delaying the
+    // first question. A pinned accent warms that accent only; auto also warms
+    // the neutral and US sets, which cover the most common stations.
+    final pinnedAccent = settings.incomingAccent.assetDir;
+    unawaited(
+      _contestDataManager.audioLoader.warmUp(
+        accentDirs: pinnedAccent == null
+            ? const <String>['Global', 'US']
+            : <String>[pinnedAccent],
+        phonicType: settings.phonicType,
+      ),
+    );
+
     // Reset the clock before the first answer is generated so the logged
     // elapsed time starts at zero.
     final durationInMinutes = settings.contestDuration;
@@ -595,7 +612,13 @@ class ContestManager {
       pauseCount: contestTimer.pauseCount,
       pausedDuration: contestTimer.pausedDuration,
     );
+    final firstSession = _contestDataManager.appSettings.sessionHistory.isEmpty;
     _contestDataManager.appSettings.saveSessionReview(review);
+    if (firstSession) {
+      // The first saved session is the best moment to suggest a backup: there
+      // is something to lose, and the list is still small.
+      backupReminderRevision.value++;
+    }
     _reviewStreamController.add(review);
   }
 

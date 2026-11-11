@@ -34,6 +34,12 @@ class AudioPlayer {
   /// event from an already replaced segment is ignored.
   int _generation = 0;
 
+  /// Latency instrumentation: when the run started, when the previous segment
+  /// finished, and whether the first segment was already logged.
+  DateTime? _playStartedAt;
+  DateTime? _lastFinishedAt;
+  bool _firstSegmentLogged = false;
+
   bool _stopped = true;
 
   /// Frozen by the training pause. The active segment keeps its playback
@@ -151,6 +157,9 @@ class AudioPlayer {
     _reset();
     _stopped = false;
     _paused = false;
+    _playStartedAt = DateTime.now();
+    _lastFinishedAt = null;
+    _firstSegmentLogged = false;
     if (_trainingProfile != null) {
       _bedWanted = true;
       _ensureNoiseBed();
@@ -300,6 +309,8 @@ class AudioPlayer {
       return;
     }
 
+    _logSegmentTiming(segment);
+
     final generation = ++_generation;
     final watchdogDuration =
         _estimateDuration(segment.pcm.lengthInBytes) + _watchdogMargin;
@@ -348,6 +359,46 @@ class AudioPlayer {
     }
   }
 
+  /// Records how long the first segment took and any audible gap between
+  /// consecutive segments, so a slow device shows up in the log before users
+  /// report choppy audio.
+  void _logSegmentTiming(_PendingSegment segment) {
+    final now = DateTime.now();
+
+    if (!_firstSegmentLogged) {
+      _firstSegmentLogged = true;
+      final started = _playStartedAt;
+      log.info(
+        'first audio segment ready',
+        tag: 'audio.latency',
+        fields: <String, Object?>{
+          if (started != null)
+            'sinceStartMs': now.difference(started).inMilliseconds,
+          'bytes': segment.pcm.lengthInBytes,
+        },
+      );
+      return;
+    }
+
+    final last = _lastFinishedAt;
+    if (last == null) {
+      return;
+    }
+    _lastFinishedAt = null;
+
+    final gapMs = now.difference(last).inMilliseconds;
+    if (gapMs >= 50) {
+      log.warn(
+        'audio segment gap',
+        tag: 'audio.latency',
+        fields: <String, Object?>{
+          'gapMs': gapMs,
+          'bytes': segment.pcm.lengthInBytes,
+        },
+      );
+    }
+  }
+
   void _onSegmentFinished(int generation) {
     if (generation != _generation) {
       return;
@@ -361,6 +412,7 @@ class AudioPlayer {
     final active = _active;
     _active = null;
     active?.dispose();
+    _lastFinishedAt = DateTime.now();
 
     _pump();
 

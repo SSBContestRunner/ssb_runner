@@ -25,24 +25,19 @@ void _mockSaveLocation(String? path) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('listLogFiles returns only sorted .log files', () async {
-    final directory = await Directory.systemTemp.createTemp('ssb_logs_test');
+  test('diagnosticSummary tolerates a missing log file', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'ssb_summary_missing',
+    );
     addTearDown(() => directory.delete(recursive: true));
 
-    await File('${directory.path}/b.log').writeAsString('b');
-    await File('${directory.path}/a.log').writeAsString('a');
-    await File('${directory.path}/ignore.txt').writeAsString('x');
+    LogSession.location = LogLocation(path: directory.path, fallbackIndex: 0);
+    LogSession.headerLines = const <String>['os=test-os'];
 
-    final files = listLogFiles(directory.path);
+    final summary = await diagnosticSummary();
 
-    expect(files.map((file) => file.uri.pathSegments.last).toList(), <String>[
-      'a.log',
-      'b.log',
-    ]);
-  });
-
-  test('listLogFiles tolerates a missing directory', () {
-    expect(listLogFiles('/definitely/not/here'), isEmpty);
+    expect(summary, contains('os=test-os'));
+    expect(summary, contains('latest.log'));
   });
 
   test(

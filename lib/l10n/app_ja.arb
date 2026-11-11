@@ -9,8 +9,74 @@
   "copyDiagnostics": "診断情報をコピー",
   "exportLogs": "ログをエクスポート",
   "diagnosticsCopied": "診断情報をコピーしました",
+  "copyDiagnosticsFailed": "自動コピーできませんでした。下のテキストを選択してください。",
+  "audioUnavailable": "このブラウザでは音声を再生できません。トレーニングは無音で続行します。",
+  "immersiveModeUnavailable": "全画面またはキーボードロックが拒否されました。画面のボタンを使用してください。",
   "exportedTo": "{path} にエクスポートしました",
   "logExportFailed": "ログのエクスポートに失敗しました",
+  "backupHistory": "履歴をバックアップ",
+  "restoreHistory": "履歴を復元",
+  "historyBackupFileType": "履歴バックアップ",
+  "historyBackupCreated": "履歴バックアップを書き出しました · {count} QSO",
+  "@historyBackupCreated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyBackupFailed": "履歴のバックアップに失敗しました",
+  "historyBackupInvalid": "このファイルは有効な SSB Runner の履歴バックアップではありません。",
+  "historyBackupNewer": "このバックアップは新しいバージョンのアプリで作成されたため、読み込めません。",
+  "historyRestoreTitle": "このバックアップを復元しますか？",
+  "historyRestoreBody": "書き出し {time} · アプリ {version}\n{qsoCount} QSO · {eventCount} イベント。\n現在の履歴はすべて置き換えられます。",
+  "@historyRestoreBody": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "qsoCount": {
+        "type": "int"
+      },
+      "eventCount": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreConfirm": "履歴を置き換える",
+  "historyRestored": "履歴を復元しました · {count} QSO",
+  "@historyRestored": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreFailed": "履歴の復元に失敗しました",
+  "retry": "再読み込み",
+  "startupStorageFailed": "履歴ストレージを開けませんでした。再読み込みしてもう一度お試しください。改善しない場合は診断情報を書き出してください。",
+  "storageStatusTitle": "履歴ストレージ",
+  "storagePersistent": "永続ストレージが許可されています",
+  "storageNotPersistent": "ベストエフォートのみ — 定期的にバックアップしてください",
+  "storageUnknown": "状態を取得できません",
+  "storageUsage": "{used} / {quota} 使用中",
+  "@storageUsage": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "quota": {
+        "type": "String"
+      }
+    }
+  },
+  "storageAlmostFull": "ブラウザの保存容量が不足しています",
+  "storageBackupHint": "設定 › システム で履歴をバックアップするか、古いセッションを削除してください。",
+  "historyBackupReminder": "最初のセッションを保存しました",
+  "multiTabWarning": "SSB Runner が別のタブで開かれています",
   "zipArchive": "Zip アーカイブ",
   "crashTitle": "SSB Runner で予期しないエラーが発生しました",
   "crashDescription": "現在の練習は中断された可能性があります。ログをエクスポートするか、診断サマリーをコピーして問題を調査してください。",

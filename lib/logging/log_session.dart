@@ -1,9 +1,8 @@
-import 'dart:ffi';
-import 'dart:io';
-
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:ssb_runner/platform/environment/environment.dart';
 
-import 'log_paths.dart';
+import 'log_location.dart';
+import 'redaction.dart';
 
 /// Environment snapshot for the current process run.
 ///
@@ -30,6 +29,7 @@ Future<PackageInfo?> readPackageInfo() async {
 Future<List<String>> buildSessionHeader({
   required LogLocation location,
   PackageInfo? packageInfo,
+  required EnvironmentSnapshot environment,
 }) async {
   var packageName = 'ssb_runner';
   var version = 'unknown';
@@ -44,14 +44,7 @@ Future<List<String>> buildSessionHeader({
 
   final lines = <String>[
     'app=$packageName version=$version+$buildNumber',
-    'dart=${Platform.version.split(' ').first}',
-    'os=${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
-    'arch=${Abi.current()}',
-    'processors=${Platform.numberOfProcessors}',
-    'locale=${Platform.localeName}',
-    'tz=${DateTime.now().timeZoneName}',
-    'exe=${redactPath(Platform.resolvedExecutable)}',
-    'cwd=${redactPath(Directory.current.path)}',
+    ...environment.headerLines,
     'log_dir=${redactPath(location.path)} '
         'fallback_index=${location.fallbackIndex}',
   ];

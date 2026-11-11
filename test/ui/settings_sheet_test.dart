@@ -111,6 +111,8 @@ void main() {
     expect(find.text('Verbose logging'), findsOneWidget);
     expect(find.text('Copy diagnostics'), findsOneWidget);
     expect(find.text('Export logs'), findsOneWidget);
+    expect(find.text('Back up history'), findsOneWidget);
+    expect(find.text('Restore history'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
     harness.dispose();

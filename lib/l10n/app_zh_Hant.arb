@@ -9,8 +9,74 @@
   "copyDiagnostics": "複製診斷資訊",
   "exportLogs": "匯出日誌",
   "diagnosticsCopied": "診斷資訊已複製",
+  "copyDiagnosticsFailed": "無法自動複製，請手動選取下方程式文字。",
+  "audioUnavailable": "目前瀏覽器無法播放音訊，訓練將繼續但沒有聲音。",
+  "immersiveModeUnavailable": "全螢幕或鍵盤鎖定被拒絕，請使用螢幕按鈕。",
   "exportedTo": "已匯出至 {path}",
   "logExportFailed": "日誌匯出失敗",
+  "backupHistory": "備份歷史",
+  "restoreHistory": "還原歷史",
+  "historyBackupFileType": "歷史備份",
+  "historyBackupCreated": "歷史備份已匯出 · {count} 筆 QSO",
+  "@historyBackupCreated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyBackupFailed": "歷史備份失敗",
+  "historyBackupInvalid": "此檔案不是有效的 SSB Runner 歷史備份。",
+  "historyBackupNewer": "此備份由較新版本的應用程式建立，無法匯入。",
+  "historyRestoreTitle": "還原此備份？",
+  "historyRestoreBody": "匯出時間 {time} · 應用程式 {version}\n{qsoCount} 筆 QSO · {eventCount} 筆事件。\n此操作會取代目前所有歷史。",
+  "@historyRestoreBody": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "qsoCount": {
+        "type": "int"
+      },
+      "eventCount": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreConfirm": "取代歷史",
+  "historyRestored": "歷史已還原 · {count} 筆 QSO",
+  "@historyRestored": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreFailed": "歷史還原失敗",
+  "retry": "重新載入",
+  "startupStorageFailed": "無法開啟歷史儲存。請重新載入再試；若仍失敗，請匯出診斷資訊。",
+  "storageStatusTitle": "歷史儲存",
+  "storagePersistent": "已取得持久化儲存",
+  "storageNotPersistent": "僅盡力保存，請定期備份",
+  "storageUnknown": "狀態未知",
+  "storageUsage": "已使用 {used} / {quota}",
+  "@storageUsage": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "quota": {
+        "type": "String"
+      }
+    }
+  },
+  "storageAlmostFull": "瀏覽器儲存空間即將用盡",
+  "storageBackupHint": "請在 設定 › 系統 中備份歷史或清理舊工作階段。",
+  "historyBackupReminder": "首場訓練已儲存",
+  "multiTabWarning": "SSB Runner 已在另一個分頁中開啟",
   "zipArchive": "Zip 壓縮檔",
   "crashTitle": "SSB Runner 發生未預期的錯誤",
   "crashDescription": "當前練習可能已中斷。請匯出日誌或複製診斷摘要，以便排查問題。",

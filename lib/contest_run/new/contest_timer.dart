@@ -98,15 +98,32 @@ class ContestTimer {
 
   void _startTicker() {
     _timer?.cancel();
-    final baseSeconds = _elapseTime.inSeconds;
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      final elapseTime = Duration(seconds: baseSeconds + timer.tick);
-      _elapseTime = elapseTime;
-      _elapseTimeStreamController.sink.add(elapseTime);
+    _tickingBase = _elapseTime;
+    _tickingSince = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
 
-      if (elapseTime >= _totalDuration) {
-        onContestEnd();
-      }
-    });
+  /// Wall-clock base for the ticker.
+  ///
+  /// Browsers throttle timers in background tabs, so counting `timer.tick`
+  /// would drift behind the real elapsed time. The elapsed value is always
+  /// recomputed from timestamps instead, which also catches up in one step
+  /// after a frozen tab resumes.
+  Duration _tickingBase = Duration.zero;
+  DateTime? _tickingSince;
+
+  void _tick() {
+    final since = _tickingSince;
+    if (since == null) {
+      return;
+    }
+
+    final elapseTime = _tickingBase + DateTime.now().difference(since);
+    _elapseTime = elapseTime;
+    _elapseTimeStreamController.sink.add(elapseTime);
+
+    if (elapseTime >= _totalDuration) {
+      onContestEnd();
+    }
   }
 }

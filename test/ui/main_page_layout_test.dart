@@ -42,7 +42,7 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  for (final size in const [Size(1280, 720), Size(1024, 700)]) {
+  for (final size in const [Size(1280, 720), Size(1024, 700), Size(900, 640)]) {
     testWidgets(
       'A Console layout fits ${size.width.toInt()}x${size.height.toInt()}',
       (tester) async {

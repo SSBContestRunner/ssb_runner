@@ -380,6 +380,15 @@ class AppSettings {
     _prefs.setStringList(_settingSessionHistory, history);
   }
 
+  /// Replaces the whole session list with a restored snapshot.
+  ///
+  /// Restore is a snapshot import, not an append: keeping the current list
+  /// would merge two timelines and make the restored run order wrong.
+  Future<void> replaceSessionHistory(List<TrainingRunReview> reviews) {
+    final history = reviews.take(30).map((item) => item.encode()).toList();
+    return _prefs.setStringList(_settingSessionHistory, history);
+  }
+
   /// Pinned seeds. When the matching lock is on, the pinned value is reused
   /// for every session; otherwise a fresh seed is drawn per session.
   int? get questionSeed => _prefs.getInt(_settingQuestionSeed);

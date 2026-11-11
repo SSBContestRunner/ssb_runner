@@ -80,6 +80,9 @@ const List<String> _alphabetPhonicLetters = [
   'T',
 ];
 
+/// Characters a callsign or serial can contain, used by [AudioLoader.warmUp].
+const String _warmUpCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/';
+
 String obtainAccentByDxccId(int dxccId) {
   if (_japan.contains(dxccId)) {
     return 'JP';
@@ -214,6 +217,64 @@ class AudioLoader {
       fields: <String, Object?>{'accent': accentDir, 'tried': candidates},
     );
     return Uint8List(0);
+  }
+
+  /// Preloads the alphabet, digits and portable marker for [accentDirs].
+  ///
+  /// Runs in the background after a run starts: the first question must not
+  /// wait for it. Decoded clips land in the shared PCM cache, so the first
+  /// callsign that uses them is served without another asset read.
+  Future<void> warmUp({
+    required Iterable<String> accentDirs,
+    required PhonicType phonicType,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    final paths = <String>{};
+
+    for (final accentDir in accentDirs) {
+      for (final char in _warmUpCharacters.split('')) {
+        for (final dir in _warmUpDirs(accentDir, phonicType, char)) {
+          paths.add('$accentDir/${_audioPathForDir(dir, char)}');
+        }
+      }
+    }
+
+    for (final path in paths) {
+      await loadAssetsWavPcmData(path);
+    }
+
+    log.info(
+      'audio warm-up finished',
+      tag: 'audio',
+      fields: <String, Object?>{
+        'accents': accentDirs.join(','),
+        'clips': paths.length,
+        'durMs': stopwatch.elapsedMilliseconds,
+      },
+    );
+  }
+
+  List<String> _warmUpDirs(
+    String accentDir,
+    PhonicType phonicType,
+    String char,
+  ) {
+    if (char == '/') {
+      return const <String>['Common'];
+    }
+    if (char.isNumber()) {
+      return const <String>['Number'];
+    }
+    if (accentDir == myAudioAccentDir) {
+      return const <String>['ICAO'];
+    }
+
+    return switch (phonicType) {
+      PhonicType.standard => const <String>['ICAO'],
+      PhonicType.location => const <String>['Location'],
+      // Mixed picks per character at run time, so all three sets are useful.
+      PhonicType.mixed => const <String>['ICAO', 'Location', 'Alphabet'],
+    };
   }
 
   String _phonicDirsKey(String accentDir, String text, PhonicType phonicType) =>

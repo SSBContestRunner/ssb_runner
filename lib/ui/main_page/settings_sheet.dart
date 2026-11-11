@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,20 +7,25 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
 import 'package:ssb_runner/audio/audio_check_service.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
+import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/contest_type/station_exchange.dart';
+import 'package:ssb_runner/db/history_backup.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
-import 'package:ssb_runner/logging/log_export.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/platform/database/database_status_port.dart';
+import 'package:ssb_runner/platform/export/export_port.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/settings/settings_readiness.dart';
 import 'package:ssb_runner/training/pending_replay.dart';
 import 'package:ssb_runner/training/training_profile.dart';
+import 'package:ssb_runner/ui/diagnostics_actions.dart';
 import 'package:ssb_runner/ui/main_page/key_reference_dialog.dart';
 import 'package:ssb_runner/ui/main_page/replay_armed_banner.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
@@ -727,11 +733,21 @@ class _SystemPanel extends StatefulWidget {
 
 class _SystemPanelState extends State<_SystemPanel> {
   late bool _verbose;
+  DatabaseStorageStatus? _storageStatus;
 
   @override
   void initState() {
     super.initState();
     _verbose = context.read<AppSettings>().verboseLogging;
+    unawaited(_loadStorageStatus());
+  }
+
+  Future<void> _loadStorageStatus() async {
+    final status = await readDatabaseStorageStatus();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _storageStatus = status);
   }
 
   @override
@@ -846,6 +862,36 @@ class _SystemPanelState extends State<_SystemPanel> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Divider(color: scheme.outlineVariant),
+          const SizedBox(height: 8),
+          if (_storageStatus?.applicable ?? false)
+            _ListRow(
+              icon: Icons.storage_outlined,
+              title: l10n.storageStatusTitle,
+              subtitle: _storageStatusText(l10n),
+              onTap: _backupHistory,
+            ),
+          if (_storageStatus?.applicable ?? false) const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _backupHistory,
+                  icon: const Icon(Icons.backup_outlined, size: 18),
+                  label: Text(l10n.backupHistory),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isRunning ? null : _restoreHistory,
+                  icon: const Icon(Icons.settings_backup_restore, size: 18),
+                  label: Text(l10n.restoreHistory),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           _PanelNote(
             icon: Icons.check_circle_outline,
@@ -856,48 +902,211 @@ class _SystemPanelState extends State<_SystemPanel> {
     );
   }
 
-  Future<void> _copySummary() async {
-    final l10n = AppLocalizations.of(context);
-    final summary = await diagnosticSummary();
-    await Clipboard.setData(ClipboardData(text: summary));
-    if (!mounted) {
-      return;
-    }
+  Future<void> _copySummary() => copyDiagnosticSummary(context);
 
-    toastification.show(
-      title: Text(l10n.diagnosticsCopied),
-      autoCloseDuration: const Duration(seconds: 2),
-      type: ToastificationType.success,
-      style: ToastificationStyle.fillColored,
-    );
-  }
+  Future<void> _exportLogs() => exportDiagnosticArchive(context);
 
-  Future<void> _exportLogs() async {
+  /// Exports the QSO/event rows plus the session list as one zip.
+  Future<void> _backupHistory() async {
     final l10n = AppLocalizations.of(context);
+    final database = context.read<ContestManager>().database;
+    final settings = context.read<AppSettings>();
+
     try {
-      final file = await exportLogArchive(fileTypeLabel: l10n.zipArchive);
-      if (!mounted || file == null) {
+      final backup = await createHistoryBackup(
+        database,
+        sessionReviews: settings.sessionHistory,
+        appVersion: AppInfo.version ?? '',
+        buildNumber: AppInfo.buildNumber ?? '',
+      );
+      final result = await saveBytes(
+        suggestedName: backup.fileName,
+        bytes: backup.bytes,
+        fileTypeLabel: l10n.zipArchive,
+      );
+      if (result == null || !mounted) {
         return;
       }
 
-      await Clipboard.setData(ClipboardData(text: file.path));
       toastification.show(
-        title: Text(l10n.exportedTo(file.path)),
+        title: Text(l10n.historyBackupCreated(backup.qsoCount)),
         autoCloseDuration: const Duration(seconds: 4),
         type: ToastificationType.success,
         style: ToastificationStyle.fillColored,
       );
-    } catch (_) {
+      unawaited(_loadStorageStatus());
+    } catch (error, stackTrace) {
+      log.error(
+        'history backup failed',
+        tag: 'history',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) {
         return;
       }
       toastification.show(
-        title: Text(l10n.logExportFailed),
+        title: Text(l10n.historyBackupFailed),
         autoCloseDuration: const Duration(seconds: 4),
-        type: ToastificationType.error,
+        type: ToastificationType.warning,
         style: ToastificationStyle.fillColored,
       );
     }
+  }
+
+  /// Validates the picked file, asks for confirmation, then replaces history.
+  Future<void> _restoreHistory() async {
+    final l10n = AppLocalizations.of(context);
+    final database = context.read<ContestManager>().database;
+    final settings = context.read<AppSettings>();
+
+    try {
+      final picked = await pickFile(
+        fileTypeLabel: l10n.historyBackupFileType,
+        extensions: const <String>['zip', 'json'],
+      );
+      if (picked == null || !mounted) {
+        return;
+      }
+
+      // Parsing throws before anything is written, so an invalid file cannot
+      // leave a half-restored history behind.
+      final backup = parseHistoryBackup(picked.bytes);
+      if (!mounted) {
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.historyRestoreTitle),
+          content: Text(
+            l10n.historyRestoreBody(
+              _formatBackupTime(dialogContext, backup.exportedAt),
+              _backupVersionLabel(backup),
+              backup.qsoCount,
+              backup.eventCount,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.historyRestoreConfirm),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) {
+        return;
+      }
+
+      await restoreHistoryBackup(
+        database,
+        backup,
+        replaceSessionHistory: settings.replaceSessionHistory,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      toastification.show(
+        title: Text(l10n.historyRestored(backup.qsoCount)),
+        autoCloseDuration: const Duration(seconds: 4),
+        type: ToastificationType.success,
+        style: ToastificationStyle.fillColored,
+      );
+      unawaited(_loadStorageStatus());
+    } on HistoryBackupException catch (error) {
+      log.warn(
+        'history backup rejected',
+        tag: 'history',
+        fields: <String, Object?>{
+          'reason': error.message,
+          'newer_version': error.createdByNewerVersion,
+        },
+      );
+      if (!mounted) {
+        return;
+      }
+      toastification.show(
+        title: Text(
+          error.createdByNewerVersion
+              ? l10n.historyBackupNewer
+              : l10n.historyBackupInvalid,
+        ),
+        autoCloseDuration: const Duration(seconds: 6),
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+      );
+    } catch (error, stackTrace) {
+      log.error(
+        'history restore failed',
+        tag: 'history',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      toastification.show(
+        title: Text(l10n.historyRestoreFailed),
+        autoCloseDuration: const Duration(seconds: 4),
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+      );
+    }
+  }
+
+  String _formatBackupTime(BuildContext context, DateTime utc) {
+    final local = utc.toLocal();
+    final localizations = MaterialLocalizations.of(context);
+    return '${localizations.formatCompactDate(local)} '
+        '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
+  }
+
+  String _backupVersionLabel(HistoryBackup backup) {
+    if (backup.appVersion.isEmpty) {
+      return '—';
+    }
+    if (backup.buildNumber.isEmpty) {
+      return 'v${backup.appVersion}';
+    }
+    return 'v${backup.appVersion}·${backup.buildNumber}';
+  }
+
+  String _storageStatusText(AppLocalizations l10n) {
+    final status = _storageStatus;
+    if (status == null) {
+      return l10n.storageUnknown;
+    }
+
+    final base = status.persistent
+        ? l10n.storagePersistent
+        : l10n.storageNotPersistent;
+    final quota = status.quota;
+    final usage = status.usage;
+    if (quota == null || usage == null || quota <= 0) {
+      return base;
+    }
+
+    return '$base · ${l10n.storageUsage(_formatBytes(usage), _formatBytes(quota))}';
+  }
+
+  static String _formatBytes(int bytes) {
+    const units = <String>['B', 'KB', 'MB', 'GB'];
+    var value = bytes.toDouble();
+    var unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+      value /= 1024;
+      unit++;
+    }
+
+    final decimals = unit == 0 || value >= 100 ? 0 : 1;
+    return '${value.toStringAsFixed(decimals)} ${units[unit]}';
   }
 }
 

@@ -12,26 +12,54 @@ String obtainRstAudioFileName(bool isMe, {bool isCallsignCorrect = true}) {
 }
 
 Future<Uint8List> loadAssetsWavPcmData(String filePath) async {
-  final bytes = await _loadAssetBytes(filePath);
+  final cached = _pcmCache[filePath];
+  if (cached != null) {
+    return cached;
+  }
 
+  final bytes = await _loadAssetBytes(filePath);
   if (bytes.isEmpty) {
     return bytes;
   }
 
-  return await wavToPcm(bytes);
+  final pcm = await wavToPcm(bytes);
+  _rememberPcm(filePath, pcm);
+  return pcm;
 }
 
 /// Loads a clip without the global accent fallback, so callers can run their
 /// own fallback chain (the QSO replay RST does this).
 Future<Uint8List> loadExactAssetsWavPcmData(String filePath) async {
+  final cached = _pcmCache[filePath];
+  if (cached != null) {
+    return cached;
+  }
+
   try {
     final bytes = Uint8List.sublistView(
       await rootBundle.load('assets/voice/$filePath'),
     );
-    return await wavToPcm(bytes);
+    final pcm = await wavToPcm(bytes);
+    _rememberPcm(filePath, pcm);
+    return pcm;
   } on FlutterError {
     return Uint8List(0);
   }
+}
+
+/// Decoded clips kept in memory.
+///
+/// `rootBundle.load` does not cache, so without this every replay re-reads and
+/// re-decodes the same WAV. The cap bounds memory while still covering the
+/// characters a session uses.
+final Map<String, Uint8List> _pcmCache = <String, Uint8List>{};
+const int _maxCachedClips = 256;
+
+void _rememberPcm(String filePath, Uint8List pcm) {
+  if (_pcmCache.length >= _maxCachedClips) {
+    _pcmCache.remove(_pcmCache.keys.first);
+  }
+  _pcmCache[filePath] = pcm;
 }
 
 Future<Uint8List> _loadAssetBytes(String filePath) async {

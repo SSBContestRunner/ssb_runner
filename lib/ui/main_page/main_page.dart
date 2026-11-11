@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
+import 'package:ssb_runner/platform/audio/audio_monitor_ui.dart';
+import 'package:ssb_runner/platform/capabilities.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/app_topbar.dart';
-import 'package:ssb_runner/ui/main_page/audio_alert_toaster.dart';
 import 'package:ssb_runner/ui/main_page/qso_console.dart';
 import 'package:ssb_runner/ui/main_page/qso_log_panel.dart';
 import 'package:ssb_runner/ui/main_page/rules_card.dart';
@@ -76,33 +77,101 @@ class _MainPageState extends State<MainPage> {
           },
         ),
       ],
-      child: const Stack(
-        children: [
-          Column(
-            children: [
-              AppTopbar(),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
-                  child: _ConsoleGrid(),
+      child: _HiddenPauseGuard(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                AppTopbar(),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    child: _ConsoleGrid(),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          TrainingReviewOverlay(),
-          AudioAlertToaster(),
-        ],
+              ],
+            ),
+            const TrainingReviewOverlay(),
+            buildAudioAlertToaster(),
+          ],
+        ),
       ),
     );
   }
 }
 
+/// A browser tab can be hidden or frozen at any time, and Flutter stops
+/// delivering timers and audio callbacks. The run is paused instead of
+/// pretending it kept going; resuming is an explicit action.
+class _HiddenPauseGuard extends StatefulWidget {
+  const _HiddenPauseGuard({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_HiddenPauseGuard> createState() => _HiddenPauseGuardState();
+}
+
+class _HiddenPauseGuardState extends State<_HiddenPauseGuard> {
+  late final AppLifecycleListener _listener;
+
+  @override
+  void initState() {
+    super.initState();
+    _listener = AppLifecycleListener(onHide: _pause, onPause: _pause);
+  }
+
+  void _pause() {
+    if (!PlatformCapabilities.pausesWhenHidden || !mounted) {
+      return;
+    }
+    context.read<ContestManager>().pauseContest();
+  }
+
+  @override
+  void dispose() {
+    _listener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 class _ConsoleGrid extends StatelessWidget {
   const _ConsoleGrid();
+
+  /// Narrowest console width that keeps every fixed column readable.
+  ///
+  /// Below it the page scrolls horizontally instead of shrinking the log into
+  /// an unreadable column; the browser window is not under our control the way
+  /// the desktop minimum window size is.
+  static const double minWidth = 1000;
 
   @override
   Widget build(BuildContext context) {
     final windowWidth = MediaQuery.sizeOf(context).width;
+    if (windowWidth >= minWidth) {
+      return _buildGrid(context, windowWidth);
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: minWidth,
+            height: constraints.maxHeight.isFinite
+                ? constraints.maxHeight
+                : null,
+            child: _buildGrid(context, minWidth),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGrid(BuildContext context, double windowWidth) {
     // The session card owns the fixed track on the right; the log column on
     // the left is Expanded and takes whatever is left. At the 1024 minimum,
     // the English timer labels need a 362dp card (113.4dp for

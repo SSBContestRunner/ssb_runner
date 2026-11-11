@@ -9,8 +9,74 @@
   "copyDiagnostics": "复制诊断信息",
   "exportLogs": "导出日志",
   "diagnosticsCopied": "诊断信息已复制",
+  "copyDiagnosticsFailed": "无法自动复制，请手动选择下方文本。",
+  "audioUnavailable": "当前浏览器无法播放音频，训练将继续但没有声音。",
+  "immersiveModeUnavailable": "全屏或键盘锁定被拒绝，请使用屏幕按钮。",
   "exportedTo": "已导出到 {path}",
   "logExportFailed": "日志导出失败",
+  "backupHistory": "备份历史",
+  "restoreHistory": "恢复历史",
+  "historyBackupFileType": "历史备份",
+  "historyBackupCreated": "历史备份已导出 · {count} 条 QSO",
+  "@historyBackupCreated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyBackupFailed": "历史备份失败",
+  "historyBackupInvalid": "该文件不是有效的 SSB Runner 历史备份。",
+  "historyBackupNewer": "该备份由更新版本的应用创建，无法导入。",
+  "historyRestoreTitle": "恢复此备份？",
+  "historyRestoreBody": "导出时间 {time} · 应用 {version}\n{qsoCount} 条 QSO · {eventCount} 条事件。\n此操作会替换当前全部历史。",
+  "@historyRestoreBody": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "qsoCount": {
+        "type": "int"
+      },
+      "eventCount": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreConfirm": "替换历史",
+  "historyRestored": "历史已恢复 · {count} 条 QSO",
+  "@historyRestored": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreFailed": "历史恢复失败",
+  "retry": "重新加载",
+  "startupStorageFailed": "无法打开历史存储。请重新加载再试；如果仍然失败，请导出诊断信息。",
+  "storageStatusTitle": "历史存储",
+  "storagePersistent": "已获得持久化存储",
+  "storageNotPersistent": "仅尽力保存，请定期备份",
+  "storageUnknown": "状态未知",
+  "storageUsage": "已使用 {used} / {quota}",
+  "@storageUsage": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "quota": {
+        "type": "String"
+      }
+    }
+  },
+  "storageAlmostFull": "浏览器存储空间即将用尽",
+  "storageBackupHint": "请在 设置 › 系统 中备份历史或清理旧会话。",
+  "historyBackupReminder": "首场训练已保存",
+  "multiTabWarning": "SSB Runner 已在另一个标签页中打开",
   "zipArchive": "Zip 压缩包",
   "crashTitle": "SSB Runner 遇到意外错误",
   "crashDescription": "当前练习可能已中断。请导出日志或复制诊断摘要，以便排查问题。",

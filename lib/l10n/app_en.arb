@@ -9,6 +9,9 @@
   "copyDiagnostics": "Copy diagnostics",
   "exportLogs": "Export logs",
   "diagnosticsCopied": "Diagnostics copied",
+  "copyDiagnosticsFailed": "Could not copy automatically. Select the text below.",
+  "audioUnavailable": "Audio is unavailable in this browser. Training continues without sound.",
+  "immersiveModeUnavailable": "Fullscreen or keyboard lock was refused. Use the on-screen buttons.",
   "exportedTo": "Exported to {path}",
   "@exportedTo": {
     "placeholders": {
@@ -18,6 +21,69 @@
     }
   },
   "logExportFailed": "Log export failed",
+  "backupHistory": "Back up history",
+  "restoreHistory": "Restore history",
+  "historyBackupFileType": "History backup",
+  "historyBackupCreated": "History backup exported · {count} QSOs",
+  "@historyBackupCreated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyBackupFailed": "History backup failed",
+  "historyBackupInvalid": "This file is not a valid SSB Runner history backup.",
+  "historyBackupNewer": "This backup was created by a newer app version and cannot be imported.",
+  "historyRestoreTitle": "Restore this backup?",
+  "historyRestoreBody": "Exported {time} · app {version}\n{qsoCount} QSOs · {eventCount} events.\nThis replaces all current history.",
+  "@historyRestoreBody": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "qsoCount": {
+        "type": "int"
+      },
+      "eventCount": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreConfirm": "Replace history",
+  "historyRestored": "History restored · {count} QSOs",
+  "@historyRestored": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRestoreFailed": "History restore failed",
+  "retry": "Reload",
+  "startupStorageFailed": "History storage could not be opened. Reload to try again; if it keeps failing, export the diagnostics.",
+  "storageStatusTitle": "History storage",
+  "storagePersistent": "Persistent storage granted",
+  "storageNotPersistent": "Best effort only — back up regularly",
+  "storageUnknown": "Status unavailable",
+  "storageUsage": "{used} of {quota} used",
+  "@storageUsage": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "quota": {
+        "type": "String"
+      }
+    }
+  },
+  "storageAlmostFull": "Browser storage is almost full",
+  "storageBackupHint": "Back up your history or clear old sessions in Settings › System.",
+  "historyBackupReminder": "First session saved",
+  "multiTabWarning": "SSB Runner is open in another tab",
   "zipArchive": "Zip archive",
   "crashTitle": "SSB Runner hit an unexpected error",
   "crashDescription": "The current run may have been interrupted. Export the logs or copy the diagnostic summary so the problem can be investigated.",

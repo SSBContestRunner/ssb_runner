@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssb_runner/audio/audio_output_monitor.dart';
 import 'package:ssb_runner/common/time_format.dart';
 import 'package:ssb_runner/contest_run/data/score_data.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
@@ -10,11 +9,14 @@ import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/contest_run/score_manager.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
+import 'package:ssb_runner/platform/audio/audio_bootstrap.dart';
+import 'package:ssb_runner/platform/audio/audio_monitor_ui.dart';
+import 'package:ssb_runner/platform/capabilities.dart';
+import 'package:ssb_runner/platform/input/immersive_input.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/settings/settings_readiness.dart';
 import 'package:ssb_runner/training/pending_replay.dart';
-import 'package:ssb_runner/ui/main_page/audio_preflight_dialog.dart';
 import 'package:ssb_runner/ui/main_page/replay_armed_banner.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_issues_dialog.dart';
@@ -1038,32 +1040,53 @@ class _RunButtonState extends State<_RunButton> {
       return;
     }
 
-    final monitor = context.read<AudioOutputMonitor?>();
-    if (monitor != null) {
-      setState(() => _busy = true);
-      final proceed = await confirmAudioPreflight(
-        context: context,
-        monitor: monitor,
-        settings: context.read<AppSettings>(),
+    setState(() => _busy = true);
+
+    // Desktop pre-flight: block on a mute, a missing device or an engine that
+    // never started (design §5 E1). The browser has no endpoint to read.
+    final proceed = await confirmRunAudioPreflight(context);
+    if (!mounted) return;
+
+    final l10n = AppLocalizations.of(context);
+
+    // The browser needs the click that starts the run to unlock audio and,
+    // when available, fullscreen plus the function-key lock.
+    var inputModeGranted = true;
+    if (proceed && PlatformCapabilities.supportsImmersiveInput) {
+      inputModeGranted = await enterTrainingInputMode();
+      // Even when fullscreen is refused, Space and Tab must not scroll the
+      // page or move browser focus away from the console.
+      installTrainingKeyGuard();
+    }
+    final audioReady = await ensureAudioInitialized();
+    if (!mounted) return;
+
+    if (!audioReady) {
+      toastification.show(
+        title: Text(l10n.audioUnavailable),
+        autoCloseDuration: const Duration(seconds: 6),
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
       );
-      if (!mounted) return;
-      setState(() => _busy = false);
-      if (!proceed) return;
+    } else if (!inputModeGranted) {
+      toastification.show(
+        title: Text(l10n.immersiveModeUnavailable),
+        autoCloseDuration: const Duration(seconds: 6),
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+      );
     }
 
-    setState(() => _busy = true);
-    final result = await manager.startContest();
+    final result = proceed ? await manager.startContest() : null;
     if (!mounted) return;
     setState(() => _busy = false);
+    if (result == null) return;
 
     // An abandoned replay started a fresh session instead; say so explicitly
     // rather than silently changing what RUN did.
     if (result.started && result.abortedReason != null) {
-      final l10n = AppLocalizations.of(context);
       toastification.show(
-        title: Text(
-          l10n.replayAbortedToast(result.replayContestName ?? '—'),
-        ),
+        title: Text(l10n.replayAbortedToast(result.replayContestName ?? '—')),
         autoCloseDuration: const Duration(seconds: 3),
         type: ToastificationType.warning,
         style: ToastificationStyle.fillColored,
@@ -1471,7 +1494,13 @@ class _RunBtnCubit extends Cubit<ContestSessionPhase> {
 
   _RunBtnCubit({required ContestManager contestManager})
     : super(contestManager.sessionPhase) {
-    _subscription = contestManager.sessionPhaseStream.listen(emit);
+    _subscription = contestManager.sessionPhaseStream.listen((phase) {
+      emit(phase);
+      if (phase == ContestSessionPhase.idle) {
+        removeTrainingKeyGuard();
+        unawaited(leaveTrainingInputMode());
+      }
+    });
   }
 
   @override

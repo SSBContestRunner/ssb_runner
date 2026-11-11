@@ -1,0 +1,40 @@
+# Cloudflare Pages response headers.
+#
+# COOP/COEP put the page in a cross-origin isolated context, which is what
+# enables SharedArrayBuffer and the multi-threaded SoLoud AudioWorklet backend.
+# Every static response keeps them, including the Service Worker's document
+# responses, otherwise the isolation state is lost on navigation.
+
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  X-Content-Type-Options: nosniff
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Flutter does not content-hash the bundle, so main.dart.js must be
+# revalidated; a long immutable cache would keep serving the old build.
+/main.dart.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/flutter_bootstrap.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/flutter_service_worker.js
+  Cache-Control: no-cache
+
+# Fonts, voice clips and icons change only on release. A day keeps repeat
+# visits fast without pinning a stale asset for long.
+/assets/*
+  Cache-Control: public, max-age=86400
+
+# CanvasKit is versioned with the Flutter SDK and rarely changes.
+/canvaskit/*
+  Cache-Control: public, max-age=604800
+
+/sqlite3.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=604800
+
+/drift_worker.js
+  Content-Type: text/javascript; charset=utf-8
+  Cache-Control: public, max-age=604800

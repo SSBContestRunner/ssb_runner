@@ -61,6 +61,7 @@ dependencies:
   catcher_2: ^2.1.5
   intl: ^0.20.2
   file_selector: ^1.1.0
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -88,6 +89,14 @@ hooks:
   user_defines:
     sqlite3:
       source: sqlite3
+
+# Web WASM assets (web/sqlite3.wasm, web/drift_worker.js) must stay paired with
+# the resolved `drift` version:
+#   - drift_worker.js is copied from the drift package root;
+#   - sqlite3.wasm is copied from drift's extension/devtools/build/.
+# The sqlite3 3.9.0 release wasm imports `dart.dispatch_trace`, which drift
+# 2.35.3's worker does not provide and which fails at startup with a
+# WebAssembly LinkError. Re-copy both files whenever drift is upgraded.
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

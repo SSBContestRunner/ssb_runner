@@ -1,12 +1,12 @@
 {
     "name": "SSB Runner",
-    "short_name": "ssb_runner",
+    "short_name": "SSB Runner",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0B2A4A",
+    "theme_color": "#0B2A4A",
+    "description": "SSB contest training client with CQ, S&P and pile-up drills.",
+    "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
         {
