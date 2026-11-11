@@ -46,7 +46,43 @@ Catcher2Options _buildOptions({
     CrashReportMode(canSendReport: canSendReport, onReport: _logCrashReport),
     handlers,
     handlerTimeout: 30000,
+    filterFunction: _shouldReport,
   );
+}
+
+/// Framework diagnostics that describe a debug-only warning rather than a
+/// failure the user could act on. They are kept in the log and dropped before
+/// the report page, so a recovered assertion cannot block startup.
+const List<String> _ignoredFrameworkDiagnosticPrefixes = <String>[
+  // `BindingBase.debugCheckZone`, reported when `runApp` runs in another zone
+  // than the one that initialised the binding.
+  'Zone mismatch.',
+];
+
+/// Catcher2 filter: `true` keeps the report.
+bool _shouldReport(Report report) {
+  final error = report.error;
+  if (error is! FlutterError) {
+    return true;
+  }
+
+  final message = error.toString();
+  final ignored = _ignoredFrameworkDiagnosticPrefixes.any(
+    message.startsWith,
+  );
+  if (!ignored) {
+    return true;
+  }
+
+  final stackTrace = report.stackTrace;
+  log.warn(
+    'framework diagnostic ignored',
+    tag: 'crash',
+    fields: <String, Object?>{'summary': message.split('\n').first},
+    error: error,
+    stackTrace: stackTrace is StackTrace ? stackTrace : null,
+  );
+  return false;
 }
 
 /// Writes the report into the shared log so the crash survives dismissal and
