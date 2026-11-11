@@ -14,7 +14,11 @@ class LogSession {
   static List<String> headerLines = const <String>[];
 }
 
-Future<PackageInfo?> _tryPackageInfo() async {
+/// Reads the package metadata once, or `null` when the plugin is unavailable.
+///
+/// The result is shared with [AppInfo] so the platform channel is only hit
+/// once per start.
+Future<PackageInfo?> readPackageInfo() async {
   try {
     return await PackageInfo.fromPlatform();
   } on Exception {
@@ -23,12 +27,15 @@ Future<PackageInfo?> _tryPackageInfo() async {
 }
 
 /// Builds the session header written at the top of every log file.
-Future<List<String>> buildSessionHeader({required LogLocation location}) async {
+Future<List<String>> buildSessionHeader({
+  required LogLocation location,
+  PackageInfo? packageInfo,
+}) async {
   var packageName = 'ssb_runner';
   var version = 'unknown';
   var buildNumber = '';
 
-  final info = await _tryPackageInfo();
+  final info = packageInfo;
   if (info != null) {
     packageName = info.packageName;
     version = info.version;

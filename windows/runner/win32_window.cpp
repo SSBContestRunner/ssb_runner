@@ -134,10 +134,30 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
+  const DWORD style = WS_OVERLAPPEDWINDOW ^ WS_MAXIMIZEBOX;
+
+  // |size| is a *content* size, the same contract the Dart side and the macOS
+  // runner use. Grow it to the window frame by the current DPI's non-client
+  // area, so the first frame already fills the window and no post-reveal
+  // resize (and surface recreation) is needed.
+  RECT rect = {0, 0, Scale(size.width, scale_factor),
+               Scale(size.height, scale_factor)};
+  using AdjustWindowRectExForDpiFn =
+      BOOL(WINAPI*)(LPRECT, DWORD, BOOL, DWORD, UINT);
+  auto adjust_for_dpi = reinterpret_cast<AdjustWindowRectExForDpiFn>(
+      ::GetProcAddress(::GetModuleHandleW(L"user32.dll"),
+                       "AdjustWindowRectExForDpi"));
+  if (adjust_for_dpi != nullptr) {
+    // Windows 10 1607+ applies the per-monitor non-client metrics.
+    adjust_for_dpi(&rect, style, FALSE, 0, dpi);
+  } else {
+    ::AdjustWindowRectEx(&rect, style, FALSE, 0);
+  }
+
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW ^ WS_MAXIMIZEBOX,
+      window_class, title.c_str(), style,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
-      Scale(size.width, scale_factor), Scale(size.height, scale_factor),
+      rect.right - rect.left, rect.bottom - rect.top,
       nullptr, nullptr, GetModuleHandle(nullptr), this);
 
   if (!window) {

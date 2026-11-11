@@ -49,15 +49,15 @@ Future<LogLocation> resolveLogDirectory() async {
     final path = candidates[index];
     try {
       final directory = Directory(path);
-      if (!directory.existsSync()) {
-        directory.createSync(recursive: true);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
       }
 
       // Prove writability with a probe file: a directory can exist yet be
       // read-only, for example when installed under Program Files.
       final probe = File('$path/.write_probe');
-      probe.writeAsStringSync('ok');
-      probe.deleteSync();
+      await probe.writeAsString('ok');
+      await probe.delete();
 
       return LogLocation(path: path, fallbackIndex: index);
     } on FileSystemException {

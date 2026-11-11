@@ -60,6 +60,19 @@ and Web scaffolds are not release targets.
   - `.AppImage` — mark it executable and run it.
   - `.zip` — portable; unzip and run.
 
+#### Verifying downloads
+
+Every release publishes a `SHA256SUMS.txt` asset and lists the same SHA-256
+fingerprints at the top of the release notes. Check them after downloading:
+
+- **Linux** — run `sha256sum -c SHA256SUMS.txt` in the download directory.
+- **macOS** — run `shasum -a 256 -c SHA256SUMS.txt` in the download directory.
+- **Windows** — run `Get-FileHash -Algorithm SHA256 <file>` (or
+  `certutil -hashfile <file> SHA256`) and compare the value with the release notes.
+
+A matching fingerprint means the file arrived intact. It is not a code
+signature, so it does not prove who built the package.
+
 Releases are currently **unsigned**. On first launch:
 
 - **Windows** — SmartScreen may warn about an unknown publisher; choose

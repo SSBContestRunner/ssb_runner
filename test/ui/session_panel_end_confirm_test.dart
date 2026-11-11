@@ -87,7 +87,7 @@ void main() {
 
   testWidgets('最小窗口下五语言四态都不滚动，只读格不被裁', (tester) async {
     await _ensureAppFonts();
-    // 1108x796 window frame minus the 24dp macOS title bar.
+    // Content area 1108x772 (the macOS window frame is about 1108x796).
     const size = Size(1108, 772);
     const locales = [
       Locale('en'),

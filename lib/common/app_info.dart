@@ -2,23 +2,18 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 /// Package metadata shown in the UI.
 ///
-/// [load] runs once during startup so widgets can read the values
-/// synchronously instead of waiting on the platform channel.
+/// [apply] runs once during startup, after the first frame, so widgets can
+/// read the values synchronously instead of waiting on the platform channel.
 abstract final class AppInfo {
   static String? version;
   static String? buildNumber;
 
-  /// Reads the package metadata. Failures leave both fields null so callers
-  /// can fall back instead of crashing when the plugin is unavailable.
-  static Future<void> load() async {
-    try {
-      final info = await PackageInfo.fromPlatform();
-      version = info.version;
-      buildNumber = info.buildNumber;
-    } on Exception {
-      version = null;
-      buildNumber = null;
-    }
+  /// Stores metadata that was already read for the session header. A `null`
+  /// [info] leaves both fields null so callers fall back instead of crashing
+  /// when the plugin is unavailable.
+  static void apply(PackageInfo? info) {
+    version = info?.version;
+    buildNumber = info?.buildNumber;
   }
 
   /// `v0.2.1·201003`, or `—` when the metadata could not be read.

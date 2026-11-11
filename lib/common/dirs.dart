@@ -64,13 +64,13 @@ Future<String?> _providerPath(Future<Directory> Function() provider) async {
 Future<WritableDirectory?> prepareDirectory(String path, int index) async {
   try {
     final directory = Directory(path);
-    if (!directory.existsSync()) {
-      directory.createSync(recursive: true);
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
     }
 
     final probe = File('$path/.write_probe');
-    probe.writeAsStringSync('ok');
-    probe.deleteSync();
+    await probe.writeAsString('ok');
+    await probe.delete();
 
     return WritableDirectory(path: path, fallbackIndex: index);
   } on FileSystemException {
@@ -80,19 +80,19 @@ Future<WritableDirectory?> prepareDirectory(String path, int index) async {
 
 /// Filesystem facts about [path], for the diagnostic summary.
 ///
-/// [FileSystemEntity.typeSync] without following links reports `link` for a
+/// [FileSystemEntity.type] without following links reports `link` for a
 /// Windows junction, and `followed_type` reports `notFound` when that link is
 /// broken. That combination is how a redirected Documents folder whose target
 /// is gone shows up in a log.
-Map<String, Object?> describeDirectory(String path) {
+Future<Map<String, Object?>> describeDirectory(String path) async {
   final description = <String, Object?>{
     'path': path,
-    'type': _typeOf(path, followLinks: false),
-    'followed_type': _typeOf(path, followLinks: true),
+    'type': await _typeOf(path, followLinks: false),
+    'followed_type': await _typeOf(path, followLinks: true),
   };
 
   try {
-    description['resolved'] = Directory(path).resolveSymbolicLinksSync();
+    description['resolved'] = await Directory(path).resolveSymbolicLinks();
   } on FileSystemException catch (error) {
     description['resolve_error'] = error.osError?.message ?? error.message;
   }
@@ -100,9 +100,12 @@ Map<String, Object?> describeDirectory(String path) {
   return description;
 }
 
-String _typeOf(String path, {required bool followLinks}) {
+Future<String> _typeOf(String path, {required bool followLinks}) async {
   try {
-    return switch (FileSystemEntity.typeSync(path, followLinks: followLinks)) {
+    return switch (await FileSystemEntity.type(
+      path,
+      followLinks: followLinks,
+    )) {
       FileSystemEntityType.file => 'file',
       FileSystemEntityType.directory => 'directory',
       FileSystemEntityType.link => 'link',

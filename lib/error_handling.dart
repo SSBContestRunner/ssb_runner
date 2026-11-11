@@ -17,7 +17,10 @@ import 'package:toastification/toastification.dart';
 /// and ordinary progress records end up interleaved in a single timeline.
 /// Only release builds can file the accepted report as a GitHub issue through
 /// [CrashIssueReporter], and only when a build token is configured.
-Future<(Catcher2Options, Catcher2Options)> initErrorHandling() async {
+///
+/// Synchronous on purpose: it does no IO and is called from `main()` before the
+/// first frame, where an `await` would only hand control back to the event loop.
+(Catcher2Options, Catcher2Options) initErrorHandling() {
   final issueReporter = CrashIssueReporter(onResult: _showReportResult);
 
   final debugOptions = _buildOptions(

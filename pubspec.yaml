@@ -48,6 +48,10 @@ dependencies:
   archive: ^4.0.7
   xml: ^7.1.0
   window_manager: ^0.6.0
+  # Direct for DisplayManager.workArea (the primary screen's usable area), which
+  # window_manager 0.6 uses but does not re-export. Version is locked by
+  # window_manager's own constraint.
+  nativeapi: ^0.5.10
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
   worker_manager: ^7.2.7

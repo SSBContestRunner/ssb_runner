@@ -64,7 +64,7 @@ Future<DatabaseBootstrap> _prepare() async {
       log.warn(
         'database directory unavailable',
         tag: 'db',
-        fields: describeDirectory(candidate),
+        fields: await describeDirectory(candidate),
       );
       continue;
     }
@@ -133,7 +133,7 @@ class _Migration {
 /// Copies the legacy Documents database into [targetPath] when the target does
 /// not exist yet.
 Future<_Migration> _migrateLegacyDatabase(String targetPath) async {
-  if (File(targetPath).existsSync()) {
+  if (await File(targetPath).exists()) {
     return const _Migration();
   }
 
@@ -145,16 +145,18 @@ Future<_Migration> _migrateLegacyDatabase(String targetPath) async {
   final source = File(
     '$documents/$_legacyRelativeDirectory/$_databaseFileName',
   );
-  if (!source.existsSync()) {
+  if (!await source.exists()) {
     return const _Migration();
   }
 
   try {
-    source.copySync(targetPath);
+    // The history file can be tens of megabytes; a synchronous copy blocks the
+    // UI isolate for the whole transfer.
+    await source.copy(targetPath);
     for (final suffix in const <String>['-wal', '-shm']) {
       final companion = File('${source.path}$suffix');
-      if (companion.existsSync()) {
-        companion.copySync('$targetPath$suffix');
+      if (await companion.exists()) {
+        await companion.copy('$targetPath$suffix');
       }
     }
   } on FileSystemException catch (error) {

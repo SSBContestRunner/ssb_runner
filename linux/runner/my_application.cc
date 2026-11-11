@@ -47,7 +47,8 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "SSB Runner");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  // Content size, matching the Dart-side kMinWindowContentSize.
+  gtk_window_set_default_size(window, 1108, 772);
   gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
