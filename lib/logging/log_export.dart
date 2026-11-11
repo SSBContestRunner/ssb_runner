@@ -29,6 +29,10 @@ List<File> listLogFiles(String directoryPath) {
 /// When [currentSessionOnly] is set, records written by earlier app runs are
 /// dropped before the tail is taken. Each run starts with the `# app=` header
 /// written by `buildSessionHeader`.
+///
+/// Startup records are pulled out of the file head first: the tail below is
+/// usually too short to reach them, yet they are the first thing needed when
+/// diagnosing a blank window.
 Future<String> diagnosticSummary({
   int tailLines = 100,
   bool currentSessionOnly = false,
@@ -43,11 +47,25 @@ Future<String> diagnosticSummary({
   }
 
   final latest = File('${location.path}/latest.log');
+  List<String>? lines;
   if (latest.existsSync()) {
-    var lines = await latest.readAsLines();
+    lines = await latest.readAsLines();
     if (currentSessionOnly) {
       lines = _currentSessionLines(lines);
     }
+  }
+
+  final startupLines =
+      lines?.where(_isStartupLine).toList() ?? const <String>[];
+  final startupStart = startupLines.length > _maxStartupLines
+      ? startupLines.length - _maxStartupLines
+      : 0;
+  buffer.writeln('--- startup ---');
+  for (final line in startupLines.skip(startupStart)) {
+    buffer.writeln(line);
+  }
+
+  if (lines != null) {
     final start = lines.length > tailLines ? lines.length - tailLines : 0;
     buffer.writeln(
       '--- latest.log (${currentSessionOnly ? 'current session ' : 'last '}'
@@ -62,6 +80,15 @@ Future<String> diagnosticSummary({
 
   return buffer.toString();
 }
+
+const int _maxStartupLines = 40;
+
+/// Matches the logfmt record written by `AppLogPrinter` for startup tags.
+final RegExp _startupLinePattern = RegExp(
+  r'^\S+ +[A-Z]+ +(?:boot|env|native) ',
+);
+
+bool _isStartupLine(String line) => _startupLinePattern.hasMatch(line);
 
 /// Drops records from previous app runs, including their session headers.
 List<String> _currentSessionLines(List<String> lines) {
