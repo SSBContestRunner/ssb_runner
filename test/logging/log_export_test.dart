@@ -53,9 +53,8 @@ void main() {
       );
       addTearDown(() => directory.delete(recursive: true));
 
-      await File(
-        '${directory.path}/latest.log',
-      ).writeAsString('line1\nline2\nline3\n');
+      await File('${directory.path}/latest.log')
+          .writeAsString('line1\nline2\nline3\n');
 
       LogSession.location = LogLocation(path: directory.path, fallbackIndex: 0);
       LogSession.headerLines = <String>['os=test-os'];
@@ -68,6 +67,37 @@ void main() {
       expect(summary, isNot(contains('line1')));
     },
   );
+
+  test('diagnosticSummary puts startup records before the tail', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'ssb_summary_startup_test',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+
+    final lines = <String>[
+      '2026-11-11T00:00:00.000Z INFO  boot      msg="first frame visible" '
+          'sinceMainMs=12',
+      '2026-11-11T00:00:00.100Z INFO  audio     msg="noise"',
+      for (var index = 0; index < 150; index++)
+        '2026-11-11T00:00:01.000Z INFO  app       msg="line$index"',
+    ];
+    await File('${directory.path}/latest.log')
+        .writeAsString('${lines.join('\n')}\n');
+
+    LogSession.location = LogLocation(path: directory.path, fallbackIndex: 0);
+    LogSession.headerLines = <String>['os=test-os'];
+
+    final summary = await diagnosticSummary(tailLines: 10);
+
+    expect(summary, contains('--- startup ---'));
+    expect(summary, contains('msg="first frame visible"'));
+    expect(
+      summary.indexOf('msg="first frame visible"'),
+      lessThan(summary.indexOf('--- latest.log')),
+    );
+    expect(summary, contains('msg="line149"'));
+    expect(summary, isNot(contains('msg="noise"')));
+  });
 
   test('diagnosticSummary can drop records from earlier app runs', () async {
     final directory = await Directory.systemTemp.createTemp(

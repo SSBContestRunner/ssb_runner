@@ -61,11 +61,15 @@ class _MainAppState extends State<MainApp> {
     // has no awaits in its body, so it finishes synchronously here and the
     // "first frame visible" record lands before `_BootGate` starts any IO.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      boot.markFirstFrame();
       unawaited(_revealWindow());
       log.info(
         'first frame visible',
         tag: 'boot',
-        fields: <String, Object?>{'sinceMainMs': boot.elapsedMs},
+        fields: <String, Object?>{
+          'sinceProcessMs': boot.sinceProcessMs,
+          'sinceMainMs': boot.elapsedMs,
+        },
       );
     });
 
@@ -462,6 +466,8 @@ class _MainAppCubit extends Cubit<_AppState> {
 
       await audioReady;
 
+      // Stops the native startup heartbeat: everything below is runtime.
+      boot.markReady();
       emit(
         _Ready(
           _AppDeps(
