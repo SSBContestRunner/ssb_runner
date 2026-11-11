@@ -628,10 +628,10 @@ void main() {
   testWidgets('the old 650 frame still scrolls the armed session card', (
     tester,
   ) async {
-    // window_manager applies the minimum to the window frame on macOS and
-    // Windows, so a standard macOS title bar leaves about 622 logical pixels
-    // of content at the old 650 frame. That is below the new 700 minimum and
-    // the armed card does not fit: the body keeps a hidden remainder.
+    // The minimum is a content-area size now. The old 650 window frame leaves
+    // about 622 logical pixels of content under the macOS title bar, below the
+    // 1108x772 baseline, so the armed card does not fit: the body keeps a
+    // hidden remainder.
     for (final locale in const [Locale('zh'), Locale('en'), Locale('ja')]) {
       final settings = await _pumpMainPage(
         tester,

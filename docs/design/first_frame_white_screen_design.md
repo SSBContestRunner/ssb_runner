@@ -2,7 +2,7 @@
 
 > 状态：待评审
 > 适用范围：桌面端 Dart 启动路径（Windows / macOS / Linux）
-> 关联文档：[启动性能优化设计方案](./startup_performance_design.md) §4.4
+> 关联文档：[启动性能优化设计方案](./startup_performance_design.md) §4.4、[窗口几何技术方案](./window_geometry_design.md)
 > 本文替代 `startup_performance_design.md` §4.4 末尾「不做拆日志」的结论；窗口显隐实现保持一致（透明度隐藏，不用 `hide()`）。
 
 ---

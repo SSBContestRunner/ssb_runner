@@ -552,6 +552,30 @@ class AppSettings {
     log.setVerbose(value);
   }
 
+  /// The last normal-state *content* size, or null when it was never saved.
+  ///
+  /// One `"WxH"` string means a single write cannot leave a half-updated
+  /// width/height pair behind.
+  Size? get windowContentSize {
+    final raw = _prefs.getString(_settingWindowContentSize);
+    if (raw == null) return null;
+    final parts = raw.split('x');
+    if (parts.length != 2) return null;
+    final width = double.tryParse(parts[0]);
+    final height = double.tryParse(parts[1]);
+    if (width == null || height == null) return null;
+    if (!width.isFinite || !height.isFinite) return null;
+    if (width <= 0 || height <= 0) return null;
+    return Size(width, height);
+  }
+
+  void saveWindowContentSize(Size size) {
+    _prefs.setString(
+      _settingWindowContentSize,
+      '${size.width.toStringAsFixed(1)}x${size.height.toStringAsFixed(1)}',
+    );
+  }
+
   void _bumpSettingsRevision() => settingsRevision.value++;
 
   /// Cheap lock check used by the setters: the snapshot is read on every
@@ -598,6 +622,7 @@ const _settingIncomingAccent = 'setting_incoming_accent';
 const _settingVerboseLogging = 'setting_verbose_logging';
 const _settingDifficulty = 'setting_difficulty';
 const _settingAudioVolume = 'setting_audio_volume';
+const _settingWindowContentSize = 'setting_window_content_size';
 
 /// Legacy, action-centric key bindings. Kept only for migration; never written.
 const _settingKeyBindingPrefix = 'setting_key_binding_';

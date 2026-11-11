@@ -23,6 +23,7 @@ import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/diagnostics_actions.dart';
 import 'package:ssb_runner/ui/main_app/exit_flow.dart';
 import 'package:ssb_runner/ui/main_app/home_page.dart';
+import 'package:ssb_runner/ui/main_app/window_geometry.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
 import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
@@ -45,6 +46,10 @@ class _MainAppState extends State<MainApp> {
 
   /// Owned here so the MaterialApp can rebuild when the theme changes.
   final ValueNotifier<ThemeMode> _themeMode = ValueNotifier(ThemeMode.light);
+
+  /// Restores the saved window size after prefs load and records later
+  /// resizes. The window itself is configured in [_revealWindow].
+  final WindowGeometryController _geometry = WindowGeometryController();
 
   @override
   void initState() {
@@ -119,6 +124,9 @@ class _MainAppState extends State<MainApp> {
 
     log.info('exit requested', tag: 'exit');
 
+    // A resize within the last 500ms may still be debounced.
+    _geometry.flush();
+
     await runBoundedExitCleanup(
       deinitAudio: _deinitAudio,
       flushLogs: flushLogs,
@@ -160,30 +168,29 @@ class _MainAppState extends State<MainApp> {
   }
 
   Future<void> _revealWindow() async {
+    // 0.6.0 resolves the app's own window from the native window manager,
+    // so there is no `ensureInitialized` step before these calls.
+    final window = resolveAppWindow();
+
     try {
-      // 0.6.0 resolves the app's own window from the native window manager,
-      // so there is no `ensureInitialized` step before these calls.
-      final window = WindowManager.instance.getCurrent();
       if (window != null) {
+        final stopwatch = Stopwatch()..start();
         window.isResizable = true;
-        // The minimum is a *window frame* size: macOS applies it through
-        // `NSWindow.minSize` and Windows through WM_GETMINMAXINFO, so the
-        // content area is that much shorter by the title bar.
-        //
-        // Width: the read-only RST cell is 1/9 of the QSO row. With the 10dp
-        // text inset, 1084 shows 30.5dp of text, which is 1.1dp short of the
-        // 31.6dp `59` needs at textScale 1.3; the three-digit sent exchange
-        // needs 47.1dp and gets 46.1dp there. 1108 shows 32.9dp and 49.8dp, so
-        // both cells are whole at every supported scale.
-        //
-        // Height: 796 leaves 772dp of content. With the single-row resume strip
-        // the session card no longer scrolls in any of running / armed replay /
-        // paused / resuming at 5 languages x textScale 1.0/1.3, measured at
-        // content 768 already; 772 keeps 4dp of headroom. The wide layout is
-        // therefore the only form, and the old 700dp compact branches are gone.
-        window.minimumSize = const Size(1108, 796).toNative();
-        window.setSize(const Size(1108, 796).toNative(), false);
-        window.center();
+        // Content is the contract; the frame minimum is derived from the
+        // platform chrome measured at runtime.
+        applyWindowGeometry(window);
+        log.info(
+          'window geometry',
+          tag: 'boot',
+          fields: <String, Object?>{
+            'frame': '${window.size.width}x${window.size.height}',
+            'content':
+                '${window.contentSize.width}x${window.contentSize.height}',
+            'minimum':
+                '${window.minimumSize.width}x${window.minimumSize.height}',
+            'durMs': stopwatch.elapsedMilliseconds,
+          },
+        );
       }
     } catch (error, stackTrace) {
       log.warn(
@@ -195,7 +202,6 @@ class _MainAppState extends State<MainApp> {
     }
 
     try {
-      final window = WindowManager.instance.getCurrent();
       if (window != null) {
         // Always restore opacity, even when the configuration above failed.
         if (window.isMinimized) {
@@ -253,6 +259,7 @@ class _MainAppState extends State<MainApp> {
                   create: (context) =>
                       _MainAppCubit(language: _language, themeMode: _themeMode),
                   child: _BootGate(
+                    geometry: _geometry,
                     child: BlocListener<_MainAppCubit, _AppState>(
                       listenWhen: (previous, current) =>
                           current is _Ready && current.deps.warning != null,
@@ -298,6 +305,7 @@ class _MainAppState extends State<MainApp> {
 
   @override
   void dispose() {
+    _geometry.dispose();
     _listener.dispose();
     _language.dispose();
     _themeMode.dispose();
@@ -311,8 +319,9 @@ class _MainAppState extends State<MainApp> {
 /// Sits below `MultiRepositoryProvider` and inside `BlocProvider`, so it can
 /// read the dependencies without touching them in `initState`.
 class _BootGate extends StatefulWidget {
-  const _BootGate({required this.child});
+  const _BootGate({required this.geometry, required this.child});
 
+  final WindowGeometryController geometry;
   final Widget child;
 
   @override
@@ -349,6 +358,7 @@ class _BootGateState extends State<_BootGate> {
     await context.read<_MainAppCubit>().load(
       dxccManager: context.read(),
       callsignLoader: context.read(),
+      onSettingsReady: widget.geometry.attach,
     );
   }
 
@@ -399,6 +409,7 @@ class _MainAppCubit extends Cubit<_AppState> {
   Future<void> load({
     required DxccManager dxccManager,
     required CallsignLoader callsignLoader,
+    void Function(AppSettings settings)? onSettingsReady,
   }) async {
     final warnings = <String>[];
 
@@ -419,6 +430,10 @@ class _MainAppCubit extends Cubit<_AppState> {
         languageNotifier: _language,
         themeModeNotifier: _themeMode,
       );
+
+      // The earliest point at which the saved window size can be known: the
+      // prefs cache is loaded, so this adds no IO before the first frame.
+      onSettingsReady?.call(settings);
 
       // Apply the persisted verbosity choice as early as possible.
       log.setVerbose(settings.verboseLogging);
