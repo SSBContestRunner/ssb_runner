@@ -318,7 +318,7 @@ Future<void> _revealWindow() async {
 > 另外 macOS 的 `windowManager` 只有在 `ensureInitialized()` 时才会绑定原生窗口（否则 Swift 侧强制解包 nil
 > 直接崩溃），所以 `_revealWindow` 也必须先调用一次。
 
-不做（收益过小）：把 `bootstrapLogging` 拆成"装文件 sink"和"记录 PackageInfo/环境探测"两段。后者仅 ~10–20 ms，且提前安装文件 sink 是崩溃可观测性的前提。
+> **方案更新（2026-11-11）**：首帧前的日志 IO 不再保留。`bootstrapLogging` 整体后移到首帧之后，首帧前改为内存缓冲日志并在首帧后回放；`PackageInfo` 与环境探测一并延后。详见 [首屏白屏技术方案](./first_frame_white_screen_design.md)。本节其余窗口显隐实现继续有效。
 
 ### 4.5 第 7 项：前缀查找 O(1)
 

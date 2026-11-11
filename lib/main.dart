@@ -2,24 +2,32 @@ import 'dart:async';
 
 import 'package:catcher_2/catcher_2.dart';
 import 'package:flutter/material.dart';
-import 'package:ssb_runner/common/app_info.dart';
 import 'package:ssb_runner/error_handling.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
-import 'package:ssb_runner/logging/logging_bootstrap.dart';
+import 'package:ssb_runner/logging/boot_trace.dart';
 import 'package:ssb_runner/ui/main_app/main_app.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() {
   runZonedGuarded(
-    () async {
+    () {
       WidgetsFlutterBinding.ensureInitialized();
 
-      // Logging first: everything after this point is persisted to disk.
-      await bootstrapLogging();
-      await AppInfo.load();
-      await _hideWindowUntilFirstFrame();
+      // Starts the boot stopwatch as close to the entry point as possible.
+      boot.start();
 
-      final (debugOptions, releaseOptions) = await initErrorHandling();
+      // Hide the window before anything else: this is native FFI with no IO,
+      // and the macOS runner already made the window visible at this point.
+      _hideWindowUntilFirstFrame();
+
+      // Memory only. The file sink is installed after the first frame, so the
+      // first-frame path never waits on a directory, a platform channel or
+      // `PackageInfo`.
+      installLogger(AppLogger.buffered());
+
+      // No real IO, so stay synchronous instead of handing the event loop
+      // back before `runApp`.
+      final (debugOptions, releaseOptions) = initErrorHandling();
 
       Catcher2(
         rootWidget: MainApp(),
@@ -51,7 +59,7 @@ void main() {
 /// `WindowManager.instance.getCurrent()` resolves the app's own window from the
 /// native window manager (macOS enumerates `[NSApplication windows]`), so there
 /// is no initialisation step to wait for before touching it.
-Future<void> _hideWindowUntilFirstFrame() async {
+void _hideWindowUntilFirstFrame() {
   try {
     final window = WindowManager.instance.getCurrent();
     window?.opacity = 0;

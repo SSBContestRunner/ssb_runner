@@ -7,6 +7,15 @@ import 'app_logger.dart';
 class BootTrace {
   int _sequence = 0;
 
+  /// Time since [start] was called, i.e. since the Dart entry point ran.
+  final Stopwatch _sinceStart = Stopwatch()..start();
+
+  /// Touches the top-level [boot] instance so the stopwatch starts inside
+  /// `main()` instead of on the first `boot.step` call.
+  void start() {}
+
+  int get elapsedMs => _sinceStart.elapsedMilliseconds;
+
   /// Runs [action] while recording a start/ok/fail record for [label].
   ///
   /// Failures are logged and rethrown so the caller can decide the fallback.

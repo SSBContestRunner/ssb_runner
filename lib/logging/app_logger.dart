@@ -10,6 +10,7 @@ import 'log_paths.dart';
 const String defaultTag = 'app';
 
 const int _contextBufferSize = 200;
+const int _preFrameBufferSize = 512;
 const int _maxLogFileSizeKb = 5 * 1024;
 const int _maxRotatedFileCount = 10;
 const String _latestLogFileName = 'latest.log';
@@ -113,6 +114,61 @@ class AppLogger {
     }
 
     return AppLogger._(primary, console, filters, ring, file);
+  }
+
+  /// Logger used before the first frame: keeps records in memory only.
+  ///
+  /// No file is opened and no directory is resolved, so installing it does not
+  /// put any IO on the first-frame path. [restoreFileBacked] replays the
+  /// buffer once the file sink is ready.
+  factory AppLogger.buffered({int bufferSize = _preFrameBufferSize}) {
+    final filter = ProductionFilter()..level = _defaultLevel;
+    final ring = MemoryOutput(bufferSize: bufferSize);
+    final logger = Logger(
+      filter: filter,
+      output: MultiOutput(<LogOutput>[
+        ring,
+        if (!kReleaseMode) ConsoleOutput(),
+      ]),
+      printer: AppLogPrinter(),
+    );
+
+    return AppLogger._(logger, null, <LogFilter>[filter], ring, null);
+  }
+
+  /// Creates the file-backed logger and writes everything the pre-frame
+  /// buffer captured into it, keeping the original timestamps.
+  ///
+  /// The session header is written by `AdvancedFileOutput.init`, which is why
+  /// the sink is awaited before the replay starts.
+  static Future<AppLogger> restoreFileBacked({
+    required String directory,
+    required String header,
+    required List<OutputEvent> pending,
+  }) async {
+    final next = AppLogger.fileBacked(directory: directory, header: header);
+    await next._primary.init;
+
+    final file = next._file;
+    if (file != null) {
+      for (final event in pending) {
+        file.output(event);
+      }
+    }
+
+    return next;
+  }
+
+  /// The records this logger has buffered so far, oldest first.
+  ///
+  /// Used to replay the pre-frame log after the file sink is installed.
+  List<OutputEvent> get bufferedEvents {
+    final ring = _ring;
+    if (ring == null) {
+      return const <OutputEvent>[];
+    }
+
+    return List<OutputEvent>.of(ring.buffer);
   }
 
   final Logger _primary;

@@ -52,8 +52,17 @@ class _MainAppState extends State<MainApp> {
     _listener = AppLifecycleListener(onExitRequested: _handleExitRequest);
 
     // The window is hidden until the first frame is on screen, so it appears
-    // straight into the loading view instead of as a blank window.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _revealWindow());
+    // straight into the loading view instead of as a blank window. `_revealWindow`
+    // has no awaits in its body, so it finishes synchronously here and the
+    // "first frame visible" record lands before `_BootGate` starts any IO.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_revealWindow());
+      log.info(
+        'first frame visible',
+        tag: 'boot',
+        fields: <String, Object?>{'sinceMainMs': boot.elapsedMs},
+      );
+    });
 
     _scheduleTestWindowClose();
   }
@@ -239,43 +248,43 @@ class _MainAppState extends State<MainApp> {
                   ),
                 ],
                 child: BlocProvider(
+                  // No `load()` here: the first frame must only paint the
+                  // splash. `_BootGate` starts the IO after it.
                   create: (context) =>
-                      _MainAppCubit(language: _language, themeMode: _themeMode)
-                        ..load(
-                          dxccManager: context.read(),
-                          callsignLoader: context.read(),
-                        ),
-                  child: BlocListener<_MainAppCubit, _AppState>(
-                    listenWhen: (previous, current) =>
-                        current is _Ready && current.deps.warning != null,
-                    listener: (context, state) {
-                      final warning = (state as _Ready).deps.warning;
-                      if (warning == null) {
-                        return;
-                      }
-
-                      // The overlay may not be mounted yet when startup finishes
-                      // before the first frame.
-                      WidgetsBinding.instance.addPostFrameCallback(
-                        (_) => _showStartupWarning(warning),
-                      );
-                    },
-                    child: BlocBuilder<_MainAppCubit, _AppState>(
-                      builder: (context, state) {
-                        switch (state) {
-                          case _Loading():
-                            return Container(
-                              color: ColorScheme.of(context).surface,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          case _Ready(:final deps):
-                            return HomePage(settings: deps.settings);
-                          case _Failed(:final message):
-                            return _StartupFailure(message: message);
+                      _MainAppCubit(language: _language, themeMode: _themeMode),
+                  child: _BootGate(
+                    child: BlocListener<_MainAppCubit, _AppState>(
+                      listenWhen: (previous, current) =>
+                          current is _Ready && current.deps.warning != null,
+                      listener: (context, state) {
+                        final warning = (state as _Ready).deps.warning;
+                        if (warning == null) {
+                          return;
                         }
+
+                        // The overlay may not be mounted yet when startup finishes
+                        // before the first frame.
+                        WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => _showStartupWarning(warning),
+                        );
                       },
+                      child: BlocBuilder<_MainAppCubit, _AppState>(
+                        builder: (context, state) {
+                          switch (state) {
+                            case _Loading():
+                              return Container(
+                                color: ColorScheme.of(context).surface,
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            case _Ready(:final deps):
+                              return HomePage(settings: deps.settings);
+                            case _Failed(:final message):
+                              return _StartupFailure(message: message);
+                          }
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -294,6 +303,57 @@ class _MainAppState extends State<MainApp> {
     _themeMode.dispose();
     super.dispose();
   }
+}
+
+/// Starts the IO that used to run in `main()` once the first frame is on
+/// screen.
+///
+/// Sits below `MultiRepositoryProvider` and inside `BlocProvider`, so it can
+/// read the dependencies without touching them in `initState`.
+class _BootGate extends StatefulWidget {
+  const _BootGate({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_BootGate> createState() => _BootGateState();
+}
+
+class _BootGateState extends State<_BootGate> {
+  @override
+  void initState() {
+    super.initState();
+    // Only register the callback here: `_MainAppState` registered its
+    // reveal callback first, so the window is opaque before this runs.
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_start()));
+  }
+
+  Future<void> _start() async {
+    try {
+      await bootstrapLoggingAfterFirstFrame();
+    } catch (error, stackTrace) {
+      // File logging is optional; the app must start without it. This record
+      // still reaches the in-memory buffer.
+      log.error(
+        'logging bootstrap failed',
+        tag: 'boot',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await context.read<_MainAppCubit>().load(
+      dxccManager: context.read(),
+      callsignLoader: context.read(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _AppDeps {

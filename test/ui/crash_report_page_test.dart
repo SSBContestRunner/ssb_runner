@@ -10,7 +10,7 @@ import 'package:ssb_runner/ui/crash_report_page.dart';
 
 void main() {
   test('debug and release both show the crash page', () async {
-    final (debugOptions, releaseOptions) = await initErrorHandling();
+    final (debugOptions, releaseOptions) = initErrorHandling();
 
     expect(debugOptions.reportMode, isA<CrashReportMode>());
     expect(releaseOptions.reportMode, isA<CrashReportMode>());
