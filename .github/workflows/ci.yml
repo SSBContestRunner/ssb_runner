@@ -472,6 +472,17 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/smoke-test-windows.ps1
 
+      # A startup crash leaves no application log (the file sink is installed after
+      # the first frame), so the scripts copy the WER event, the minidump and the
+      # native startup timeline into smoke-evidence/ for the failure report.
+      - name: Upload Windows smoke evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-smoke-evidence
+          path: smoke-evidence/**
+          if-no-files-found: ignore
+
   # Round-trips the single-file installer on a clean Windows runner: silent per-user install,
   # assert the bundle (including the app-local MSVC runtime DLLs) landed complete, start the
   # app, then silently uninstall and assert the install directory and shortcut are gone.
@@ -492,6 +503,14 @@ jobs:
       - name: Run Windows installer smoke test
         shell: pwsh
         run: ./.github/scripts/smoke-test-windows-installer.ps1
+
+      - name: Upload Windows installer smoke evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer-smoke-evidence
+          path: smoke-evidence/**
+          if-no-files-found: ignore
 
   # Same regression guard as the Windows job, for the macOS runner's own teardown path: the
   # app closes its window at SSB_RUNNER_TEST_CLOSE_WINDOW_AFTER seconds (window_manager ->
