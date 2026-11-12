@@ -16,6 +16,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'smoke-evidence.ps1')
+
 function Fail([string] $Message) {
   Write-Host "::error::$Message"
   exit 1
@@ -86,9 +88,12 @@ Write-Host "bundle and shortcut look complete"
 # asset, a crash during boot). A missing MSVC runtime or engine library kills the process
 # within milliseconds, so "still alive after 15 s" is the assertion. Session 0 has no audio
 # device; boot catches SoLoud init failures (lib/ui/main_app/main_app.dart) rather than dying.
+Enable-CrashDumps
+$startedAt = Get-Date
 $app = Start-Process -FilePath (Join-Path $installDir 'ssb_runner.exe') -WorkingDirectory $installDir -PassThru
 Start-Sleep -Seconds 15
 if ($app.HasExited) {
+  Collect-SmokeEvidence -Scenario 'installer launch' -Process $app -Since $startedAt
   Fail "app exited early (exit code $($app.ExitCode)); logs: $env:APPDATA\com.ssbrunner\ssb_runner\log"
 }
 Write-Host 'launch smoke: app started and stayed up'

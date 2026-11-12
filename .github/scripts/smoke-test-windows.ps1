@@ -17,6 +17,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'smoke-evidence.ps1')
+
 $AppDataLog = Join-Path $env:APPDATA 'com.ssbrunner\ssb_runner\log\latest.log'
 $CloseWaitSeconds = 10
 
@@ -71,11 +73,15 @@ function Get-TopWindow([int]$TargetId) {
   return $script:found
 }
 
-function Wait-ForWindow([int]$ProcessId) {
+# Waits for the first visible top-level window, giving up as soon as the process
+# dies. Without the exit check a startup crash and a startup hang both surfaced
+# as "never exposed a window", which hid the 0xC0000005 in earlier runs.
+function Wait-ForWindow([System.Diagnostics.Process]$Process) {
   $deadline = (Get-Date).AddSeconds(20)
   do {
-    $hwnd = Get-TopWindow -TargetId $ProcessId
+    $hwnd = Get-TopWindow -TargetId $Process.Id
     if ($hwnd -ne [IntPtr]::Zero) { return $hwnd }
+    if ($Process.HasExited) { return [IntPtr]::Zero }
     Start-Sleep -Milliseconds 250
   } while ((Get-Date) -lt $deadline)
   return [IntPtr]::Zero
@@ -104,7 +110,7 @@ function Start-App {
   }
 }
 
-function Assert-ExitLogged([string]$Name) {
+function Assert-ExitLogged([string]$Name, [System.Diagnostics.Process]$Process) {
   $candidates = @($AppDataLog, (Join-Path $ExtractRoot 'log\latest.log'))
   foreach ($path in $candidates) {
     if (-not (Test-Path $path)) { continue }
@@ -114,25 +120,8 @@ function Assert-ExitLogged([string]$Name) {
       return
     }
   }
-  Show-AppLog
+  Collect-SmokeEvidence -Scenario $Name -Process $Process
   Fail "$Name`: no 'exit requested' entry in latest.log ($($candidates -join ', '))"
-}
-
-# Prints the app's own log so a failure report says whether the exit handler ran,
-# whether the fallback fired, and what it did.
-function Show-AppLog {
-  $path = if (Test-Path $AppDataLog) { $AppDataLog } else { Join-Path $ExtractRoot 'log\latest.log' }
-  if (-not (Test-Path $path)) {
-    Write-Host "   (no log file at $path)"
-    return
-  }
-  Write-Host "   --- tail of $path ---"
-  try {
-    Get-Content -Path $path -Tail 40 | ForEach-Object { Write-Host "   $_" }
-  } catch {
-    Write-Host "   (log unreadable: $_)"
-  }
-  Write-Host '   --- end log ---'
 }
 
 # The assertion every scenario shares: after WM_CLOSE the process must disappear.
@@ -146,29 +135,39 @@ function Invoke-CloseScenario {
   )
 
   Write-Host "== $Name =="
+  $startedAt = Get-Date
   $proc = Start-App -ExePath $ExePath -Environment $Environment
   Write-Host "   pid=$($proc.Id)"
 
-  $hwnd = Wait-ForWindow -ProcessId $proc.Id
+  $hwnd = Wait-ForWindow -Process $proc
   if ($hwnd -eq [IntPtr]::Zero) {
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    Fail "$Name`: pid $($proc.Id) never exposed a top-level window"
+    $reason = if ($proc.HasExited) {
+      "process exited with code $($proc.ExitCode)"
+    } else {
+      'process still running'
+    }
+    if (-not $proc.HasExited) {
+      Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    }
+    Collect-SmokeEvidence -Scenario $Name -Process $proc -Since $startedAt
+    Fail "$Name`: pid $($proc.Id) never exposed a top-level window ($reason)"
   }
 
   if ($SettleSeconds -gt 0) { Start-Sleep -Seconds $SettleSeconds }
   if ($proc.HasExited) {
-    Fail "$Name`: app exited on its own before the window was closed"
+    Collect-SmokeEvidence -Scenario $Name -Process $proc -Since $startedAt
+    Fail "$Name`: app exited on its own before the window was closed (exit code $($proc.ExitCode))"
   }
 
   [void][Win32]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
   if (-not $proc.WaitForExit($CloseWaitSeconds * 1000)) {
     Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    Show-AppLog
+    Collect-SmokeEvidence -Scenario $Name -Process $proc -Since $startedAt
     Fail "$Name`: process $($proc.Id) still alive $CloseWaitSeconds s after WM_CLOSE (leftover process)"
   }
   Write-Host "   process exited, exit code=$($proc.ExitCode)"
 
-  if ($ExpectExitLog) { Assert-ExitLogged -Name $Name }
+  if ($ExpectExitLog) { Assert-ExitLogged -Name $Name -Process $proc }
 }
 
 # --- runner side -------------------------------------------------------------
@@ -188,6 +187,10 @@ $exe = Get-ChildItem -Path $ExtractRoot -Filter 'ssb_runner.exe' -File -Recurse 
   Select-Object -First 1
 if (-not $exe) { Fail "no ssb_runner.exe in $($zip.Name)" }
 Write-Host "smoke-testing $($exe.FullName)"
+
+# A startup crash produces no application log; keep the dump and the WER event so
+# the failure report names the faulting module instead of only "no window".
+Enable-CrashDumps
 
 # 1. Idle close: the first frame is painted and the window is opaque by now, so this is
 #    the plain "user closes a running app" path.
