@@ -15,6 +15,9 @@ migrate_working_dir/
 # Local debug logs (never commit)
 /debug/
 
+# Windows smoke-test evidence (crash dumps and logs, CI only)
+/smoke-evidence/
+
 # Trae HTML share packages (generated from in-repo HTML)
 /.trae-html-share-packages/
 
