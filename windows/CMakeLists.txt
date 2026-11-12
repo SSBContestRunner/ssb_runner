@@ -87,15 +87,118 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
-# Microsoft Visual C++ runtime, shipped from build_deps/ next to the executable.
+# Microsoft Visual C++ runtime, taken from the toolset that compiles this build.
 # The app links the CRT dynamically (/MD is the CMake default here), so without
-# these the portable zip only starts on machines that already have the VC++
-# Redistributable installed.
-set(MSVC_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build_deps/windows/x64")
-install(FILES
-  "${MSVC_RUNTIME_DIR}/msvcp140.dll"
-  "${MSVC_RUNTIME_DIR}/vcruntime140.dll"
-  "${MSVC_RUNTIME_DIR}/vcruntime140_1.dll"
+# these DLLs next to the executable the portable zip only starts on machines
+# that already have the VC++ Redistributable installed.
+#
+# Why not a checked-in copy: Windows always loads the DLL next to the
+# executable, so a copy older than the compiler wins over the system one. That
+# is how 0.3.0-alpha02 died with 0xC0000005 inside msvcp140.dll before the first
+# frame -- the bundle shipped 14.36 while the runner was compiled by 14.51, and
+# the new std::ostringstream/std::thread code in the runner tripped over the old
+# runtime. The file versions are asserted below, so a toolset or image upgrade
+# fails here instead of at startup.
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  message(FATAL_ERROR
+    "The Windows bundle ships the MSVC redistributable, but the compiler is "
+    "${CMAKE_CXX_COMPILER_ID}. Build with MSVC.")
+endif()
+
+# MSVC 19.51 maps to the 14.51 toolset, which is the version in the DLLs.
+if(NOT CMAKE_CXX_COMPILER_VERSION MATCHES "^19\\.([0-9]+)")
+  message(FATAL_ERROR
+    "Unexpected MSVC version '${CMAKE_CXX_COMPILER_VERSION}'; expected 19.x so it "
+    "can be mapped to the 14.x toolset version.")
+endif()
+set(SSB_TOOLSET_MINOR "${CMAKE_MATCH_1}")
+
+if(DEFINED ENV{VCToolsRedistDir})
+  # Set by a Developer Command Prompt; may point at .../Redist/MSVC or at the
+  # versioned .../Redist/MSVC/<ver> folder.
+  file(TO_CMAKE_PATH "$ENV{VCToolsRedistDir}" SSB_REDIST_ROOT)
+else()
+  # Visual Studio generators do not export VCToolsRedistDir. Derive the same
+  # folder from the compiler CMake selected, so two installed toolsets cannot
+  # make the bundle use the other one's runtime.
+  # <VC>/Tools/MSVC/<toolset>/bin/Hostx64/x64/cl.exe
+  get_filename_component(SSB_CL_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+  get_filename_component(SSB_HOST_DIR "${SSB_CL_DIR}" DIRECTORY)
+  get_filename_component(SSB_BIN_DIR "${SSB_HOST_DIR}" DIRECTORY)
+  get_filename_component(SSB_TOOLSET_DIR "${SSB_BIN_DIR}" DIRECTORY)
+  get_filename_component(SSB_MSVC_DIR "${SSB_TOOLSET_DIR}" DIRECTORY)
+  get_filename_component(SSB_TOOLS_DIR "${SSB_MSVC_DIR}" DIRECTORY)
+  get_filename_component(SSB_VC_DIR "${SSB_TOOLS_DIR}" DIRECTORY)
+  set(SSB_REDIST_ROOT "${SSB_VC_DIR}/Redist/MSVC")
+endif()
+
+# The redistributable's own version differs from the toolset's in its last
+# component (a 14.51.36231 toolset ships a 14.51.36247 runtime), so every
+# installed redist is a candidate and the newest one that is not older than the
+# compiler wins. Only the first two components are compared.
+file(GLOB SSB_CRT_DIRS
+  "${SSB_REDIST_ROOT}/x64/Microsoft.VC*.CRT"
+  "${SSB_REDIST_ROOT}/*/x64/Microsoft.VC*.CRT")
+
+# Reads the leading "major.minor" of a DLL's file version.
+function(SSB_READ_RUNTIME_VERSION DLL OUT_MAJOR OUT_MINOR)
+  execute_process(
+    COMMAND powershell -NoProfile -NonInteractive -Command
+      "[IO.FileInfo]::new('${DLL}').VersionInfo.FileVersion"
+    OUTPUT_VARIABLE version
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_VARIABLE error
+    RESULT_VARIABLE result)
+  if(NOT result EQUAL 0 OR version STREQUAL "")
+    message(FATAL_ERROR "could not read the file version of ${DLL}: ${error}")
+  endif()
+  if(NOT version MATCHES "^([0-9]+)\\.([0-9]+)")
+    message(FATAL_ERROR "unexpected file version '${version}' in ${DLL}")
+  endif()
+  set(${OUT_MAJOR} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+  set(${OUT_MINOR} "${CMAKE_MATCH_2}" PARENT_SCOPE)
+endfunction()
+
+set(SSB_CRT_DIR "")
+set(SSB_CRT_MINOR -1)
+foreach(crt_dir IN LISTS SSB_CRT_DIRS)
+  set(candidate "${crt_dir}/msvcp140.dll")
+  if(NOT EXISTS "${candidate}")
+    continue()
+  endif()
+  SSB_READ_RUNTIME_VERSION("${candidate}" candidate_major candidate_minor)
+  if(NOT candidate_major EQUAL 14 OR candidate_minor LESS SSB_TOOLSET_MINOR)
+    continue()
+  endif()
+  if(SSB_CRT_MINOR LESS candidate_minor)
+    set(SSB_CRT_MINOR "${candidate_minor}")
+    set(SSB_CRT_DIR "${crt_dir}")
+  endif()
+endforeach()
+if(SSB_CRT_DIR STREQUAL "")
+  message(FATAL_ERROR
+    "No MSVC redistributable at or above 14.${SSB_TOOLSET_MINOR} under "
+    "${SSB_REDIST_ROOT}. Install the VC++ Redistributable matching the compiler; "
+    "shipping an older msvcp140.dll next to the executable crashes at startup.")
+endif()
+
+set(SSB_RUNTIME_DLLS "")
+foreach(runtime msvcp140 vcruntime140 vcruntime140_1)
+  set(dll "${SSB_CRT_DIR}/${runtime}.dll")
+  if(NOT EXISTS "${dll}")
+    message(FATAL_ERROR "${runtime}.dll is missing from ${SSB_CRT_DIR}")
+  endif()
+  SSB_READ_RUNTIME_VERSION("${dll}" runtime_major runtime_minor)
+  if(NOT runtime_major EQUAL 14 OR runtime_minor LESS SSB_TOOLSET_MINOR)
+    message(FATAL_ERROR
+      "${runtime}.dll is ${runtime_major}.${runtime_minor}, older than the "
+      "14.${SSB_TOOLSET_MINOR} toolset that built this bundle. The loader would "
+      "prefer it over the system copy and crash at startup.")
+  endif()
+  list(APPEND SSB_RUNTIME_DLLS "${dll}")
+endforeach()
+
+install(FILES ${SSB_RUNTIME_DLLS}
   DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
