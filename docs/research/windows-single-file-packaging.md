@@ -95,7 +95,7 @@ PrivilegesRequired=none
 - `{autopf64}` 是 Inno 的“自动”常量：管理员模式下映射到 `Program Files`，非管理员模式映射到 `%LOCALAPPDATA%\Programs`。
 - fastforge 默认 `PrivilegesRequired=none`（Inno 的未文档化取值）：普通用户不弹 UAC，管理员用户仍会提权。**这会带来“同一版本装在不同位置”的不一致**，建议显式改成 `lowest` 做纯 per-user 安装。
 
-**VC++ 运行库（3 个 DLL）**：本项目 [windows/CMakeLists.txt](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/windows/CMakeLists.txt#L90-L100) 已把 `build_deps/windows/x64` 下的 `msvcp140.dll`、`vcruntime140.dll`、`vcruntime140_1.dll` 安装进 `Release/`。fastforge 的 exe maker 会递归复制整个 `Release/` 目录，Inno 模板用 `Source: "*"; Flags: recursesubdirs createallsubdirs` 全量打包，因此这 3 个 DLL 会与 `ssb_runner.exe` 一起安装到 `{app}`，行为与 zip 完全一致，不需要额外拷贝步骤。唯一注意点：若自定义 `script_template`，不要过滤掉 DLL 或去掉 `recursesubdirs`。
+**VC++ 运行库（3 个 DLL）**：本项目 [windows/CMakeLists.txt](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/windows/CMakeLists.txt#L90-L120) 会从当前编译工具链的 `VCToolsRedistDir`（Visual Studio 生成器未导出该变量时，由 `CMAKE_CXX_COMPILER` 反推 `VC/Redist/MSVC`）取最新的 `msvcp140.dll`、`vcruntime140.dll`、`vcruntime140_1.dll` 安装进 `Release/`，并在配置期断言这些 DLL 的文件版本不低于编译器主次版本（`19.51` → `14.51`）。fastforge 的 exe maker 会递归复制整个 `Release/` 目录，Inno 模板用 `Source: "*"; Flags: recursesubdirs createallsubdirs` 全量打包，因此这 3 个 DLL 会与 `ssb_runner.exe` 一起安装到 `{app}`，行为与 zip 完全一致，不需要额外拷贝步骤。唯一注意点：若自定义 `script_template`，不要过滤掉 DLL 或去掉 `recursesubdirs`；也不要在仓库里手工存放一份运行库副本——Windows 总是优先加载 exe 同目录的 DLL，副本一旦落后于工具链，就会在启动时于 `msvcp140.dll` 内崩溃（0.3.0-alpha02 的 0xC0000005 即此原因）。
 
 ### 2.3 配置（已落地：`windows/packaging/exe/make_config.yaml`）
 
