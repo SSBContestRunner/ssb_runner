@@ -97,7 +97,7 @@ PrivilegesRequired=none
 
 **VC++ 运行库（3 个 DLL）**：本项目 [windows/CMakeLists.txt](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/windows/CMakeLists.txt#L90-L120) 会从当前编译工具链的 `VCToolsRedistDir`（Visual Studio 生成器未导出该变量时，由 `CMAKE_CXX_COMPILER` 反推 `VC/Redist/MSVC`）取最新的 `msvcp140.dll`、`vcruntime140.dll`、`vcruntime140_1.dll` 安装进 `Release/`，并在配置期断言这些 DLL 的文件版本不低于编译器主次版本（`19.51` → `14.51`）。fastforge 的 exe maker 会递归复制整个 `Release/` 目录，Inno 模板用 `Source: "*"; Flags: recursesubdirs createallsubdirs` 全量打包，因此这 3 个 DLL 会与 `ssb_runner.exe` 一起安装到 `{app}`，行为与 zip 完全一致，不需要额外拷贝步骤。唯一注意点：若自定义 `script_template`，不要过滤掉 DLL 或去掉 `recursesubdirs`；也不要在仓库里手工存放一份运行库副本——Windows 总是优先加载 exe 同目录的 DLL，副本一旦落后于工具链，就会在启动时于 `msvcp140.dll` 内崩溃（0.3.0-alpha02 的 0xC0000005 即此原因）。
 
-### 2.3 配置（已落地：`windows/packaging/exe/make_config.yaml`）
+### 2.3 配置（`windows/packaging/exe/make_config.yaml` + `installer.iss`）
 
 ```yaml
 # windows/packaging/exe/make_config.yaml
@@ -109,10 +109,7 @@ publisher_url: https://ssbrunner.com/
 install_dir_name: "{localappdata}\\Programs\\SSB Runner"
 privileges_required: lowest
 create_desktop_icon: false
-launch_at_startup: false
-locales:
-  - en
-  - zh
+script_template: installer.iss
 setup_icon_file: windows/runner/resources/app_icon.ico
 ```
 
@@ -123,8 +120,12 @@ setup_icon_file: windows/runner/resources/app_icon.ico
 - `privileges_required: lowest` → 安装到 `%LOCALAPPDATA%\Programs\SSB Runner`，不触发 UAC；卸载只需当前用户权限。
 - `install_dir_name` 显式写出，避免依赖 `{autopf64}` 的模式差异。
 - `setup_icon_file` 用现有的 `app_icon.ico`（256×256）。
-- 若后续需要“安装时可选是否创建桌面图标 / 开机启动”，fastforge 模板已经生成了对应 Tasks，默认不勾选。
-- 需要更复杂的逻辑（例如卸载时询问是否保留用户数据、检测旧版本进程）再使用 `script_template` 自定义 Liquid 脚本；默认模板已覆盖 `[Files]`、`[Icons]`、`[Run]`。
+- `script_template: installer.iss` 启用[自定义模板](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/windows/packaging/exe/installer.iss)（fastforge 会先做 Liquid 渲染）。它替换内置模板的原因：内置模板无条件生成 `launchAtStartup` 任务与 `{userstartup}` 快捷方式，`launch_at_startup: false` 只能让复选框默认不勾选、无法移除；语言列表也依赖一张没有繁体中文条目的映射表。
+  - 安装向导固定 4 种语言：英文 / 简体中文 / 繁体中文 / 日文，`ShowLanguageDialog=auto` 按系统语言自动匹配，匹配不到才弹选择框；`zh-TW`、`zh-HK` 命中繁体。
+  - 不再声明 `locales`：语言清单只由 `.iss` 维护，避免 fastforge 静默丢弃找不到的 `.isl` 而退化成英文。代价是新增应用语言时需同步 `.iss`。
+  - 安装向导不再有“开机启动”选项；alpha 阶段不清理老版本已写入的 Startup 快捷方式。
+- 语言文件的路径必须写对：Inno 把简体/繁体中文作为**非官方翻译**放在 `Languages\Unofficial\`，日文才是 `Languages\` 下的官方翻译。fastforge 内置模板只在 `Languages\` 下找中文并静默跳过，这正是旧配置 `locales: [en, zh]` 最终只剩英文的原因。CI 的 “Ensure Inno Setup 6 (language files)” 步骤会断言这 4 个文件存在，缺失时重装一次并复查，仍缺失则显式失败。
+- 需要更复杂的逻辑（例如卸载时询问是否保留用户数据、检测旧版本进程）时继续改 `installer.iss`，但必须保留 `[Files]` 的全量复制（`recursesubdirs createallsubdirs`）。
 
 ### 2.4 体积与安装体积
 
@@ -147,14 +148,15 @@ setup_icon_file: windows/runner/resources/app_icon.ico
 
 1. `setup` job 的 Windows matrix：`targets: 'zip,exe'`。
 2. `package-windows` 的 fastforge 命令：`--targets=zip,exe`。
-3. 确认 Inno Setup 可用：GitHub 官方 `windows-latest` 镜像通常预装 Inno Setup 6.6.x；job 里仍显式检查 `ISCC.exe`，缺失时用 `winget install --id JRSoftware.InnoSetup` 兜底。
-4. `smoke-test-windows` job（`needs: package-windows`，`windows-latest`，脚本 `.github/scripts/smoke-test-windows.ps1`）：
+3. 确认 Inno Setup 语言文件齐全：GitHub 官方 `windows-latest` 镜像通常预装 Inno Setup 6；job 里显式检查 `ISCC.exe`（缺失时用 `winget install --id JRSoftware.InnoSetup` 安装），并断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\Unofficial\ChineseSimplified.isl`、`Languages\Unofficial\ChineseTraditional.isl` 存在，缺失时重装一次，仍缺失则以明确信息失败。
+4. `smoke-test-windows-installer` job（`needs: package-windows`，`windows-latest`，脚本 `.github/scripts/smoke-test-windows-installer.ps1`）：
+   - 对仓库中的 `windows/packaging/exe/installer.iss` 与 `make_config.yaml` 做静态断言：`[Languages]` 恰好 4 条且路径正确、不含 `launchAtStartup` 与 `{userstartup}`（fastforge 编译成功后删除渲染出的 `.iss`，产物里没有可断言的脚本）
    - 静默安装：`setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=...`
    - 断言安装目录（由 `ssb_runner.exe` 反查，不写死目录名）中主程序、引擎 DLL、`data/`、3 个 MSVC 运行库 DLL 齐全
-   - 断言开始菜单快捷方式存在
+   - 断言开始菜单快捷方式存在，并断言 Startup 目录下**没有**快捷方式
    - 启动主程序，存活 15 秒即视为通过（捕获运行期缺 DLL / 启动崩溃；runner 无音频设备，SoLoud 初始化失败已被应用兜底）
    - 静默卸载：`unins000.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`，轮询 60 秒直到安装目录消失，并断言快捷方式已删除
-5. `release` job 的 `needs` 已加入 `smoke-test-windows`，按 `dist/**` 收集并展平，无需其他改动。
+5. `release` job 的 `needs` 已包含各平台的打包与冒烟测试，按 `dist/**` 收集并展平，无需其他改动。
 
 > 注意：Windows CI 仍需处理 `distribute_options.yaml` 里 `FLUTTER_ROOT` 的相对路径问题（现有 workflow 已用绝对路径重写解决），与新增 `exe` target 无冲突。
 

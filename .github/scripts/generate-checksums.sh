@@ -69,16 +69,16 @@ fi
 mkdir -p "$(dirname "$notes_path")"
 {
   cat <<'EOF'
-## 安装包文件指纹（SHA-256）
+# Installer File Fingerprints (SHA-256)
 
-每个安装包都附有 SHA-256 指纹，下载后请核对，以确认文件完整、未被篡改。指纹只证明下载到的字节与发布时一致，不等同于代码签名。
+Each installer package comes with a SHA-256 fingerprint. After downloading, please verify it to confirm that the file is complete and has not been tampered with. The fingerprint only proves that the downloaded bytes match those at release time; it is not equivalent to a code signature.
 
-- **Linux** — 在下载目录执行 `sha256sum -c SHA256SUMS.txt`
-- **macOS** — 在下载目录执行 `shasum -a 256 -c SHA256SUMS.txt`
-- **Windows** — 执行 `Get-FileHash -Algorithm SHA256 <文件名>`（或 `certutil -hashfile <文件名> SHA256`），与下方对应值比对
+- **Linux** — In the download directory, run `sha256sum -c SHA256SUMS.txt`
+- **macOS** — In the download directory, run `shasum -a 256 -c SHA256SUMS.txt`
+- **Windows** — Run `Get-FileHash -Algorithm SHA256 <filename>` (or `certutil -hashfile <filename> SHA256`), and compare the result with the corresponding value below
 
 <details>
-<summary>展开查看全部 SHA-256 指纹</summary>
+<summary>Expand to view all SHA-256 fingerprints</summary>
 
 ```
 EOF
