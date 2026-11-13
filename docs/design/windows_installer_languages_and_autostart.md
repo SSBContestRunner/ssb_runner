@@ -165,7 +165,7 @@ Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY
 
 修改 [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) 的 “Ensure Inno Setup 6” 步骤：
 
-1. 安装/定位 `ISCC.exe` 后断言主版本为 6（内置的 `.isl` 按 6.x 消息编写）；
+1. 安装/定位 `ISCC.exe`（`ISCC.exe` 的版本资源是 0.0.0.0，不能用它判断版本，语言文件兼容性交给 ISCC 编译期报错）；
 2. 把仓库内置的 `windows/packaging/exe/languages/ChineseSimplified.isl`、`ChineseTraditional.isl` 复制到 Inno 安装目录的 `Languages\`；
 3. 断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\ChineseSimplified.isl`、`Languages\ChineseTraditional.isl` 均存在，缺失则带明确信息失败；
 4. 打印 `Languages\**` 下的清单，便于排查 runner 镜像的 Inno 安装内容。

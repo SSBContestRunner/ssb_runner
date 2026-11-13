@@ -148,7 +148,7 @@ setup_icon_file: windows/runner/resources/app_icon.ico
 
 1. `setup` job 的 Windows matrix：`targets: 'zip,exe'`。
 2. `package-windows` 的 fastforge 命令：`--targets=zip,exe`。
-3. 确认 Inno Setup 语言文件齐全：GitHub 官方 `windows-latest` 镜像通常预装 Inno Setup 6；job 里显式检查 `ISCC.exe`（缺失时用 `winget install --id JRSoftware.InnoSetup` 安装）并断言主版本为 6，然后把仓库内置的 `ChineseSimplified.isl` / `ChineseTraditional.isl` 复制到安装目录 `Languages\`，再断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\ChineseSimplified.isl`、`Languages\ChineseTraditional.isl` 存在，缺失时以明确信息失败。
+3. 确认 Inno Setup 语言文件齐全：GitHub 官方 `windows-latest` 镜像通常预装 Inno Setup 6；job 里显式检查 `ISCC.exe`（缺失时用 `winget install --id JRSoftware.InnoSetup` 安装），然后把仓库内置的 `ChineseSimplified.isl` / `ChineseTraditional.isl` 复制到安装目录 `Languages\`，再断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\ChineseSimplified.isl`、`Languages\ChineseTraditional.isl` 存在，缺失时以明确信息失败。
 4. `smoke-test-windows-installer` job（`needs: package-windows`，`windows-latest`，脚本 `.github/scripts/smoke-test-windows-installer.ps1`）：
    - 对仓库中的 `windows/packaging/exe/installer.iss` 与 `make_config.yaml` 做静态断言：`[Languages]` 恰好 4 条且路径正确、不含 `launchAtStartup` 与 `{userstartup}`（fastforge 编译成功后删除渲染出的 `.iss`，产物里没有可断言的脚本）
    - 静默安装：`setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=...`

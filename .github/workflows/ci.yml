@@ -295,11 +295,6 @@ jobs:
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
 
           $innoDir = Split-Path $iscc -Parent
-          $innoVersion = (Get-Item $iscc).VersionInfo.FileVersion
-          # The vendored .isl files are written for 6.x messages; a newer major version
-          # may change message names, so fail loudly instead of compiling a half-localized
-          # installer. An unreadable version resource is not treated as a mismatch.
-          if ($innoVersion -and $innoVersion -notmatch '^6\.') { throw "unsupported Inno Setup version at $iscc : $innoVersion" }
 
           $languagesDir = Join-Path $innoDir 'Languages'
           foreach ($name in @('ChineseSimplified.isl', 'ChineseTraditional.isl')) {
@@ -318,7 +313,7 @@ jobs:
           if ($missing.Count -gt 0) {
             throw "Inno Setup at $innoDir is missing language files required by windows/packaging/exe/installer.iss: $($missing -join ', ')"
           }
-          Write-Host "ISCC -> $iscc ($innoVersion)"
+          Write-Host "ISCC -> $iscc"
           Write-Host "Inno Setup language files:"
           Get-ChildItem -Path $languagesDir -Recurse -Filter '*.isl' |
             ForEach-Object { Write-Host "  $($_.FullName.Substring($innoDir.Length + 1))" }
