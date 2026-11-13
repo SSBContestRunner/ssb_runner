@@ -18,6 +18,7 @@ import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run
 import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run_state_machine.dart';
 import 'package:ssb_runner/contest_type/contest_type.dart';
 import 'package:ssb_runner/contest_type/score_calculator.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/state_machine/state_machine.dart';
 import 'package:ssb_runner/training/replay_answer_source.dart';
 import 'package:ssb_runner/training/session_random.dart';
@@ -225,6 +226,11 @@ class ContestRunningManager with WidgetsBindingObserver {
   /// the held-function-key latch is dropped instead of going stale.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    log.debug(
+      'app lifecycle',
+      tag: 'contest',
+      fields: {'state': state.name, 'paused': _isPaused},
+    );
     if (state != AppLifecycleState.resumed) {
       _keyEventManager.resetPressedKeys();
     }

@@ -1,6 +1,7 @@
 import 'package:archive/archive.dart';
 import 'package:ssb_runner/logging/log_session.dart';
 import 'package:ssb_runner/platform/export/export_port.dart';
+import 'package:ssb_runner/platform/input/text_input_focus.dart';
 import 'package:ssb_runner/platform/logging/log_source_port.dart';
 
 /// Human readable summary that can be pasted into a chat when reporting a bug.
@@ -22,6 +23,13 @@ Future<String> diagnosticSummary({
 
   for (final line in LogSession.headerLines) {
     buffer.writeln(line);
+  }
+
+  // Live focus facts at export time: a report taken while the app "cannot be
+  // typed into" has to say whether the browser still owns the text input.
+  final inputSnapshot = inputFocusSnapshot();
+  if (inputSnapshot != null) {
+    buffer.writeln('input_focus=$inputSnapshot');
   }
 
   var lines = await logSource.latestLogLines();

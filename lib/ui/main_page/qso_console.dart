@@ -15,6 +15,8 @@ import 'package:ssb_runner/contest_run/state_machine/single_call/single_call_run
 import 'package:ssb_runner/contest_type/contest_definition.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
+import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/platform/input/text_input_focus.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/training/training_profile.dart';
@@ -296,9 +298,14 @@ class _QsoInputArea extends StatefulWidget {
   }
 }
 
+/// The two editable slots in the console. Tracked explicitly because on the web
+/// [FocusNode.hasFocus] can stay `true` while the browser's hidden text input
+/// is gone, so it cannot be used to decide where the next character belongs.
+enum _QsoFieldSlot { callSign, exchange }
+
 class _QsoInputAreaState extends State<_QsoInputArea> {
-  final _exchangeFocusNode = FocusNode();
-  final _callSignFocusNode = FocusNode();
+  final _exchangeFocusNode = FocusNode(debugLabel: 'exchangeField');
+  final _callSignFocusNode = FocusNode(debugLabel: 'callSignField');
 
   final _callSignEditorController = TextEditingController();
   // RST is always 59 in this app; it is shown greyed out instead of being
@@ -310,6 +317,11 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 
   StreamSubscription<OperationEvent>? _ignoredShortcutSubscription;
   StreamSubscription<ContestSessionPhase>? _sessionPhaseSubscription;
+  StreamSubscription<SingleCallRunState?>? _stateSubscription;
+
+  /// The field that owns text entry: what Space switches from, and what the
+  /// web focus guard repairs when the DOM drifts away.
+  _QsoFieldSlot _activeField = _QsoFieldSlot.callSign;
 
   /// While the run is paused (including the 3-2-1 resume window), both editable
   /// fields become read-only. This is the single gate for text entry: the
@@ -333,7 +345,21 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
         return;
       }
       setState(() => _inputLocked = locked);
+      // Unlocking re-opens the text input connection; verify it actually took.
+      if (!locked) {
+        _scheduleDomFocusRepair('resume');
+      }
     });
+    _stateSubscription = context.read<QsoConsoleCubit>().stream.listen((_) {
+      _scheduleDomFocusRepair('state');
+    });
+    _callSignFocusNode.addListener(
+      () => _onFocusChanged(_QsoFieldSlot.callSign),
+    );
+    _exchangeFocusNode.addListener(
+      () => _onFocusChanged(_QsoFieldSlot.exchange),
+    );
+    installTextInputFocusWatch(() => _scheduleDomFocusRepair('window'));
   }
 
   _QsoInputAreaState() {
@@ -378,24 +404,149 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
 
   void _fillRst() {
     // RST is fixed at 59, so F2 only moves the caret to the received exchange.
-    _exchangeFocusNode.requestFocus();
+    _focusField(_QsoFieldSlot.exchange, 'fillRst');
   }
 
   void _clearInput() {
     _callSignEditorController.clear();
     _exchangeEditorController.clear();
 
-    _callSignFocusNode.requestFocus();
+    _focusField(_QsoFieldSlot.callSign, 'clear');
   }
 
   void _switchCallsignAndExchange() {
     if (!_callSignFocusNode.hasFocus && !_exchangeFocusNode.hasFocus) {
+      // Nothing to switch: this is what a detached web text input looks like,
+      // so record it instead of leaving the dead key unexplained.
+      log.info('switch ignored: no field focused', tag: 'input');
       return;
     }
 
-    _callSignFocusNode.hasFocus
-        ? _fillRst()
-        : _callSignFocusNode.requestFocus();
+    final next = _activeField == _QsoFieldSlot.callSign
+        ? _QsoFieldSlot.exchange
+        : _QsoFieldSlot.callSign;
+    _focusField(next, 'switch');
+  }
+
+  FocusNode _nodeFor(_QsoFieldSlot slot) =>
+      slot == _QsoFieldSlot.callSign ? _callSignFocusNode : _exchangeFocusNode;
+
+  void _onFocusChanged(_QsoFieldSlot slot) {
+    if (!mounted) {
+      return;
+    }
+
+    final node = _nodeFor(slot);
+    if (node.hasFocus) {
+      _activeField = slot;
+    }
+    log.debug(
+      'focus changed',
+      tag: 'input',
+      fields: {
+        'field': slot.name,
+        'hasFocus': node.hasFocus,
+        'hasPrimaryFocus': node.hasPrimaryFocus,
+        'domTextInputFocused': isTextInputDomFocused,
+      },
+    );
+  }
+
+  void _onCallChanged(String value) {
+    log.debug(
+      'text edited',
+      tag: 'input',
+      fields: {'field': 'callSign', 'length': value.length},
+    );
+    context.read<QsoConsoleCubit>().onCallInput(value);
+  }
+
+  void _onExchangeChanged(String value) {
+    log.debug(
+      'text edited',
+      tag: 'input',
+      fields: {'field': 'exchange', 'length': value.length},
+    );
+    context.read<QsoConsoleCubit>().onExchangeInput(value);
+  }
+
+  /// Runs [action] after the next frame, and makes sure that frame happens.
+  ///
+  /// `addPostFrameCallback` alone never schedules a frame: on an idle screen
+  /// (for example right after a pause) the focus move would wait forever.
+  void _afterFrame(void Function() action) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      action();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _scheduleDomFocusRepair(String reason) {
+    _afterFrame(() => _repairDomFocus(reason: reason));
+  }
+
+  /// Re-attaches the browser's text input when Flutter still owns the focus but
+  /// the DOM does not.
+  ///
+  /// Only drift is repaired: when another widget owns the Flutter focus (a
+  /// dialog, a button) the console must not steal it back.
+  void _repairDomFocus({required String reason}) {
+    if (!mounted || _inputLocked) {
+      return;
+    }
+
+    final node = _nodeFor(_activeField);
+    if (!node.hasFocus || isTextInputDomFocused) {
+      return;
+    }
+
+    log.warn(
+      'text input lost DOM focus; re-attaching',
+      tag: 'input',
+      fields: {'field': _activeField.name, 'reason': reason},
+    );
+    _forceReattach(node, reason: reason);
+  }
+
+  /// Moves focus after the frame and verifies the browser attached its hidden
+  /// input. A `requestFocus()` that only updates the Flutter tree is exactly the
+  /// "field looks focused but cannot be typed into" failure, so it is retried
+  /// once with a fresh text input connection.
+  void _focusField(_QsoFieldSlot slot, String reason) {
+    _activeField = slot;
+    _afterFrame(() {
+      final node = _nodeFor(slot);
+      node.requestFocus();
+      _afterFrame(() {
+        if (!node.hasFocus || isTextInputDomFocused) {
+          return;
+        }
+
+        log.warn(
+          'text input not attached after focus',
+          tag: 'input',
+          fields: {'field': slot.name, 'reason': reason},
+        );
+        _forceReattach(node, reason: reason);
+      });
+    });
+  }
+
+  void _forceReattach(FocusNode node, {required String reason}) {
+    node.unfocus();
+    _afterFrame(() {
+      node.requestFocus();
+      _afterFrame(() {
+        log.debug(
+          'text input reattach result',
+          tag: 'input',
+          fields: {'attached': isTextInputDomFocused, 'reason': reason},
+        );
+      });
+    });
   }
 
   @override
@@ -405,73 +556,77 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _attachInputControl(context);
     _attachIgnoredShortcutHint();
 
-    return Row(
-      spacing: 10,
-      children: [
-        Expanded(
-          flex: 34,
-          child: _QsoField(
-            fieldKey: const Key('call-field'),
-            height: widget.fieldHeight,
-            controller: _callSignEditorController,
-            focusNode: _callSignFocusNode,
-            locked: _inputLocked,
-            label: l10n.callLabel,
-            suffix: l10n.autoUppercase,
-            inputFormatters: [
-              UpperCaseTextFormatter(),
-              LengthLimitingTextInputFormatter(maxCallsignLength),
-              FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
-            ],
-            onChanged: (value) {
-              context.read<QsoConsoleCubit>().onCallInput(value);
-            },
+    return Listener(
+      // Any pointer release inside the console is a chance to repair a text
+      // input that the browser detached (e.g. after a tab switch). The handler
+      // only acts when this console still owns the Flutter focus, so it cannot
+      // steal focus from a dialog or another field.
+      behavior: HitTestBehavior.translucent,
+      onPointerUp: (_) => _scheduleDomFocusRepair('pointer'),
+      child: Row(
+        spacing: 10,
+        children: [
+          Expanded(
+            flex: 34,
+            child: _QsoField(
+              fieldKey: const Key('call-field'),
+              height: widget.fieldHeight,
+              controller: _callSignEditorController,
+              focusNode: _callSignFocusNode,
+              locked: _inputLocked,
+              label: l10n.callLabel,
+              suffix: l10n.autoUppercase,
+              inputFormatters: [
+                UpperCaseTextFormatter(),
+                LengthLimitingTextInputFormatter(maxCallsignLength),
+                FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9/]')),
+              ],
+              onChanged: _onCallChanged,
+            ),
           ),
-        ),
-        Expanded(
-          flex: 9,
-          child: _QsoField(
-            fieldKey: const Key('rst-field'),
-            height: widget.fieldHeight,
-            controller: _rstEditorController,
-            label: l10n.rstLabel,
-            readOnly: true,
-            focusable: false,
-            striped: true,
-            fillColor: scheme.surfaceContainerHighest,
-            horizontalPadding: 10,
-            onChanged: null,
+          Expanded(
+            flex: 9,
+            child: _QsoField(
+              fieldKey: const Key('rst-field'),
+              height: widget.fieldHeight,
+              controller: _rstEditorController,
+              label: l10n.rstLabel,
+              readOnly: true,
+              focusable: false,
+              striped: true,
+              fillColor: scheme.surfaceContainerHighest,
+              horizontalPadding: 10,
+              onChanged: null,
+            ),
           ),
-        ),
-        Expanded(
-          flex: 14,
-          child: _SentExchangeField(height: widget.fieldHeight),
-        ),
-        Expanded(
-          flex: 34,
-          child: BlocBuilder<_ContestTypeCubit, RegExp?>(
-            builder: (context, allowRegex) {
-              final allowRegexVal = allowRegex ?? RegExp('[A-Za-z0-9/]');
+          Expanded(
+            flex: 14,
+            child: _SentExchangeField(height: widget.fieldHeight),
+          ),
+          Expanded(
+            flex: 34,
+            child: BlocBuilder<_ContestTypeCubit, RegExp?>(
+              builder: (context, allowRegex) {
+                final allowRegexVal = allowRegex ?? RegExp('[A-Za-z0-9/]');
 
-              return _QsoField(
-                fieldKey: const Key('received-exchange-field'),
-                height: widget.fieldHeight,
-                controller: _exchangeEditorController,
-                focusNode: _exchangeFocusNode,
-                locked: _inputLocked,
-                label: l10n.exchangeFieldLabel,
-                inputFormatters: [
-                  UpperCaseTextFormatter(),
-                  FilteringTextInputFormatter.allow(allowRegexVal),
-                ],
-                onChanged: (value) {
-                  context.read<QsoConsoleCubit>().onExchangeInput(value);
-                },
-              );
-            },
+                return _QsoField(
+                  fieldKey: const Key('received-exchange-field'),
+                  height: widget.fieldHeight,
+                  controller: _exchangeEditorController,
+                  focusNode: _exchangeFocusNode,
+                  locked: _inputLocked,
+                  label: l10n.exchangeFieldLabel,
+                  inputFormatters: [
+                    UpperCaseTextFormatter(),
+                    FilteringTextInputFormatter.allow(allowRegexVal),
+                  ],
+                  onChanged: _onExchangeChanged,
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -482,6 +637,8 @@ class _QsoInputAreaState extends State<_QsoInputArea> {
     _exchangeEditorController.dispose();
     _ignoredShortcutSubscription?.cancel();
     _sessionPhaseSubscription?.cancel();
+    _stateSubscription?.cancel();
+    removeTextInputFocusWatch();
 
     _callSignFocusNode.dispose();
     _exchangeFocusNode.dispose();

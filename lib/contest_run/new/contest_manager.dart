@@ -74,11 +74,21 @@ class ContestManager {
 
   ContestSessionPhase get sessionPhase => _sessionPhase;
 
-  void _setSessionPhase(ContestSessionPhase phase) {
+  void _setSessionPhase(ContestSessionPhase phase, {String reason = ''}) {
     if (_sessionPhase == phase) {
       return;
     }
+    final previous = _sessionPhase;
     _sessionPhase = phase;
+    log.info(
+      'session phase',
+      tag: 'contest',
+      fields: {
+        'from': previous.name,
+        'to': phase.name,
+        if (reason.isNotEmpty) 'reason': reason,
+      },
+    );
     _sessionPhaseStreamController.sink.add(phase);
   }
 
@@ -445,11 +455,23 @@ class ContestManager {
 
   /// Freezes the run. Pause and resume are button-only: no keyboard shortcut
   /// exists by design.
-  void pauseContest() {
+  ///
+  /// [reason] separates an explicit button press from the automatic pause the
+  /// browser forces while the run is hidden; both lock text entry, so the log
+  /// has to say which one happened.
+  void pauseContest({String reason = 'button'}) {
     if (_sessionPhase != ContestSessionPhase.running) {
       return;
     }
-    _setSessionPhase(ContestSessionPhase.paused);
+    log.info(
+      'Training paused',
+      tag: 'contest',
+      fields: {
+        'reason': reason,
+        'elapsedMs': contestTimer.elapseTime.inMilliseconds,
+      },
+    );
+    _setSessionPhase(ContestSessionPhase.paused, reason: reason);
     contestTimer.pause();
     contestRunningManager?.pause();
   }
@@ -469,6 +491,14 @@ class ContestManager {
     if (_sessionPhase != ContestSessionPhase.resuming) {
       return;
     }
+    log.info(
+      'Training resumed',
+      tag: 'contest',
+      fields: {
+        'pausedMs': contestTimer.pausedDurationIncludingCurrent.inMilliseconds,
+        'pauseCount': contestTimer.pauseCount,
+      },
+    );
     _setSessionPhase(ContestSessionPhase.running);
     contestRunningManager?.resume();
     contestTimer.resume();

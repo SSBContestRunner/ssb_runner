@@ -310,7 +310,12 @@ void main() {
     await _pumpConsole(tester, harness, width: 1024, consoleWidth: 668);
 
     harness.inputHandler.onRstFilled(true);
-    await tester.pump();
+    // The stream event, the post-frame focus request and the focus change each
+    // need their own frame: focus is applied after the frame so the web build
+    // can attach its hidden text input to the newly focused field.
+    for (var i = 0; i < 3; i++) {
+      await tester.pump();
+    }
 
     final rst = tester.widget<TextField>(find.byKey(const Key('rst-field')));
     expect(rst.controller!.text, '59');

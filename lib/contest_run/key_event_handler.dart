@@ -27,6 +27,11 @@ class KeyEventHandler {
 
   bool _isFunctionKeyPressed = false;
 
+  /// The paused gate swallows keys without a trace, which is indistinguishable
+  /// from a dead keyboard in a bug report. The first swallowed key of a pause
+  /// episode is logged once.
+  bool _pausedKeyLogged = false;
+
   final StreamController<OperationEvent> _operationEventController =
       StreamController.broadcast(sync: false);
   Stream<OperationEvent> get operationEventStream =>
@@ -88,8 +93,17 @@ class KeyEventHandler {
     // Swallow the key entirely rather than letting it fall through: an event
     // that reaches the manager could still surface as an ignored shortcut.
     if (isPaused?.call() ?? false) {
+      if (!_pausedKeyLogged) {
+        _pausedKeyLogged = true;
+        log.info(
+          'key swallowed: run is paused',
+          tag: 'key',
+          fields: {'key': event.logicalKey.debugName},
+        );
+      }
       return;
     }
+    _pausedKeyLogged = false;
 
     final key = event.logicalKey;
 

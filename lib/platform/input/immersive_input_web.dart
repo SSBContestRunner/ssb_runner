@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 
+import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:web/web.dart' as web;
 
 JSFunction? _keyGuard;
@@ -15,12 +16,24 @@ JSFunction? _keyGuard;
 /// are consumed too. The listener does not stop propagation, so Flutter still
 /// receives the key event and the app-level pause gate keeps deciding whether
 /// a shortcut has any effect.
+///
+/// Keys an input method is composing are left untouched: Space is the commit
+/// key in Chinese and Japanese IMEs, and cancelling that default leaves the
+/// composition open and the field unable to accept text.
 void installTrainingKeyGuard() {
   if (_keyGuard != null) {
     return;
   }
 
   _keyGuard = ((web.KeyboardEvent event) {
+    if (event.isComposing || event.keyCode == 229) {
+      log.debug(
+        'key left to the input method',
+        tag: 'key',
+        fields: {'key': event.key},
+      );
+      return;
+    }
     if (_isFunctionKey(event.key) || event.key == ' ' || event.key == 'Tab') {
       event.preventDefault();
     }

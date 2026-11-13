@@ -125,7 +125,7 @@ class _HiddenPauseGuardState extends State<_HiddenPauseGuard> {
     if (!PlatformCapabilities.pausesWhenHidden || !mounted) {
       return;
     }
-    context.read<ContestManager>().pauseContest();
+    context.read<ContestManager>().pauseContest(reason: 'hidden');
   }
 
   @override
