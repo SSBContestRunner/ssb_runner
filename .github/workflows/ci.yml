@@ -272,12 +272,19 @@ jobs:
         # fastforge's exe target resolves ISCC.exe from the default Inno Setup 6 path;
         # images normally preinstall it, but install it explicitly if missing.
         #
-        # windows/packaging/exe/installer.iss compiles four languages. Inno Setup 6.x ships
-        # the Chinese files as unofficial translations under Languages\Unofficial\ (Japanese
-        # is official under Languages\), and fastforge's built-in template looked for them
-        # under Languages\ -- which is how `locales: [en, zh]` silently produced an
-        # English-only installer. With a custom template a missing file is instead a hard
-        # ISCC error, so check for the files up front and name the path that is missing.
+        # windows/packaging/exe/installer.iss compiles four languages. Inno Setup's own
+        # setup.exe only ships official translations under Languages\ (Japanese included):
+        # Simplified/Traditional Chinese are unofficial translations that exist only in
+        # the issrc repository (Files\Languages\Unofficial\), so neither a fresh winget
+        # install nor a forced reinstall can provide them. Copy the two files vendored
+        # under windows/packaging/exe/languages/ into the compiler's Languages\ directory
+        # instead; installer.iss references them with the compiler: prefix, the only way
+        # to hand ISCC a file outside the rendered script's own directory. A local
+        # Windows package build needs the same copy step.
+        #
+        # The vendored files come from jrsoftware/issrc tag is-6_7_3:
+        #   ChineseSimplified.isl  7d544b9bb1d142cfa11f2e5d3cc8abe2e55f8e066c5124e3772675aa236e1278
+        #   ChineseTraditional.isl ab22b0ebf82969d1c9a7208e0e9f60e5119c0c95b9dacc00eb8e5582c7d3c604
         shell: pwsh
         run: |
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
@@ -288,29 +295,32 @@ jobs:
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
 
           $innoDir = Split-Path $iscc -Parent
+          $innoVersion = (Get-Item $iscc).VersionInfo.FileVersion
+          # The vendored .isl files are written for 6.x messages; a newer major version
+          # may change message names, so fail loudly instead of compiling a half-localized
+          # installer. An unreadable version resource is not treated as a mismatch.
+          if ($innoVersion -and $innoVersion -notmatch '^6\.') { throw "unsupported Inno Setup version at $iscc : $innoVersion" }
+
+          $languagesDir = Join-Path $innoDir 'Languages'
+          foreach ($name in @('ChineseSimplified.isl', 'ChineseTraditional.isl')) {
+            $source = Join-Path 'windows/packaging/exe/languages' $name
+            if (-not (Test-Path $source)) { throw "missing vendored language file: $source" }
+            Copy-Item -Path $source -Destination (Join-Path $languagesDir $name) -Force
+          }
+
           $requiredLanguageFiles = @(
             'Default.isl',
             'Languages\Japanese.isl',
-            'Languages\Unofficial\ChineseSimplified.isl',
-            'Languages\Unofficial\ChineseTraditional.isl'
+            'Languages\ChineseSimplified.isl',
+            'Languages\ChineseTraditional.isl'
           )
-
-          function Get-MissingLanguageFiles {
-            @($requiredLanguageFiles | Where-Object { -not (Test-Path (Join-Path $innoDir $_)) })
-          }
-
-          $missing = Get-MissingLanguageFiles
+          $missing = @($requiredLanguageFiles | Where-Object { -not (Test-Path (Join-Path $innoDir $_)) })
           if ($missing.Count -gt 0) {
-            Write-Host "Inno Setup is missing language files: $($missing -join ', '); reinstalling via winget"
-            winget install --id JRSoftware.InnoSetup -e --silent --force --accept-package-agreements --accept-source-agreements
-            $missing = Get-MissingLanguageFiles
-            if ($missing.Count -gt 0) {
-              throw "Inno Setup at $innoDir is missing language files required by windows/packaging/exe/installer.iss: $($missing -join ', ')"
-            }
+            throw "Inno Setup at $innoDir is missing language files required by windows/packaging/exe/installer.iss: $($missing -join ', ')"
           }
-          Write-Host "ISCC -> $iscc"
+          Write-Host "ISCC -> $iscc ($innoVersion)"
           Write-Host "Inno Setup language files:"
-          Get-ChildItem -Path (Join-Path $innoDir 'Languages') -Recurse -Filter '*.isl' |
+          Get-ChildItem -Path $languagesDir -Recurse -Filter '*.isl' |
             ForEach-Object { Write-Host "  $($_.FullName.Substring($innoDir.Length + 1))" }
 
       - name: Build & package

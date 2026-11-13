@@ -124,7 +124,7 @@ setup_icon_file: windows/runner/resources/app_icon.ico
   - 安装向导固定 4 种语言：英文 / 简体中文 / 繁体中文 / 日文，`ShowLanguageDialog=auto` 按系统语言自动匹配，匹配不到才弹选择框；`zh-TW`、`zh-HK` 命中繁体。
   - 不再声明 `locales`：语言清单只由 `.iss` 维护，避免 fastforge 静默丢弃找不到的 `.isl` 而退化成英文。代价是新增应用语言时需同步 `.iss`。
   - 安装向导不再有“开机启动”选项；alpha 阶段不清理老版本已写入的 Startup 快捷方式。
-- 语言文件的路径必须写对：Inno 把简体/繁体中文作为**非官方翻译**放在 `Languages\Unofficial\`，日文才是 `Languages\` 下的官方翻译。fastforge 内置模板只在 `Languages\` 下找中文并静默跳过，这正是旧配置 `locales: [en, zh]` 最终只剩英文的原因。CI 的 “Ensure Inno Setup 6 (language files)” 步骤会断言这 4 个文件存在，缺失时重装一次并复查，仍缺失则显式失败。
+- 语言文件的路径必须写对：Inno Setup 的安装包只装 `Languages\` 下的官方翻译（日文在其中），简体/繁体中文仍是非官方翻译，只存在于 issrc 源码仓库的 `Files\Languages\Unofficial\`，安装包永远不会带。因此这两个文件内置在本仓库 `windows/packaging/exe/languages/`（取自 issrc `is-6_7_3`），打包前由 CI 的 “Ensure Inno Setup 6 (language files)” 步骤（本地 Windows 打包同样需要）复制到 Inno 安装目录的 `Languages\`，`.iss` 再用 `compiler:` 前缀引用。fastforge 内置模板只在 `Languages\` 下找文件，这正是旧配置 `locales: [en, zh]` 最终只剩英文的原因。
 - 需要更复杂的逻辑（例如卸载时询问是否保留用户数据、检测旧版本进程）时继续改 `installer.iss`，但必须保留 `[Files]` 的全量复制（`recursesubdirs createallsubdirs`）。
 
 ### 2.4 体积与安装体积
@@ -148,7 +148,7 @@ setup_icon_file: windows/runner/resources/app_icon.ico
 
 1. `setup` job 的 Windows matrix：`targets: 'zip,exe'`。
 2. `package-windows` 的 fastforge 命令：`--targets=zip,exe`。
-3. 确认 Inno Setup 语言文件齐全：GitHub 官方 `windows-latest` 镜像通常预装 Inno Setup 6；job 里显式检查 `ISCC.exe`（缺失时用 `winget install --id JRSoftware.InnoSetup` 安装），并断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\Unofficial\ChineseSimplified.isl`、`Languages\Unofficial\ChineseTraditional.isl` 存在，缺失时重装一次，仍缺失则以明确信息失败。
+3. 确认 Inno Setup 语言文件齐全：GitHub 官方 `windows-latest` 镜像通常预装 Inno Setup 6；job 里显式检查 `ISCC.exe`（缺失时用 `winget install --id JRSoftware.InnoSetup` 安装）并断言主版本为 6，然后把仓库内置的 `ChineseSimplified.isl` / `ChineseTraditional.isl` 复制到安装目录 `Languages\`，再断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\ChineseSimplified.isl`、`Languages\ChineseTraditional.isl` 存在，缺失时以明确信息失败。
 4. `smoke-test-windows-installer` job（`needs: package-windows`，`windows-latest`，脚本 `.github/scripts/smoke-test-windows-installer.ps1`）：
    - 对仓库中的 `windows/packaging/exe/installer.iss` 与 `make_config.yaml` 做静态断言：`[Languages]` 恰好 4 条且路径正确、不含 `launchAtStartup` 与 `{userstartup}`（fastforge 编译成功后删除渲染出的 `.iss`，产物里没有可断言的脚本）
    - 静默安装：`setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=...`

@@ -77,8 +77,8 @@ if ($languageCount -ne 4) {
 }
 foreach ($languageFile in @(
   'compiler:Default.isl',
-  'compiler:Languages\Unofficial\ChineseSimplified.isl',
-  'compiler:Languages\Unofficial\ChineseTraditional.isl',
+  'compiler:Languages\ChineseSimplified.isl',
+  'compiler:Languages\ChineseTraditional.isl',
   'compiler:Languages\Japanese.isl'
 )) {
   if ($languageSection -notmatch [regex]::Escape($languageFile)) {

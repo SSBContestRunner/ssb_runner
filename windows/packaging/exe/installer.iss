@@ -20,11 +20,18 @@
 ; primary-language fallback when the user's language is Traditional Chinese), ja gets
 ; Japanese. Keep this list in sync with lib/l10n when adding an app language.
 ;
-; Paths matter: Inno Setup 6.x ships ChineseSimplified.isl / ChineseTraditional.isl as
-; unofficial translations under Languages\Unofficial\, and Japanese.isl as an official
-; translation under Languages\. fastforge's built-in template looks for Chinese under
-; Languages\, which is why its `locales: [en, zh]` silently produced an English-only
-; installer. The corresponding files are asserted in CI ("Ensure Inno Setup 6").
+; Paths matter: Inno Setup's own installer ships only official translations under
+; Languages\ (Japanese included), while Simplified/Traditional Chinese are still
+; unofficial translations that live in the issrc repository (Files\Languages\Unofficial\)
+; and are never installed by Inno Setup's setup.exe. fastforge's built-in template looked
+; for Chinese under Languages\ only, which is why its `locales: [en, zh]` silently
+; produced an English-only installer. The two files are therefore vendored under
+; windows/packaging/exe/languages/ (issrc tag is-6_7_3) and copied into the compiler's
+; Languages\ directory before packaging -- by CI ("Ensure Inno Setup 6 (language files)")
+; and by local Windows builds, which must run the same copy step. That is why the
+; entries below use the compiler: prefix -- MessagesFile resolves relative paths
+; against the rendered script's directory (a build temp directory), not this file's
+; directory.
 ;
 ; fastforge renders this file as a Liquid template before compiling it; do not add Inno
 ; preprocessor #define lines, and keep single-brace constants such as {app} / {cm:...}
@@ -60,8 +67,8 @@ ShowLanguageDialog=auto
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\Unofficial\ChineseSimplified.isl"
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\Unofficial\ChineseTraditional.isl"
+Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 [Tasks]

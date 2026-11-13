@@ -47,9 +47,9 @@ fastforge 0.6.12 的内置 Inno 模板存在三层限制：
 | --- | --- | --- |
 | 配置 | `locales` 只列了 `en` / `zh` | 缺 `ja` 与繁体中文 |
 | 映射表 | `_localeToLanguageFile` 没有 `zh_Hant`（也没有任何繁体条目） | 即使写进 `locales` 也无法生成 `[Languages]` 条目 |
-| 语言文件过滤 | `_getAvailableLocales()` 在 `Languages\` 下找 `.isl`，找不到就**静默跳过** | 中文语言文件实际位于 `Languages\Unofficial\`，因此 `zh` 被丢掉，最终只剩英文 |
+| 语言文件过滤 | `_getAvailableLocales()` 在 `Languages\` 下找 `.isl`，找不到就**静默跳过** | 中文语言文件不在安装目录里（见下），因此 `zh` 被丢掉，最终只剩英文 |
 
-也就是说，`zh` 丢失与 Inno Setup 版本无关：Inno 一直把简体/繁体中文作为**非官方翻译**放在 `Languages\Unofficial\`（`Japanese.isl` 才是 `Languages\` 下的官方翻译），而 fastforge 的内置模板只在 `Languages\` 下查找。CI 的 “Ensure Inno Setup 6” 步骤（[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)）只在 `ISCC.exe` 不存在时才安装、也不检查语言文件，因此这个降级既不会报错也不会被 CI 发现。
+也就是说，`zh` 丢失与 Inno Setup 版本无关：Inno Setup 的安装包只装 `Languages\` 下的**官方翻译**（`Japanese.isl` 在其中），简体/繁体中文始终是**非官方翻译**，只存在于 issrc 源码仓库的 `Files\Languages\Unofficial\`，安装包不会带；而 fastforge 的内置模板只在 `Languages\` 下查找。CI 的 “Ensure Inno Setup 6” 步骤（[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)）只在 `ISCC.exe` 不存在时才安装、也不检查语言文件，因此这个降级既不会报错也不会被 CI 发现。
 
 ### 2.2 开机启动勾选框去不掉
 
@@ -122,8 +122,8 @@ ShowLanguageDialog=auto
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\Unofficial\ChineseSimplified.isl"
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\Unofficial\ChineseTraditional.isl"
+Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 [Tasks]
@@ -143,7 +143,7 @@ Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY
 实现注意：
 
 - 应用内用户可选语言是 `en` / `zh_Hans` / `zh_Hant` / `ja`；`app_zh.arb` 只是解析兜底，安装器不需要单独条目。
-- 中文语言文件位于 Inno 安装目录的 `Languages\Unofficial\`，日文位于 `Languages\`；路径写错时 ISCC 会在构建期直接报错，不会再静默退化成英文。
+- 中文语言文件由仓库内置（`windows/packaging/exe/languages/`，取自 issrc `is-6_7_3`），打包前复制到 Inno 安装目录的 `Languages\`，因此 `.iss` 里用 `compiler:Languages\ChineseSimplified.isl`；日文是 `Languages\` 下的官方翻译。路径写错时 ISCC 会在构建期直接报错，不会再静默退化成英文。
 - Inno 按各 `.isl` 的 `LanguageID` 自动匹配；其内置规则保证简体/繁体互斥，`zh-TW` 命中繁体、`zh-HK` / `zh-MO` 会回落到繁体、`ja` 命中日文。
 - `Name:` 使用 `english` / `chinesesimplified` / `chinesetraditional` / `japanese`，后续可用 `/LANG=` 指定。
 - 模板会被 Liquid 解析：不要写 Inno 预处理器 `#define`；也不要在注释里写双花括号示例（会被当作占位符解析）。`{app}`、`{cm:...}` 等单花括号常量不受影响。
@@ -165,12 +165,14 @@ Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY
 
 修改 [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) 的 “Ensure Inno Setup 6” 步骤：
 
-1. 安装/定位 `ISCC.exe` 后，断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\Unofficial\ChineseSimplified.isl`、`Languages\Unofficial\ChineseTraditional.isl` 均存在；
-2. 缺失时执行一次强制重装（`winget install --id JRSoftware.InnoSetup -e --silent --force ...`）后复查；
-3. 复查仍缺失则带明确信息失败，替代当前“静默降级成英文”的行为；
+1. 安装/定位 `ISCC.exe` 后断言主版本为 6（内置的 `.isl` 按 6.x 消息编写）；
+2. 把仓库内置的 `windows/packaging/exe/languages/ChineseSimplified.isl`、`ChineseTraditional.isl` 复制到 Inno 安装目录的 `Languages\`；
+3. 断言 `Default.isl`、`Languages\Japanese.isl`、`Languages\ChineseSimplified.isl`、`Languages\ChineseTraditional.isl` 均存在，缺失则带明确信息失败；
 4. 打印 `Languages\**` 下的清单，便于排查 runner 镜像的 Inno 安装内容。
 
-注意中文语言文件位于 `Languages\Unofficial\`，不要在 `Languages\` 下检查——那正是内置模板找不到中文的原因。
+注意：中文语言文件不在安装包里（Inno Setup 的 `setup.exe` 只装 `Languages\*.isl` 官方翻译），`winget` 重装无法补齐，必须由仓库内置文件复制进去。
+
+本地 Windows 打包同样需要先执行第 2 步；否则 ISCC 会以 “Cannot find language file” 失败。
 
 ### 4.4 扩展安装器冒烟测试
 
@@ -187,7 +189,7 @@ Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY
 
 ### 4.5 文档同步
 
-- 更新 [`docs/research/windows-single-file-packaging.md`](../research/windows-single-file-packaging.md) §2.3：改成自定义模板、4 种安装语言、中文 `.isl` 的 `Languages\Unofficial\` 路径、无开机启动；
+- 更新 [`docs/research/windows-single-file-packaging.md`](../research/windows-single-file-packaging.md) §2.3：改成自定义模板、4 种安装语言、中文 `.isl` 由仓库内置并在打包前复制到 `Languages\`、无开机启动；
 - 发布说明补充“Windows 安装器支持英文 / 简体中文 / 繁体中文 / 日文”。
 
 ---
@@ -208,7 +210,7 @@ Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY
 | 风险 | 影响 | 处理 |
 | --- | --- | --- |
 | 自定义模板与 fastforge 上游模板脱钩 | 升级 fastforge 后内置模板的修复不会自动生效 | CI 已 pin 0.6.12；在 `.iss` 头部注明基线版本，升级时对比上游 diff |
-| 本地 Inno 缺中文语言文件 | 编译期报错（路径写对后不会再静默退化） | CI 前置断言 4 个 `.isl` 存在，缺失时重装后复查 |
+| 本地 Inno 缺中文语言文件 | 编译期报错（路径写对后不会再静默退化） | 中文 `.isl` 已内置在仓库，打包前复制到 Inno 安装目录的 `Languages\`，CI 与本地同一步骤 |
 | 安装器语言与应用内语言相互独立 | 用户可能预期“装英文版 = 应用英文” | 明确为非目标；应用仍按系统语言 / 设置解析 |
 | alpha 老用户已勾选开机启动 | 升级后旧 Startup 快捷方式仍存在 | 已确认本期不处理，可手动删除或卸载 |
 | Liquid 与 Inno 语法混用 | 模板渲染异常 | 仅保留既有占位符写法，不新增 `{% %}` / `#define` 逻辑 |
