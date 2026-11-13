@@ -84,4 +84,12 @@ class StartupTrace {
 // Exported for Dart FFI. A no-op until Create() ran.
 extern "C" __declspec(dllexport) void ssb_boot_beat(int phase, int step);
 
+// Appends one named record from any thread.
+//
+// Used to bracket the close path (`wm_close`, `destroy_begin`, `destroy_end`,
+// `watchdog_armed`, `watchdog_fired`), so a window that disappears without the
+// process ending can be told apart from a window that is still open. No-op
+// until Create() ran.
+extern "C" __declspec(dllexport) void ssb_trace_mark(const char* state);
+
 #endif  // RUNNER_STARTUP_TRACE_H_

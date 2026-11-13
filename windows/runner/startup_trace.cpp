@@ -283,3 +283,10 @@ extern "C" __declspec(dllexport) void ssb_boot_beat(int phase, int step) {
     trace->Beat(phase, step);
   }
 }
+
+extern "C" __declspec(dllexport) void ssb_trace_mark(const char* state) {
+  StartupTrace* trace = g_trace.load(std::memory_order_acquire);
+  if (trace != nullptr && state != nullptr) {
+    trace->WriteSnapshot(state);
+  }
+}

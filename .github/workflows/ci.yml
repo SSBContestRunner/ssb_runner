@@ -510,8 +510,9 @@ jobs:
         run: ./.github/scripts/smoke-test-windows.ps1
 
       # A startup crash leaves no application log (the file sink is installed after
-      # the first frame), so the scripts copy the WER event, the minidump and the
-      # native startup timeline into smoke-evidence/ for the failure report.
+      # the first frame), so the scripts copy the WER event, the minidump, the native
+      # startup timeline and the synchronous Dart exit trace into smoke-evidence/ for
+      # the failure report; a hang also gets its own dump before it is killed.
       - name: Upload Windows smoke evidence
         if: failure()
         uses: actions/upload-artifact@v7

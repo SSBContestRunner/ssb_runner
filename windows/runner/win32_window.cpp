@@ -3,7 +3,9 @@
 #include <dwmapi.h>
 #include <flutter_windows.h>
 
+#include "exit_watchdog.h"
 #include "resource.h"
+#include "startup_trace.h"
 
 namespace {
 
@@ -199,9 +201,23 @@ Win32Window::MessageHandler(HWND hwnd,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
   switch (message) {
+    case WM_CLOSE:
+      // Arm here as well as in FlutterWindow::MessageHandler, which runs first
+      // and is not skipped if the engine consumes the message. Both calls are
+      // safe: ArmExitWatchdog() only arms once. The trace line comes before the
+      // default handling so the native timeline shows how far the close got.
+      ssb_trace_mark("wm_close");
+      ArmExitWatchdog();
+      break;
+
     case WM_DESTROY:
       window_handle_ = nullptr;
+      // Engine teardown happens synchronously inside Destroy(); bracketing it
+      // separates "close never arrived" from "close arrived and the teardown
+      // never returned".
+      ssb_trace_mark("destroy_begin");
       Destroy();
+      ssb_trace_mark("destroy_end");
       if (quit_on_close_) {
         PostQuitMessage(0);
       }

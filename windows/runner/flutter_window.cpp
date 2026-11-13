@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <optional>
 
+#include "exit_watchdog.h"
 #include "flutter/generated_plugin_registrant.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project,
@@ -85,6 +86,14 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // Armed before the engine sees WM_CLOSE: the engine consumes the first one
+  // and re-posts it only after Dart answered the exit request, so arming in
+  // Win32Window::MessageHandler alone would start the budget too late. Both
+  // call sites are safe because ArmExitWatchdog() arms once.
+  if (message == WM_CLOSE) {
+    ArmExitWatchdog();
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
