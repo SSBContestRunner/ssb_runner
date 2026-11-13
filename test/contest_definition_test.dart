@@ -10,11 +10,14 @@ import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/training/session_random.dart';
 
+/// Shared by every fake so the process only ever holds one database instance.
+final AppDatabase _unusedDatabase = AppDatabase(_unusedExecutor());
+
 /// Avoids loading the real DXCC table; the definitions only need the lookups
 /// below.
 class _FakeDxccManager extends DxccManager {
   _FakeDxccManager({this.dxccId = 0, this.cqZone = 24, this.ituZone})
-    : super(database: AppDatabase(_unusedExecutor()));
+    : super(database: _unusedDatabase);
 
   final int dxccId;
   final int? cqZone;
