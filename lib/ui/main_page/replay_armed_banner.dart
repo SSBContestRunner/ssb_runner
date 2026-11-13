@@ -73,9 +73,8 @@ String formatReplayArmedAt(BuildContext context, DateTime armedAtUtc) {
 
 String formatReplayArmedTimeOnly(BuildContext context, DateTime armedAtUtc) {
   final local = armedAtUtc.toLocal();
-  return MaterialLocalizations.of(
-    context,
-  ).formatTimeOfDay(TimeOfDay.fromDateTime(local));
+  return MaterialLocalizations.of(context)
+      .formatTimeOfDay(TimeOfDay.fromDateTime(local));
 }
 
 /// The settings drawer banner.
@@ -132,9 +131,8 @@ class ReplayArmedBanner extends StatelessWidget {
                   l10n.replayArmedTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(color: scheme.primary),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(color: scheme.primary),
                 ),
               ),
             ],
@@ -152,17 +150,15 @@ class ReplayArmedBanner extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             l10n.replayArmedStationHint,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
           ),
           if (showLockHint) ...[
             const SizedBox(height: 2),
             Text(
               l10n.replayLockedHint,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
           Align(
@@ -216,8 +212,10 @@ class ReplayStatusCapsule extends StatefulWidget {
         letterSpacing: 0.2,
       );
 
-  static TextStyle? timeStyleOf(BuildContext context) =>
-      Theme.of(context).textTheme.labelSmall?.copyWith(
+  static TextStyle? timeStyleOf(BuildContext context) => Theme.of(context)
+      .textTheme
+      .labelSmall
+      ?.copyWith(
         color: Theme.of(context).colorScheme.onSurfaceVariant,
         letterSpacing: 0.2,
       );

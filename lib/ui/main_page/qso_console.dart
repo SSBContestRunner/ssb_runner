@@ -231,9 +231,8 @@ class _PhaseHintBar extends StatelessWidget {
                 key: const Key('phase-hint'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: scheme.onSurface),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurface),
               ),
             ),
             if (_canAbandon(state))

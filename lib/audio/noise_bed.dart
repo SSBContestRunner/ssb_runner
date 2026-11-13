@@ -116,4 +116,3 @@ const Duration _seamCrossfade = Duration(milliseconds: 100);
 /// Full-scale RMS of the generated bed. Difficulty multipliers scale down
 /// from here (see [TrainingDifficulty.noiseBedLevel]).
 const double _referenceRms = 0.12;
-

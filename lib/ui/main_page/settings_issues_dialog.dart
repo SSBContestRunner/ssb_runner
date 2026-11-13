@@ -121,16 +121,14 @@ class _IssueRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       path,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                     if (currentValue != null)
                       Text(
                         l10n.readinessCurrentValue(currentValue),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                   ],
                 ),

@@ -38,9 +38,7 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  testWidgets('运行态点结束本局先确认，取消后会话继续、确认后才结束', (
-    tester,
-  ) async {
+  testWidgets('运行态点结束本局先确认，取消后会话继续、确认后才结束', (tester) async {
     final harness = await _createHarness();
     await _pumpSessionPanel(tester, harness);
 
@@ -267,9 +265,7 @@ Future<void> _pumpSessionPanel(WidgetTester tester, _Harness harness) async {
             BlocProvider(
               create: (_) => ContestSettingCubit(appSettings: harness.settings),
             ),
-            BlocProvider(
-              create: (_) => TrainingOptionsCubit(harness.settings),
-            ),
+            BlocProvider(create: (_) => TrainingOptionsCubit(harness.settings)),
             BlocProvider(
               create: (_) => QsoRecordListCubit(
                 appDatabase: harness.dataManager.appDatabase,
@@ -280,11 +276,7 @@ Future<void> _pumpSessionPanel(WidgetTester tester, _Harness harness) async {
           child: const Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 372,
-                height: 620,
-                child: SessionPanel(),
-              ),
+              child: SizedBox(width: 372, height: 620, child: SessionPanel()),
             ),
           ),
         ),
@@ -342,9 +334,8 @@ Future<_PhaseContestManager> _pumpMainPage(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
         home: MultiRepositoryProvider(
@@ -353,9 +344,7 @@ Future<_PhaseContestManager> _pumpMainPage(
             RepositoryProvider<AppDatabase>.value(value: database),
             RepositoryProvider<DxccManager>.value(value: dxccManager),
             RepositoryProvider<ContestManager>.value(value: manager),
-            RepositoryProvider<ContestTimer>.value(
-              value: manager.contestTimer,
-            ),
+            RepositoryProvider<ContestTimer>.value(value: manager.contestTimer),
             RepositoryProvider<ContestInputHandler>.value(value: inputHandler),
           ],
           child: const Scaffold(body: MainPage()),
@@ -368,7 +357,10 @@ Future<_PhaseContestManager> _pumpMainPage(
   return manager;
 }
 
-Future<void> _tearDown(WidgetTester tester, _PhaseContestManager manager) async {
+Future<void> _tearDown(
+  WidgetTester tester,
+  _PhaseContestManager manager,
+) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
   manager.dispose();
@@ -446,7 +438,8 @@ Future<void> _ensureAppFonts() async {
 
 final AppDatabase _neverOpenedDatabase = AppDatabase(
   LazyDatabase(
-    () async => throw StateError('The layout widgets must not touch the database.'),
+    () async =>
+        throw StateError('The layout widgets must not touch the database.'),
   ),
 );
 
@@ -468,8 +461,7 @@ class _PhaseContestManager extends ContestManager {
   ContestSessionPhase get sessionPhase => _phase;
 
   @override
-  Stream<ContestSessionPhase> get sessionPhaseStream =>
-      _phaseController.stream;
+  Stream<ContestSessionPhase> get sessionPhaseStream => _phaseController.stream;
 
   @override
   bool get isContestRunning => _phase != ContestSessionPhase.idle;

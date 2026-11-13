@@ -90,7 +90,8 @@ void main() {
     final output = AudioTrainingEffects(_advanced).apply(_silence());
     // Uniform white on [-1, 1] scaled by snrNoise, reduced to the part of its
     // power that falls inside the 300–2700 Hz passband.
-    final expected = TrainingDifficulty.advanced.snrNoise *
+    final expected =
+        TrainingDifficulty.advanced.snrNoise *
         32767 *
         (1 / sqrt(3)) *
         sqrt((2700 - 300) / (24000 / 2));
@@ -151,7 +152,8 @@ class _RecordingEngine implements AudioEngine {
   }
 
   @override
-  Future<bool> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async => true;
+  Future<bool> startNoiseBed(Uint8List pcm, {double volume = 0.0}) async =>
+      true;
 
   @override
   void setNoiseBedVolume(double volume) {}

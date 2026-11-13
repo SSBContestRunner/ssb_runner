@@ -133,7 +133,8 @@ class AudioPlayer {
       return;
     }
     final target =
-        profile.noiseBedLevel * (isMyAudio ? _ownSignalDuck : _receivedSignalDuck);
+        profile.noiseBedLevel *
+        (isMyAudio ? _ownSignalDuck : _receivedSignalDuck);
     _engine.fadeNoiseBedVolume(target, _bedDuckAttack);
   }
 

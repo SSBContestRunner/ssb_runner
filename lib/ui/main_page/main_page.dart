@@ -32,9 +32,7 @@ class _MainPageState extends State<MainPage> {
       if (!context.read<AppSettings>().takeFunctionKeyRepairNotice()) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            AppLocalizations.of(context).functionKeysAutoRepaired,
-          ),
+          content: Text(AppLocalizations.of(context).functionKeysAutoRepaired),
         ),
       );
     });

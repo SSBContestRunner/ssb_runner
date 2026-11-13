@@ -29,9 +29,7 @@ void main(List<String> args) {
   final outputPath = args.length > 1 ? args[1] : inputPath;
 
   final rows = parsePrefixRows(dxccPrefixTsv);
-  final byCall = <String, PrefixRow>{
-    for (final row in rows) row.call: row,
-  };
+  final byCall = <String, PrefixRow>{for (final row in rows) row.call: row};
 
   final calls = File(inputPath)
       .readAsLinesSync()

@@ -111,29 +111,26 @@ void main() {
     },
   );
 
-  test(
-    'dirty legacy conflict keeps customisation and spares the loser',
-    () async {
-      final harness = await _createHarness();
-      // Both actions claim F2: the later action wins, the earlier becomes Spare.
-      await harness.prefs.setString('setting_key_binding_cq', 'F2');
-      await harness.prefs.setString('setting_key_binding_exchange', 'F2');
+  test('dirty legacy conflict keeps customisation and spares the loser', () async {
+    final harness = await _createHarness();
+    // Both actions claim F2: the later action wins, the earlier becomes Spare.
+    await harness.prefs.setString('setting_key_binding_cq', 'F2');
+    await harness.prefs.setString('setting_key_binding_exchange', 'F2');
 
-      final bindings = harness.settings.functionKeyBindings;
-      expect(bindings[0].isSpare, isTrue);
-      expect(bindings[1].action, OperationAction.exchange);
-      expect(
-        bindings.where((binding) => binding.action == OperationAction.cq),
-        isEmpty,
-      );
+    final bindings = harness.settings.functionKeyBindings;
+    expect(bindings[0].isSpare, isTrue);
+    expect(bindings[1].action, OperationAction.exchange);
+    expect(
+      bindings.where((binding) => binding.action == OperationAction.cq),
+      isEmpty,
+    );
 
-      final assigned = bindings
-          .where((binding) => !binding.isSpare)
-          .map((binding) => binding.action)
-          .toList();
-      expect(assigned.toSet(), hasLength(assigned.length));
-    },
-  );
+    final assigned = bindings
+        .where((binding) => !binding.isSpare)
+        .map((binding) => binding.action)
+        .toList();
+    expect(assigned.toSet(), hasLength(assigned.length));
+  });
 
   test('all F1-F12 keys are recognised, Spare keys stay silent', () async {
     final handler = KeyEventHandler();
@@ -266,24 +263,26 @@ void main() {
     expect(events, [OperationEvent.cq]);
   });
 
-  test('a duplicate stored action keeps the lowest F key and spares the rest', (
-  ) async {
-    final harness = await _createHarness();
-    await harness.prefs.setString('setting_function_key_F1', 'exchange');
-    await harness.prefs.setString('setting_function_key_F2', 'exchange');
-    await harness.prefs.setString('setting_function_key_F5', 'exchange');
+  test(
+    'a duplicate stored action keeps the lowest F key and spares the rest',
+    () async {
+      final harness = await _createHarness();
+      await harness.prefs.setString('setting_function_key_F1', 'exchange');
+      await harness.prefs.setString('setting_function_key_F2', 'exchange');
+      await harness.prefs.setString('setting_function_key_F5', 'exchange');
 
-    final bindings = harness.settings.functionKeyBindings;
+      final bindings = harness.settings.functionKeyBindings;
 
-    expect(bindings[0].action, OperationAction.exchange);
-    expect(bindings[1].isSpare, isTrue);
-    expect(bindings[4].isSpare, isTrue);
+      expect(bindings[0].action, OperationAction.exchange);
+      expect(bindings[1].isSpare, isTrue);
+      expect(bindings[4].isSpare, isTrue);
 
-    // The repair is persisted, so a later launch starts clean.
-    expect(harness.prefs.getString('setting_function_key_F2'), 'spare');
-    expect(harness.prefs.getString('setting_function_key_F5'), 'spare');
-    expect(harness.settings.functionKeyRepairNoticePending, isTrue);
-  });
+      // The repair is persisted, so a later launch starts clean.
+      expect(harness.prefs.getString('setting_function_key_F2'), 'spare');
+      expect(harness.prefs.getString('setting_function_key_F5'), 'spare');
+      expect(harness.settings.functionKeyRepairNoticePending, isTrue);
+    },
+  );
 
   test('an unknown stored action id becomes Spare, not the default', () async {
     final harness = await _createHarness();
@@ -302,14 +301,11 @@ void main() {
 
     final accepted = await harness.settings.setFunctionKeyBindings([
       for (final key in FunctionKey.values)
-        FunctionKeyBinding(
-          key,
-          switch (key) {
-            FunctionKey.f1 => OperationAction.cq,
-            FunctionKey.f2 => OperationAction.cq,
-            _ => null,
-          },
-        ),
+        FunctionKeyBinding(key, switch (key) {
+          FunctionKey.f1 => OperationAction.cq,
+          FunctionKey.f2 => OperationAction.cq,
+          _ => null,
+        }),
     ]);
 
     expect(accepted, isFalse);

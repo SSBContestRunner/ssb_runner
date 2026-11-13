@@ -75,5 +75,6 @@ class TransitionDefinition<S, Side> {
   final Side? side;
 }
 
-typedef TransitionListener<S, E, Side> =
-    void Function(Transition<S, E, Side> transition);
+typedef TransitionListener<S, E, Side> = void Function(
+  Transition<S, E, Side> transition,
+);

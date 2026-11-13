@@ -79,9 +79,7 @@ void main() {
     );
     service = _FakeReplayService(settings: settings);
     cubit = QsoVoiceReplayCubit(
-      contestManager: _ReplayContestManager(
-        contestDataManager: dataManager,
-      ),
+      contestManager: _ReplayContestManager(contestDataManager: dataManager),
       audioLoader: AudioLoader(),
       audioPlayer: AudioPlayer(),
       service: service,

@@ -427,8 +427,11 @@ class _NumericExchangeManager implements ExchangeManager {
       exchange.replaceFirst(RegExp(r'^0+(?=.)'), '');
 }
 
-typedef _PointsFor =
-    int Function(QsoTableData qso, DxccManager dxcc, String station);
+typedef _PointsFor = int Function(
+  QsoTableData qso,
+  DxccManager dxcc,
+  String station,
+);
 
 class _NumericScoreCalculator implements ScoreCalculator {
   _NumericScoreCalculator(

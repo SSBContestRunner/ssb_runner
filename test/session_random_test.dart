@@ -19,7 +19,10 @@ void main() {
     final second = SessionRandom(2);
 
     final firstDraws = List.generate(50, (_) => first.nextCallsignIndex(1000));
-    final secondDraws = List.generate(50, (_) => second.nextCallsignIndex(1000));
+    final secondDraws = List.generate(
+      50,
+      (_) => second.nextCallsignIndex(1000),
+    );
 
     expect(firstDraws, isNot(equals(secondDraws)));
   });

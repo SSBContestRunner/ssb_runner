@@ -1788,36 +1788,34 @@ typedef $$PrefixTableTableProcessedTableManager =
       PrefixTableData,
       PrefetchHooks Function()
     >;
-typedef $$QsoTableTableCreateCompanionBuilder =
-    QsoTableCompanion Function({
-      Value<int> id,
-      required int utcInSeconds,
-      required String runId,
-      required String stationCallsign,
-      required String callsign,
-      required String callsignCorrect,
-      required String exchange,
-      required String exchangeCorrect,
-      Value<String?> accentDir,
-      Value<String?> phonicType,
-      Value<String?> callPhonicDirs,
-      Value<String?> exchangePhonicDirs,
-    });
-typedef $$QsoTableTableUpdateCompanionBuilder =
-    QsoTableCompanion Function({
-      Value<int> id,
-      Value<int> utcInSeconds,
-      Value<String> runId,
-      Value<String> stationCallsign,
-      Value<String> callsign,
-      Value<String> callsignCorrect,
-      Value<String> exchange,
-      Value<String> exchangeCorrect,
-      Value<String?> accentDir,
-      Value<String?> phonicType,
-      Value<String?> callPhonicDirs,
-      Value<String?> exchangePhonicDirs,
-    });
+typedef $$QsoTableTableCreateCompanionBuilder = QsoTableCompanion Function({
+  Value<int> id,
+  required int utcInSeconds,
+  required String runId,
+  required String stationCallsign,
+  required String callsign,
+  required String callsignCorrect,
+  required String exchange,
+  required String exchangeCorrect,
+  Value<String?> accentDir,
+  Value<String?> phonicType,
+  Value<String?> callPhonicDirs,
+  Value<String?> exchangePhonicDirs,
+});
+typedef $$QsoTableTableUpdateCompanionBuilder = QsoTableCompanion Function({
+  Value<int> id,
+  Value<int> utcInSeconds,
+  Value<String> runId,
+  Value<String> stationCallsign,
+  Value<String> callsign,
+  Value<String> callsignCorrect,
+  Value<String> exchange,
+  Value<String> exchangeCorrect,
+  Value<String?> accentDir,
+  Value<String?> phonicType,
+  Value<String?> callPhonicDirs,
+  Value<String?> exchangePhonicDirs,
+});
 
 class $$QsoTableTableFilterComposer
     extends Composer<_$AppDatabase, $QsoTableTable> {

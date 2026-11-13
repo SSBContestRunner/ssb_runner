@@ -47,8 +47,7 @@ class Biquad {
   double _y2 = 0;
 
   double process(double input) {
-    final output =
-        _b0 * input + _b1 * _x1 + _b2 * _x2 - _a1 * _y1 - _a2 * _y2;
+    final output = _b0 * input + _b1 * _x1 + _b2 * _x2 - _a1 * _y1 - _a2 * _y2;
     _x2 = _x1;
     _x1 = input;
     _y2 = _y1;
@@ -77,9 +76,9 @@ class Biquad {
 /// passband even though the out-of-band hiss is gone.
 class SsbNoiseShaper {
   SsbNoiseShaper({this.sampleRate = 24000})
-      : _highPass = Biquad.highPass(sampleRate, lowHz, 0.70710678),
-        _lowPassA = Biquad.lowPass(sampleRate, highHz, 0.54119610),
-        _lowPassB = Biquad.lowPass(sampleRate, highHz, 1.30656296) {
+    : _highPass = Biquad.highPass(sampleRate, lowHz, 0.70710678),
+      _lowPassA = Biquad.lowPass(sampleRate, highHz, 0.54119610),
+      _lowPassB = Biquad.lowPass(sampleRate, highHz, 1.30656296) {
     _gain = _calibrate();
   }
 
