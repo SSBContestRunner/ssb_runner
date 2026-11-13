@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssb_runner/db/app_database.dart';
@@ -79,6 +80,12 @@ void main() {
   });
 
   test('an unusable database still resolves from bundled data', () async {
+    // Two live instances are this test's intent: the second one must be closed.
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    addTearDown(
+      () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false,
+    );
+
     final closed = AppDatabase(NativeDatabase.memory());
     await closed.close();
 

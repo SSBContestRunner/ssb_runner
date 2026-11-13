@@ -1010,14 +1010,17 @@ Future<void> _pumpConsole(
   await tester.pump();
 }
 
+/// Shared by every harness so the process only ever holds one database instance.
+final AppDatabase _neverOpenedDatabase = AppDatabase(
+  LazyDatabase(() async => throw StateError('no db')),
+);
+
 Future<_Harness> _createHarness() async {
   final prefs = await SharedPreferencesWithCache.create(
     cacheOptions: const SharedPreferencesWithCacheOptions(),
   );
   final settings = AppSettings(prefs: prefs);
-  final database = AppDatabase(
-    LazyDatabase(() async => throw StateError('no db')),
-  );
+  final database = _neverOpenedDatabase;
   final inputHandler = ContestInputHandler();
   final dataManager = ContestDataManager(
     audioLoader: AudioLoader(),

@@ -4,16 +4,15 @@ import 'package:ssb_runner/contest_type/station_exchange.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 
+/// Shared by every fake so the process only ever holds one database instance.
+final AppDatabase _unusedDatabase = AppDatabase(
+  LazyDatabase(
+    () async => throw StateError('The DXCC table must not be touched here.'),
+  ),
+);
+
 class _FakeDxccManager extends DxccManager {
-  _FakeDxccManager()
-    : super(
-        database: AppDatabase(
-          LazyDatabase(
-            () async =>
-                throw StateError('The DXCC table must not be touched here.'),
-          ),
-        ),
-      );
+  _FakeDxccManager() : super(database: _unusedDatabase);
 
   @override
   int? findCallsignCqZone(String callsign) => 24;

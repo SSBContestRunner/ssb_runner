@@ -12,16 +12,15 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
+/// Shared by every fake so the process only ever holds one database instance.
+final AppDatabase _unusedDatabase = AppDatabase(
+  LazyDatabase(
+    () async => throw StateError('The DXCC table must not be touched here.'),
+  ),
+);
+
 class _FakeDxccManager extends DxccManager {
-  _FakeDxccManager({this.cqZone = 24})
-    : super(
-        database: AppDatabase(
-          LazyDatabase(
-            () async =>
-                throw StateError('The DXCC table must not be touched here.'),
-          ),
-        ),
-      );
+  _FakeDxccManager({this.cqZone = 24}) : super(database: _unusedDatabase);
 
   final int? cqZone;
 
