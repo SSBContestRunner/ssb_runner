@@ -19,10 +19,9 @@ class AudioPlayer {
   AudioPlayer({
     AudioEngine? engine,
     Duration Function(int byteLength)? estimateDuration,
-    Duration watchdogMargin = const Duration(seconds: 3),
+    this._watchdogMargin = const Duration(seconds: 3),
   }) : _engine = engine ?? SoLoudAudioEngine(),
-       _estimateDuration = estimateDuration ?? _defaultEstimateDuration,
-       _watchdogMargin = watchdogMargin;
+       _estimateDuration = estimateDuration ?? _defaultEstimateDuration;
 
   final AudioEngine _engine;
   final Duration Function(int byteLength) _estimateDuration;

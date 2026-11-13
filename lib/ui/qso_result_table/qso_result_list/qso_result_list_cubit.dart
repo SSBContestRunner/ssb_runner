@@ -16,12 +16,10 @@ class QsoRecordListCubit extends Cubit<List<QsoResult>> {
   bool _sessionIdle = true;
 
   QsoRecordListCubit({
-    required AppDatabase appDatabase,
-    required ContestManager contestManager,
-  }) : _appDatabase = appDatabase,
-       _contestManager = contestManager,
-       super([]) {
-    _sessionIdle = !contestManager.isContestRunning;
+    required this._appDatabase,
+    required this._contestManager,
+  }) : super([]) {
+    _sessionIdle = !_contestManager.isContestRunning;
     _phaseSubscription = _contestManager.sessionPhaseStream.listen((phase) {
       final idle = phase == ContestSessionPhase.idle;
       if (_sessionIdle == idle) {

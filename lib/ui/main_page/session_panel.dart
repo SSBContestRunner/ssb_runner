@@ -1400,11 +1400,9 @@ class _QsoSpeedCubit extends Cubit<double?> {
   late final StreamSubscription<Duration> _subscription;
 
   _QsoSpeedCubit({
-    required ContestTimer contestTimer,
-    required ContestManager contestManager,
-  }) : _contestTimer = contestTimer,
-       _contestManager = contestManager,
-       super(null) {
+    required this._contestTimer,
+    required this._contestManager,
+  }) : super(null) {
     _subscription = _contestTimer.elapseTimeStream.listen(_updateQsoSpeed);
   }
 

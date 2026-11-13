@@ -40,19 +40,13 @@ class ContestOperationEventHandler {
   Stream<int> get inputControlStream => _inputControlStreamController.stream;
 
   ContestOperationEventHandler({
-    required String contestRunId,
-    required ContestDataManager contestDataManager,
-    required ContestType contestType,
-    required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-    stateMachine,
-    required ContestInputHandler inputHandler,
-    Future<void> Function()? onAbandonRound,
-  }) : _contestRunId = contestRunId,
-       _contestDataManager = contestDataManager,
-       _contestType = contestType,
-       _stateMachine = stateMachine,
-       _inputHandler = inputHandler,
-       _onAbandonRound = onAbandonRound;
+    required this._contestRunId,
+    required this._contestDataManager,
+    required this._contestType,
+    required this._stateMachine,
+    required this._inputHandler,
+    this._onAbandonRound,
+  });
 
   // region operation event handler
   /// Runs an operation event and reports whether it did anything.

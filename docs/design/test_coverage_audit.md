@@ -16,7 +16,7 @@
 | 测试文件 | 25 个（`test/` 下，无 `integration_test/`） |
 | 用例声明 | 163 个 `test`/`testWidgets`，167 次执行（含循环参数化） |
 | 执行结果 | 全部通过，耗时约 10 秒 |
-| `flutter analyze` | 通过（仅 1 条 info：`CQ_WPX` 命名） |
+| `flutter analyze` | 通过（当时仅 1 条 info：`CQ_WPX` 命名；现已清零并改为 `--fatal-infos`） |
 | 行覆盖率（已插桩文件） | **62.3%**（2864/4600） |
 | 测试从未加载的源文件 | **22 个 / 1855 行**（按 0% 计入后整体约 **46%**） |
 
@@ -185,4 +185,4 @@ lib/ui/qso_result_table/qso_result_list/qso_result_list_cubit.dart       43
 ## 附：本次分析产物
 
 - 覆盖率原始数据：`coverage/lcov.info`（由 `flutter test --coverage` 生成，未纳入版本控制）
-- 复现命令：`fvm flutter test --coverage`、`fvm flutter analyze --no-fatal-infos`
+- 复现命令：`fvm flutter test --coverage`、`fvm flutter analyze --fatal-infos`

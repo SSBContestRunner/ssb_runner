@@ -230,7 +230,7 @@ fastforge package --platform=<linux|windows|macos> --targets=<deb,appimage,zip|z
 
 ### 4.8 参考 workflow（调研草稿；最终实现见 `.github/workflows/ci.yml`）
 
-> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `deb,appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、新增 Debian 12 冒烟测试 job（`.github/scripts/smoke-test-debian.sh`，会 gate 住 release）、macOS 在 `package-macos` 打包后用 `lipo` 校验 universal（arm64 + x86_64）切片（原先独立的 Intel Runner 冒烟 job 因 VM 偶发冻结已移除，见第 9 节）、macOS 增加 appdmg 安装、analyze 使用 `--no-fatal-infos`、`package` 由单个 matrix job 拆成 `package-linux`/`package-windows`/`package-macos` 三个平台 job（见 4.3）、新增 `setup` job 解析平台输入并在 Windows 上重写 `FLUTTER_ROOT`（见 4.4 ②）。
+> ⚠️ 以下为调研阶段草稿，**与最终实现有差异**，请以仓库中的 `.github/workflows/ci.yml` 为准。主要差异：fastforge 固定 0.6.12、Linux 固定 `ubuntu-22.04` runner 且 targets 为 `deb,appimage,zip`、新增 FVM 软链接步骤与 appimagetool 安装、新增 Debian 12 冒烟测试 job（`.github/scripts/smoke-test-debian.sh`，会 gate 住 release）、macOS 在 `package-macos` 打包后用 `lipo` 校验 universal（arm64 + x86_64）切片（原先独立的 Intel Runner 冒烟 job 因 VM 偶发冻结已移除，见第 9 节）、macOS 增加 appdmg 安装、analyze 使用 `--fatal-infos`、`package` 由单个 matrix job 拆成 `package-linux`/`package-windows`/`package-macos` 三个平台 job（见 4.3）、新增 `setup` job 解析平台输入并在 Windows 上重写 `FLUTTER_ROOT`（见 4.4 ②）。
 
 ```yaml
 name: CI
@@ -393,7 +393,7 @@ jobs:
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| **P0 基础 CI** | `.github/workflows/ci.yml`：checkout（含子模块）+ flutter-action 读 `.fvmrc` + `flutter analyze --no-fatal-infos` + `flutter test` | ✅ 已落地，本地两关通过（14 tests passed） |
+| **P0 基础 CI** | `.github/workflows/ci.yml`：checkout（含子模块）+ flutter-action 读 `.fvmrc` + `flutter analyze --fatal-infos` + `flutter test` | ✅ 已落地，本地两关通过（14 tests passed） |
 | **P1 自动打包** | tag 触发的三平台 matrix + fastforge；解决 `FLUTTER_ROOT`（FVM 软链接）与子模块 HTTPS | ✅ 已落地（macOS dmg 本地实测通过；Linux / Windows 待 CI 首跑） |
 | **P2 自动发布** | release job 汇聚产物并创建 draft GitHub Release | ✅ 已落地 |
 | **P3 扩展（可选）** | 接入 Dependabot 自动升级依赖；增加产物体积/完整性校验 | 待办 |
@@ -403,7 +403,7 @@ jobs:
 ### 8.1 落地过程中顺带修复的问题
 
 1. **`test/dxcc_loader_test.dart` 长期失败**：用例读取的是 `assets/dxcc/cty.xml`，而资源仓库里只有 `cty.xml.gz`（应用运行时也是加载 `.gz` 再解压）。已把该用例改为按 `.gz` 解码后再解析，与 `DxccManager.loadDxcc()` 保持一致。
-2. **`flutter analyze` 会因一条历史 info 失败**：`lib/contest_run/score_manager.dart:7` 的 `CQ_WPX` 触发 `constant_identifier_names`。本期用 `--no-fatal-infos` 放行，后续可选择重命名常量或收紧 lint 配置。
+2. **`flutter analyze` 会因一条历史 info 失败**：`lib/contest_run/score_manager.dart:7` 的 `CQ_WPX` 触发 `constant_identifier_names`。本期用 `--no-fatal-infos` 放行，后续可选择重命名常量或收紧 lint 配置。**后续已处理**：该常量无任何引用，已直接删除；同时把 analyzer 报出的全部 info 清零并把 CI 收紧为 `--fatal-infos`（见 `docs/design/analyzer_infos_cleanup.md`）。
 3. **fastforge 0.6.6 与 Flutter 3.47 不兼容**：见 4.4 ⑤，需升级到 ≥ 0.6.11。
 4. **子模块 SSH 地址**：已改为 HTTPS，本地克隆执行 `git submodule sync assets` 同步。
 5. **Windows 打包因 `.fvm` 相对路径失败**：CI 首跑时 `package (windows)` 报 `'.fvm' is not recognized as an internal or external command`，`BUILD FAILED`。原因是 fastforge 经 cmd 执行拼接出的 `.fvm/versions/3.47.5\bin\flutter`，混合分隔符无法执行。已改为在 Windows Runner 上把 `FLUTTER_ROOT` 重写为 SDK 的绝对路径，见 4.4 ②。

@@ -55,8 +55,9 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        # Only warnings/errors fail the gate; info-level lints are reported but non-blocking.
-        run: flutter analyze --no-fatal-infos
+        # Info-level lints are gating too, so analyzer debt cannot pile up again
+        # (see docs/design/analyzer_infos_cleanup.md).
+        run: flutter analyze --fatal-infos
 
       - name: Install Linux test dependencies
         # window_manager 0.6.0 reaches nativeapi/cnativeapi, whose build hook links

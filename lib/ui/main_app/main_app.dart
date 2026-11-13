@@ -513,15 +513,11 @@ class _MainAppCubit extends Cubit<_AppState> {
   final _ExitSignal _exitSignal;
 
   _MainAppCubit({
-    required ValueNotifier<AppLanguage> language,
-    required ValueNotifier<ThemeMode> themeMode,
-    required AudioInitTracker audio,
-    required _ExitSignal exitSignal,
-  }) : _language = language,
-       _themeMode = themeMode,
-       _audio = audio,
-       _exitSignal = exitSignal,
-       super(const _Loading());
+    required this._language,
+    required this._themeMode,
+    required this._audio,
+    required this._exitSignal,
+  }) : super(const _Loading());
 
   Future<void> load({
     required DxccManager dxccManager,

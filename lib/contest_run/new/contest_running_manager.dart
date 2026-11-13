@@ -124,28 +124,18 @@ class ContestRunningManager with WidgetsBindingObserver {
 
   ContestRunningManager({
     required this.runId,
-    required ContestTimer contestTimer,
-    required ContestType contestType,
-    required ContestDataManager contestDataManager,
-    required ScoreCalculator scoreCalculator,
-    required TrainingMode mode,
-    required TrainingDifficulty difficulty,
-    required int seed,
+    required this._contestTimer,
+    required this._contestType,
+    required this._contestDataManager,
+    required this._scoreCalculator,
+    required this._mode,
+    required this._difficulty,
+    required this._seed,
     AnswerSource? answerSource,
-    required AccentPolicy accentPolicy,
-    void Function(ContestAnswer answer)? onAnswerGenerated,
-    void Function(String reason)? onAnswersExhausted,
-  }) : _contestType = contestType,
-       _contestTimer = contestTimer,
-       _contestDataManager = contestDataManager,
-       _scoreCalculator = scoreCalculator,
-       _mode = mode,
-       _difficulty = difficulty,
-       _seed = seed,
-       _answerSourceOverride = answerSource,
-       _onAnswerGenerated = onAnswerGenerated,
-       _onAnswersExhausted = onAnswersExhausted,
-       _accentPolicy = accentPolicy {
+    required this._accentPolicy,
+    this._onAnswerGenerated,
+    this._onAnswersExhausted,
+  }) : _answerSourceOverride = answerSource {
     _contestDataManager.audioLoader.setSessionRandom(_sessionRandom);
     WidgetsBinding.instance.addObserver(this);
     _setupStateMachine();

@@ -5,8 +5,6 @@ import 'package:ssb_runner/contest_run/qso_duplicates.dart';
 import 'package:ssb_runner/contest_type/score_calculator.dart';
 import 'package:ssb_runner/db/app_database.dart';
 
-const CQ_WPX = 'CQ-WPX';
-
 class ScoreManager {
   final String contestId;
   final String stationCallsign;

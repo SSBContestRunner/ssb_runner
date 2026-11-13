@@ -363,7 +363,7 @@ class _NumericContestType implements ContestType {
   _NumericContestType({
     required int exchangeAudioDigits,
     required ReceivedExchange receivedExchange,
-    required RegExp allowExchangeRegex,
+    required this._allowExchangeRegex,
     required MyExchangePlan plan,
     required StationExchangeConfig stationExchange,
     required String stationCallsign,
@@ -374,7 +374,6 @@ class _NumericContestType implements ContestType {
          receivedExchange,
          dxccManager,
        ),
-       _allowExchangeRegex = allowExchangeRegex,
        _scoreCalculator = _NumericScoreCalculator(
          stationCallsign,
          dxccManager,

@@ -9,7 +9,7 @@
 > 特别约定：**practice seed（练习种子）不做半成品**——阶段 4 仅占位，吸收全部完成后由**阶段 5**完整实现（统一随机源 + 双种子 + Drift 事件日志 + 重放引擎），验收标准见 §3 阶段 5.7
 
 > 实施状态（单工作区落地，2026-09-30）：阶段 1、2、3、4（含 4A–4E）、A（§5 音频方案）、5、6 的代码改动均已落地；
-> `flutter analyze` 仅剩 `lib/contest_run/score_manager.dart:7` 的历史 info（CI 以 `--no-fatal-infos` 放行），`flutter test` 全绿。
+> `flutter analyze` 0 issues（CI 为 `--fatal-infos`），`flutter test` 全绿。
 > 未执行的手工验收：真机听感调参（§5.7 第 5 步）、GUI 冒烟、平台 Debug 构建。
 > 本次未按阶段拆分 commit，故不在此记录各阶段 commit hash。
 
