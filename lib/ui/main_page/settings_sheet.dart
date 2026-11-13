@@ -38,9 +38,8 @@ Future<void> showSettingsSheet(
   final runningCubit = context.read<MainSettingsCubit>();
   final dxccManager = context.read<DxccManager>();
   final contestManager = context.read<ContestManager>();
-  final barrierLabel = MaterialLocalizations.of(
-    context,
-  ).modalBarrierDismissLabel;
+  final barrierLabel = MaterialLocalizations.of(context)
+      .modalBarrierDismissLabel;
 
   return showGeneralDialog<void>(
     context: context,
@@ -1091,9 +1090,8 @@ class _StationSentPreview extends StatelessWidget {
                     const SizedBox(width: 9),
                     Text(
                       l10n.stationSentPreviewRstHint,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ],
                 ],
@@ -1101,9 +1099,8 @@ class _StationSentPreview extends StatelessWidget {
               const SizedBox(height: 5),
               Text(
                 sub,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
           ),

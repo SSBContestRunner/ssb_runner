@@ -34,12 +34,10 @@ class QsoVoiceReplayRequest {
 /// profile and resets the stream.
 class QsoVoiceReplayService {
   QsoVoiceReplayService({
-    required AudioLoader audioLoader,
-    required AudioPlayer audioPlayer,
-    required AppSettings appSettings,
-  }) : _audioLoader = audioLoader,
-       _audioPlayer = audioPlayer,
-       _appSettings = appSettings;
+    required this._audioLoader,
+    required this._audioPlayer,
+    required this._appSettings,
+  });
 
   final AudioLoader _audioLoader;
   final AudioPlayer _audioPlayer;

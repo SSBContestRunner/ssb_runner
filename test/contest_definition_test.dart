@@ -86,51 +86,53 @@ void main() {
       );
     }
   });
-  test('every contest charges 2x for a busted call and NIL for a bad exchange',
-      () {
-    final base = QsoTableData(
-      id: 1,
-      utcInSeconds: 1,
-      runId: 'run-1',
-      stationCallsign: 'BI1ABC',
-      callsign: 'JA1ABC',
-      callsignCorrect: 'JA1ABC',
-      exchange: '24',
-      exchangeCorrect: '24',
-    );
-    final bustedCall = base.copyWith(callsign: 'JA1ABX');
-    final bustedBoth = base.copyWith(callsign: 'JA1ABX', exchange: '25');
-    final badExchange = base.copyWith(exchange: '25');
+  test(
+    'every contest charges 2x for a busted call and NIL for a bad exchange',
+    () {
+      final base = QsoTableData(
+        id: 1,
+        utcInSeconds: 1,
+        runId: 'run-1',
+        stationCallsign: 'BI1ABC',
+        callsign: 'JA1ABC',
+        callsignCorrect: 'JA1ABC',
+        exchange: '24',
+        exchangeCorrect: '24',
+      );
+      final bustedCall = base.copyWith(callsign: 'JA1ABX');
+      final bustedBoth = base.copyWith(callsign: 'JA1ABX', exchange: '25');
+      final badExchange = base.copyWith(exchange: '25');
 
-    for (final definition in ContestRegistry.all) {
-      final calculator = _type(definition.id).scoreCalculator;
+      for (final definition in ContestRegistry.all) {
+        final calculator = _type(definition.id).scoreCalculator;
 
-      expect(
-        calculator.calculateCorrectness(base),
-        isA<Correct>(),
-        reason: definition.id,
-      );
-      final callResult = calculator.calculateCorrectness(bustedCall);
-      expect(callResult, isA<Penalty>(), reason: definition.id);
-      expect(
-        (callResult as Penalty).penaltyMultiple,
-        2,
-        reason: definition.id,
-      );
-      final bothResult = calculator.calculateCorrectness(bustedBoth);
-      expect(bothResult, isA<Penalty>(), reason: definition.id);
-      expect(
-        (bothResult as Penalty).penaltyMultiple,
-        2,
-        reason: definition.id,
-      );
-      expect(
-        calculator.calculateCorrectness(badExchange),
-        isA<Incorrect>(),
-        reason: definition.id,
-      );
-    }
-  });
+        expect(
+          calculator.calculateCorrectness(base),
+          isA<Correct>(),
+          reason: definition.id,
+        );
+        final callResult = calculator.calculateCorrectness(bustedCall);
+        expect(callResult, isA<Penalty>(), reason: definition.id);
+        expect(
+          (callResult as Penalty).penaltyMultiple,
+          2,
+          reason: definition.id,
+        );
+        final bothResult = calculator.calculateCorrectness(bustedBoth);
+        expect(bothResult, isA<Penalty>(), reason: definition.id);
+        expect(
+          (bothResult as Penalty).penaltyMultiple,
+          2,
+          reason: definition.id,
+        );
+        expect(
+          calculator.calculateCorrectness(badExchange),
+          isA<Incorrect>(),
+          reason: definition.id,
+        );
+      }
+    },
+  );
 
   test('unknown prefixes and DXCC ids cannot add multipliers', () {
     final qso = QsoTableData(
@@ -149,10 +151,7 @@ void main() {
     expect(wpx.calculateScore([qso]).multiple, 1);
     // No extractable prefix: the prefix set must stay empty instead of
     // counting a blank string as a multiplier.
-    expect(
-      wpx.calculateScore([qso.copyWith(callsign: 'ABCDE')]).multiple,
-      0,
-    );
+    expect(wpx.calculateScore([qso.copyWith(callsign: 'ABCDE')]).multiple, 0);
 
     final cqww = _type(
       'CQ-WW-SSB',
@@ -346,9 +345,8 @@ void main() {
 
   test('ARRL operator exchange follows the station role', () {
     final wve = _FakeDxccManager(dxccId: 291);
-    final wvePlan = ContestRegistry.byId(
-      'ARRL-DX',
-    ).myExchangePlan(stationCallsign: 'W1ABC', dxccManager: wve);
+    final wvePlan = ContestRegistry.byId('ARRL-DX')
+        .myExchangePlan(stationCallsign: 'W1ABC', dxccManager: wve);
     expect(wvePlan.fields.single.id, 'stateProvince');
     // RUN gate: a W/VE operator must configure a valid state/province.
     expect(
@@ -393,9 +391,8 @@ void main() {
 
     // A DX operator must configure power instead.
     final dx = _FakeDxccManager(dxccId: 318);
-    final dxPlan = ContestRegistry.byId(
-      'ARRL-DX',
-    ).myExchangePlan(stationCallsign: 'BI1QJQ', dxccManager: dx);
+    final dxPlan = ContestRegistry.byId('ARRL-DX')
+        .myExchangePlan(stationCallsign: 'BI1QJQ', dxccManager: dx);
     expect(dxPlan.fields.single.id, 'power');
     expect(
       validateStationExchange(
@@ -424,9 +421,8 @@ void main() {
 
   test('JIDX constrains the operator prefecture to its JA call area', () {
     final ja = _FakeDxccManager(dxccId: 339);
-    final plan = ContestRegistry.byId(
-      'JIDX-SSB',
-    ).myExchangePlan(stationCallsign: 'JA1ABC', dxccManager: ja);
+    final plan = ContestRegistry.byId('JIDX-SSB')
+        .myExchangePlan(stationCallsign: 'JA1ABC', dxccManager: ja);
     expect(plan.fields.single.min, 10);
     expect(plan.fields.single.max, 17);
     expect(

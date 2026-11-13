@@ -4,7 +4,7 @@
 > 背景：当前无论选择哪个比赛，操作员（我方 station）发出的 exchange 恒为 "59 + QSO 序号"，即 CQ WPX 的 "`59 #`" 形态，与所选比赛规则不符。
 > 目标：按 contest 类型让 station 配置随之变化（CQ Zone / ITU Zone / Power / Prefecture / State 等），并据此生成正确的我方 exchange。
 >
-> **实施状态**：阶段 A + B 已落地。`flutter analyze` 仅剩历史 info（CI 以 `--no-fatal-infos` 放行），`flutter test` 79/79 通过。
+> **实施状态**：阶段 A + B 已落地。`flutter analyze` 0 issues（CI 为 `--fatal-infos`），`flutter test` 79/79 通过。
 > 已落地：station exchange 模型 / 五比赛 plan / 运行时接线 / 设置页动态字段 / RUN 硬门槛 / cty `cqz` 解析 + schema v3 / 默认值派生（`BI1QJQ` → CQ Zone 24）。
 > 未做（见 §14）：ARRL W/VE（L0）、我方 exchange 记录（D6-A）、规则版本字段（不采纳）、入站真实化（阶段 C）。
 

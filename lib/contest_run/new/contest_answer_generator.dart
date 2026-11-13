@@ -38,16 +38,12 @@ class ContestAnswerGenerator implements AnswerSource {
       .toList();
 
   ContestAnswerGenerator({
-    required CallsignLoader callsignLoader,
-    required ContestType contestType,
-    required TrainingMode mode,
-    required TrainingDifficulty difficulty,
-    required SessionRandom random,
-  }) : _callsignLoader = callsignLoader,
-       _contestType = contestType,
-       _mode = mode,
-       _difficulty = difficulty,
-       _random = random;
+    required this._callsignLoader,
+    required this._contestType,
+    required this._mode,
+    required this._difficulty,
+    required this._random,
+  });
 
   @override
   ContestAnswer generateAnswer({String? requeueCallsign}) {

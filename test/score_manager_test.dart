@@ -31,9 +31,8 @@ void main() {
         expect(scores.last.score, scores.first.score);
         expect(scores.last.multiple, scores.first.multiple);
       }
-      final next = _qso(
-        3,
-      ).copyWith(callsign: 'K1ABC', callsignCorrect: 'K1ABC');
+      final next = _qso(3)
+          .copyWith(callsign: 'K1ABC', callsignCorrect: 'K1ABC');
       manager.addQso([first, duplicate, next], next);
       await pumpEventQueue();
       expect(raw.last.count, 2);
@@ -45,74 +44,77 @@ void main() {
       await manager.verifiedScoreDataStream.close();
     },
   );
-  test('a busted callsign subtracts twice the QSO value from verified only',
-      () async {
-    final manager = ScoreManager(
-      contestId: 'run-1',
-      stationCallsign: 'BI1ABC',
-      scoreCalculator: _LogCheckScoreCalculator(),
-    );
-    final raw = <ScoreData>[];
-    final verified = <ScoreData>[];
-    final rawSub = manager.rawScoreDataStream.stream.listen(raw.add);
-    final verifiedSub = manager.verifiedScoreDataStream.stream.listen(
-      verified.add,
-    );
+  test(
+    'a busted callsign subtracts twice the QSO value from verified only',
+    () async {
+      final manager = ScoreManager(
+        contestId: 'run-1',
+        stationCallsign: 'BI1ABC',
+        scoreCalculator: _LogCheckScoreCalculator(),
+      );
+      final raw = <ScoreData>[];
+      final verified = <ScoreData>[];
+      final rawSub = manager.rawScoreDataStream.stream.listen(raw.add);
+      final verifiedSub = manager.verifiedScoreDataStream.stream.listen(
+        verified.add,
+      );
 
-    manager.addQso([_qso(1)], _qso(1));
-    await pumpEventQueue();
-    final busted = _qso(
-      2,
-    ).copyWith(callsign: 'JA1ABX', callsignCorrect: 'JA1ABC');
-    manager.addQso([_qso(1), busted], busted);
-    await pumpEventQueue();
+      manager.addQso([_qso(1)], _qso(1));
+      await pumpEventQueue();
+      final busted = _qso(2)
+          .copyWith(callsign: 'JA1ABX', callsignCorrect: 'JA1ABC');
+      manager.addQso([_qso(1), busted], busted);
+      await pumpEventQueue();
 
-    expect(raw.last.count, 2);
-    expect(raw.last.score, 6);
-    expect(verified.last.count, 1);
-    expect(verified.last.score, 0, reason: '6 - 2 * 3');
+      expect(raw.last.count, 2);
+      expect(raw.last.score, 6);
+      expect(verified.last.count, 1);
+      expect(verified.last.score, 0, reason: '6 - 2 * 3');
 
-    await rawSub.cancel();
-    await verifiedSub.cancel();
-    await manager.rawScoreDataStream.close();
-    await manager.verifiedScoreDataStream.close();
-  });
+      await rawSub.cancel();
+      await verifiedSub.cancel();
+      await manager.rawScoreDataStream.close();
+      await manager.verifiedScoreDataStream.close();
+    },
+  );
 
-  test('a wrong exchange is NIL: verified stays flat, raw still grows',
-      () async {
-    final manager = ScoreManager(
-      contestId: 'run-1',
-      stationCallsign: 'BI1ABC',
-      scoreCalculator: _LogCheckScoreCalculator(),
-    );
-    final raw = <ScoreData>[];
-    final verified = <ScoreData>[];
-    final rawSub = manager.rawScoreDataStream.stream.listen(raw.add);
-    final verifiedSub = manager.verifiedScoreDataStream.stream.listen(
-      verified.add,
-    );
+  test(
+    'a wrong exchange is NIL: verified stays flat, raw still grows',
+    () async {
+      final manager = ScoreManager(
+        contestId: 'run-1',
+        stationCallsign: 'BI1ABC',
+        scoreCalculator: _LogCheckScoreCalculator(),
+      );
+      final raw = <ScoreData>[];
+      final verified = <ScoreData>[];
+      final rawSub = manager.rawScoreDataStream.stream.listen(raw.add);
+      final verifiedSub = manager.verifiedScoreDataStream.stream.listen(
+        verified.add,
+      );
 
-    manager.addQso([_qso(1)], _qso(1));
-    await pumpEventQueue();
-    final wrongExchange = _qso(2).copyWith(
-      callsign: 'JA1ABC',
-      callsignCorrect: 'JA1ABC',
-      exchange: '2',
-      exchangeCorrect: '3',
-    );
-    manager.addQso([_qso(1), wrongExchange], wrongExchange);
-    await pumpEventQueue();
+      manager.addQso([_qso(1)], _qso(1));
+      await pumpEventQueue();
+      final wrongExchange = _qso(2).copyWith(
+        callsign: 'JA1ABC',
+        callsignCorrect: 'JA1ABC',
+        exchange: '2',
+        exchangeCorrect: '3',
+      );
+      manager.addQso([_qso(1), wrongExchange], wrongExchange);
+      await pumpEventQueue();
 
-    expect(raw.last.count, 2);
-    expect(raw.last.score, 6);
-    expect(verified.last.count, 1);
-    expect(verified.last.score, 3);
+      expect(raw.last.count, 2);
+      expect(raw.last.score, 6);
+      expect(verified.last.count, 1);
+      expect(verified.last.score, 3);
 
-    await rawSub.cancel();
-    await verifiedSub.cancel();
-    await manager.rawScoreDataStream.close();
-    await manager.verifiedScoreDataStream.close();
-  });
+      await rawSub.cancel();
+      await verifiedSub.cancel();
+      await manager.rawScoreDataStream.close();
+      await manager.verifiedScoreDataStream.close();
+    },
+  );
 
   // Regression: a cancelled single-subscription controller can never be
   // listened to again, which crashed the score area when a replayed session

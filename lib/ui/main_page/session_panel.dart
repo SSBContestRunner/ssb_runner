@@ -415,9 +415,8 @@ class _StatusChip extends StatelessWidget {
     required ContestSessionPhase phase,
     required List<SettingsIssue> issues,
   }) {
-    final style = Theme.of(
-      context,
-    ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600);
+    final style = Theme.of(context).textTheme.labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600);
     return 10 +
         _indicatorWidth(phase, issues) +
         6 +
@@ -566,7 +565,10 @@ class _PauseDurationTooltipState extends State<_PauseDurationTooltip> {
   @override
   void initState() {
     super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+    _ticker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => setState(() {}),
+    );
   }
 
   @override
@@ -1029,9 +1031,8 @@ class _RunButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: Theme.of(
-            context,
-          ).textTheme.labelLarge?.copyWith(fontSize: 15, letterSpacing: 0.5),
+          textStyle: Theme.of(context).textTheme.labelLarge
+              ?.copyWith(fontSize: 15, letterSpacing: 0.5),
         ),
         onPressed: () async {
           final manager = context.read<ContestManager>();
@@ -1100,10 +1101,8 @@ class _EndButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w500,
-            letterSpacing: 0.1,
-          ),
+          textStyle: Theme.of(context).textTheme.labelLarge
+              ?.copyWith(fontWeight: FontWeight.w500, letterSpacing: 0.1),
         ),
         onPressed: () async {
           final manager = context.read<ContestManager>();
@@ -1218,10 +1217,8 @@ class _ResumeStripState extends State<_ResumeStrip> {
           l10n.resumeCountdown(_seconds),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: foreground,
-          ),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600, color: foreground),
         ),
       ),
     );
@@ -1399,12 +1396,8 @@ class _QsoSpeedCubit extends Cubit<double?> {
   final ContestManager _contestManager;
   late final StreamSubscription<Duration> _subscription;
 
-  _QsoSpeedCubit({
-    required ContestTimer contestTimer,
-    required ContestManager contestManager,
-  }) : _contestTimer = contestTimer,
-       _contestManager = contestManager,
-       super(null) {
+  _QsoSpeedCubit({required this._contestTimer, required this._contestManager})
+    : super(null) {
     _subscription = _contestTimer.elapseTimeStream.listen(_updateQsoSpeed);
   }
 

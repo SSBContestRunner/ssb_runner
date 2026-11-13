@@ -10,7 +10,6 @@ abstract interface class ScoreCalculator {
   ScoreData calculateScore(List<QsoTableData> qsos);
 }
 
-
 sealed class CorrectnessType {}
 
 final class Correct extends CorrectnessType {}

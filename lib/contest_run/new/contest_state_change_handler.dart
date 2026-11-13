@@ -60,27 +60,17 @@ class ContestStateChangeHandler {
   bool _isAbandoning = false;
 
   ContestStateChangeHandler({
-    required String contestRunId,
-    required ContestTimer contestTimer,
-    required ContestType contestType,
-    required ContestDataManager contestDataManager,
-    required StateMachine<SingleCallRunState, SingleCallRunEvent, Null>
-    stateMachine,
-    required ScoreManager scoreManager,
+    required this._contestRunId,
+    required this._contestTimer,
+    required this._contestType,
+    required this._contestDataManager,
+    required this._stateMachine,
+    required this._scoreManager,
     required AnswerSource contestAnswerGenerator,
-    void Function(String reason)? onAnswersExhausted,
-    required AccentPolicy accentPolicy,
-    Duration retryTimeout = _defaultTimeoutDuration,
-  }) : _retryTimeout = retryTimeout,
-       _contestRunId = contestRunId,
-       _contestTimer = contestTimer,
-       _contestType = contestType,
-       _contestDataManager = contestDataManager,
-       _stateMachine = stateMachine,
-       _scoreManager = scoreManager,
-       _answerGenerator = contestAnswerGenerator,
-       _onAnswersExhausted = onAnswersExhausted,
-       _accentPolicy = accentPolicy {
+    this._onAnswersExhausted,
+    required this._accentPolicy,
+    this._retryTimeout = _defaultTimeoutDuration,
+  }) : _answerGenerator = contestAnswerGenerator {
     _inputHandler.onInputChanged = _resetRetryTimer;
   }
 

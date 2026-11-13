@@ -18,22 +18,27 @@ Uint8List _tone({required int samples, required int amplitude}) {
 }
 
 void main() {
-  test('the target keeps full gain instead of being divided by caller count',
-      () {
-    final target = _tone(samples: 240, amplitude: 1000);
-    final interferer = _tone(samples: 240, amplitude: 1000);
+  test(
+    'the target keeps full gain instead of being divided by caller count',
+    () {
+      final target = _tone(samples: 240, amplitude: 1000);
+      final interferer = _tone(samples: 240, amplitude: 1000);
 
-    final mixed = mixPileup(target, [interferer]);
+      final mixed = mixPileup(target, [interferer]);
 
-    final data = ByteData.sublistView(mixed);
-    var targetPeak = 0;
-    for (var index = 0; index < 240; index++) {
-      targetPeak = max(targetPeak, data.getInt16(index * 2, Endian.little).abs());
-    }
-    // Interferers are offset by default, so the start is dominated by the
-    // target; a plain ~/2 average would halve this.
-    expect(targetPeak, greaterThan(900));
-  });
+      final data = ByteData.sublistView(mixed);
+      var targetPeak = 0;
+      for (var index = 0; index < 240; index++) {
+        targetPeak = max(
+          targetPeak,
+          data.getInt16(index * 2, Endian.little).abs(),
+        );
+      }
+      // Interferers are offset by default, so the start is dominated by the
+      // target; a plain ~/2 average would halve this.
+      expect(targetPeak, greaterThan(900));
+    },
+  );
 
   test('overlapping peaks are soft-limited instead of hard-clipped', () {
     final target = _tone(samples: 400, amplitude: 30000);

@@ -260,7 +260,6 @@ initSingleCallRunStateMachine({
           ),
         );
       });
-
     });
 
     builder.state(WaitingSubmitMyExchange, (definition) {

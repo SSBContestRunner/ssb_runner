@@ -32,10 +32,9 @@ class QsoConsoleCubit extends Cubit<SingleCallRunState?> {
   final ContestManager _contestManager;
 
   QsoConsoleCubit({
-    required ContestManager contestManager,
+    required this._contestManager,
     required ContestInputHandler contestInputHandler,
   }) : _inputHandler = contestInputHandler,
-       _contestManager = contestManager,
        super(null) {
     attachOperationContestRunning();
   }
@@ -232,9 +231,8 @@ class _PhaseHintBar extends StatelessWidget {
                 key: const Key('phase-hint'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: scheme.onSurface),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurface),
               ),
             ),
             if (_canAbandon(state))
@@ -805,9 +803,7 @@ class _ContestTypeCubit extends Cubit<RegExp?> {
   final ContestManager _contestManager;
   StreamSubscription<ContestType>? _contestTypeSubscription;
 
-  _ContestTypeCubit({required ContestManager contestManager})
-    : _contestManager = contestManager,
-      super(null) {
+  _ContestTypeCubit({required this._contestManager}) : super(null) {
     _contestTypeSubscription = _contestManager.contestTypeStream.listen((
       contestType,
     ) {

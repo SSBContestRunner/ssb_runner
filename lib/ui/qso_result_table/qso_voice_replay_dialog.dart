@@ -115,10 +115,7 @@ class QsoVoiceReplayDialog extends StatelessWidget {
 }
 
 class _QsoVoiceReplayEntryRow extends StatelessWidget {
-  const _QsoVoiceReplayEntryRow({
-    required this.item,
-    required this.isPlaying,
-  });
+  const _QsoVoiceReplayEntryRow({required this.item, required this.isPlaying});
 
   final QsoResult item;
   final bool isPlaying;
@@ -196,9 +193,8 @@ class _QsoVoiceReplayEntryRow extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
       );
     }
     return const SizedBox.shrink();
@@ -331,9 +327,8 @@ class _QsoVoiceReplayTag extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: color, letterSpacing: 0.6),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: color, letterSpacing: 0.6),
       ),
     );
   }

@@ -50,14 +50,16 @@ void main() {
     final count = pcm.length ~/ 2;
     var meanStep = 0.0;
     for (var index = 1; index < count; index++) {
-      meanStep += (data.getInt16(index * 2, Endian.little) -
-              data.getInt16((index - 1) * 2, Endian.little))
-          .abs();
+      meanStep +=
+          (data.getInt16(index * 2, Endian.little) -
+                  data.getInt16((index - 1) * 2, Endian.little))
+              .abs();
     }
     meanStep /= (count - 1);
-    final seam = (data.getInt16(0, Endian.little) -
-            data.getInt16((count - 1) * 2, Endian.little))
-        .abs();
+    final seam =
+        (data.getInt16(0, Endian.little) -
+                data.getInt16((count - 1) * 2, Endian.little))
+            .abs();
     expect(seam, lessThan(meanStep * 8));
   });
 

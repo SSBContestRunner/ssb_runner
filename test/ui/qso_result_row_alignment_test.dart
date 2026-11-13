@@ -94,7 +94,8 @@ void main() {
           final rowRect = tester.getRect(find.byType(QsoRecordRow));
           expect(rowRect.height, 42);
 
-          final label = '${locale.languageCode}_${locale.countryCode} '
+          final label =
+              '${locale.languageCode}_${locale.countryCode} '
               'x$scale replay=$withReplay';
           _expectCentred(tester, label, item.utc);
           _expectCentred(tester, label, item.call.data);

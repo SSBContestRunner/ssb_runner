@@ -231,10 +231,7 @@ void main() {
     expect(settings.contestId, 'CQ-WW-SSB');
     expect(find.text('CQ WPX'), findsWidgets);
     expect(find.text('Replay armed'), findsOneWidget);
-    expect(
-      find.textContaining('You send: 59 + serial number'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('You send: 59 + serial number'), findsOneWidget);
     expect(find.text('001'), findsOneWidget);
 
     settings.clearPendingReplay();
@@ -815,9 +812,8 @@ Future<AppSettings> _pumpMainPage(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
         home: MultiRepositoryProvider(

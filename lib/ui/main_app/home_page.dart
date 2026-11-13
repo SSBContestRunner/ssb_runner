@@ -9,8 +9,7 @@ import 'package:ssb_runner/ui/main_page/main_page.dart';
 class HomePage extends StatelessWidget {
   final AppSettings _settings;
 
-  const HomePage({super.key, required AppSettings settings})
-    : _settings = settings;
+  const HomePage({super.key, required this._settings});
 
   @override
   Widget build(BuildContext context) {

@@ -4,12 +4,11 @@ import 'package:ssb_runner/training/session_random.dart';
 
 /// Builds the exchange an *incoming* station transmits, given its callsign.
 /// Per-contest implementations live at the bottom of this file.
-typedef ReceivedExchange =
-    String Function({
-      required SessionRandom random,
-      required String callerCallsign,
-      required DxccManager dxccManager,
-    });
+typedef ReceivedExchange = String Function({
+  required SessionRandom random,
+  required String callerCallsign,
+  required DxccManager dxccManager,
+});
 
 /// US / Canada DXCC entity ids (cty `adif`).
 const Set<int> wveDxccIds = {291, 1};
@@ -19,17 +18,73 @@ bool isWveDxcc(int dxccId) => wveDxccIds.contains(dxccId);
 /// ARRL DX multipliers for W/VE stations: the 48 contiguous US states plus DC.
 /// Alaska (KL7) and Hawaii (KH6) are DXCC entities and send power instead.
 const List<String> arrlUsStates = [
-  'AL', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA', 'ID', 'IL',
-  'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO',
-  'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR',
-  'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI',
+  'AL',
+  'AZ',
+  'AR',
+  'CA',
+  'CO',
+  'CT',
+  'DE',
+  'DC',
+  'FL',
+  'GA',
+  'ID',
+  'IL',
+  'IN',
+  'IA',
+  'KS',
+  'KY',
+  'LA',
+  'ME',
+  'MD',
+  'MA',
+  'MI',
+  'MN',
+  'MS',
+  'MO',
+  'MT',
+  'NE',
+  'NV',
+  'NH',
+  'NJ',
+  'NM',
+  'NY',
+  'NC',
+  'ND',
+  'OH',
+  'OK',
+  'OR',
+  'PA',
+  'RI',
+  'SC',
+  'SD',
+  'TN',
+  'TX',
+  'UT',
+  'VT',
+  'VA',
+  'WA',
+  'WV',
+  'WI',
   'WY',
 ];
 
 /// Canadian provinces / territories (ARRL list; VO1/VO2 counted separately).
 const List<String> arrlCanadaProvinces = [
-  'AB', 'BC', 'LB', 'MB', 'NB', 'NF', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC',
-  'SK', 'YT',
+  'AB',
+  'BC',
+  'LB',
+  'MB',
+  'NB',
+  'NF',
+  'NS',
+  'NT',
+  'NU',
+  'ON',
+  'PE',
+  'QC',
+  'SK',
+  'YT',
 ];
 
 /// Every state/province an ARRL DX operator may send.

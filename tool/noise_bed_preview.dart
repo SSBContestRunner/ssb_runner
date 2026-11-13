@@ -62,7 +62,9 @@ Uint8List _mix(Uint8List voice, Uint8List bed, double bedGain) {
   final out = Uint8List(voice.length);
   final output = ByteData.sublistView(out);
   for (var index = 0; index < voice.length ~/ 2; index++) {
-    final noise = (bedData.getInt16((index * 2) % bed.length, Endian.little) * bedGain).round();
+    final noise =
+        (bedData.getInt16((index * 2) % bed.length, Endian.little) * bedGain)
+            .round();
     final mixed = voiceData.getInt16(index * 2, Endian.little) + noise;
     output.setInt16(index * 2, mixed.clamp(-32768, 32767), Endian.little);
   }

@@ -15,7 +15,11 @@ void main() {
       final operations = <OperationEvent>[];
       handler.operationEventStream.listen(operations.add);
 
-      _press(handler, LogicalKeyboardKey.semicolon, PhysicalKeyboardKey.semicolon);
+      _press(
+        handler,
+        LogicalKeyboardKey.semicolon,
+        PhysicalKeyboardKey.semicolon,
+      );
       await pumpEventQueue();
 
       expect(operations, [OperationEvent.hisCallAndMyExchange]);
@@ -44,8 +48,15 @@ void main() {
       final operations = <OperationEvent>[];
       handler.operationEventStream.listen(operations.add);
 
-      _holdModifier(LogicalKeyboardKey.shiftLeft, PhysicalKeyboardKey.shiftLeft);
-      _press(handler, LogicalKeyboardKey.semicolon, PhysicalKeyboardKey.semicolon);
+      _holdModifier(
+        LogicalKeyboardKey.shiftLeft,
+        PhysicalKeyboardKey.shiftLeft,
+      );
+      _press(
+        handler,
+        LogicalKeyboardKey.semicolon,
+        PhysicalKeyboardKey.semicolon,
+      );
       await pumpEventQueue();
 
       expect(operations, isEmpty);
@@ -93,7 +104,10 @@ void main() {
       final operations = <OperationEvent>[];
       handler.operationEventStream.listen(operations.add);
 
-      _holdModifier(LogicalKeyboardKey.shiftLeft, PhysicalKeyboardKey.shiftLeft);
+      _holdModifier(
+        LogicalKeyboardKey.shiftLeft,
+        PhysicalKeyboardKey.shiftLeft,
+      );
       _press(handler, LogicalKeyboardKey.enter, PhysicalKeyboardKey.enter);
       await pumpEventQueue();
 
@@ -106,7 +120,11 @@ void main() {
     final operations = <OperationEvent>[];
     handler.operationEventStream.listen(operations.add);
 
-    _press(handler, LogicalKeyboardKey.semicolon, PhysicalKeyboardKey.semicolon);
+    _press(
+      handler,
+      LogicalKeyboardKey.semicolon,
+      PhysicalKeyboardKey.semicolon,
+    );
     handler.onKeyEvent(
       const KeyRepeatEvent(
         logicalKey: LogicalKeyboardKey.semicolon,
@@ -175,7 +193,10 @@ void _press(
 
 /// Feeds the framework's own pressed state, which is what the handler reads to
 /// tell a shortcut from a modifier combination.
-void _holdModifier(LogicalKeyboardKey logicalKey, PhysicalKeyboardKey physicalKey) {
+void _holdModifier(
+  LogicalKeyboardKey logicalKey,
+  PhysicalKeyboardKey physicalKey,
+) {
   HardwareKeyboard.instance.handleKeyEvent(
     KeyDownEvent(
       logicalKey: logicalKey,

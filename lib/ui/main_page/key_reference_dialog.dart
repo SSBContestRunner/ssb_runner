@@ -226,9 +226,8 @@ class _ShortcutRow extends StatelessWidget {
           Expanded(
             child: Text(
               description,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: scheme.onSurface),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurface),
             ),
           ),
           const SizedBox(width: 12),
@@ -342,9 +341,8 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
                           issue.winner!.label,
                           issue.key.label,
                         ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onErrorContainer,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onErrorContainer),
                       ),
                   ],
                 ),
@@ -425,9 +423,8 @@ class _KeyBindingsDialogState extends State<KeyBindingsDialog> {
             if (owner != null)
               TextSpan(
                 text: '  ${l10n.functionKeysUsedByKey(owner.label)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
           ],
         ),

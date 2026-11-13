@@ -13,8 +13,7 @@ class DxccManager {
   /// Prefix lookup table; empty until [loadDxcc] succeeds.
   Map<String, PrefixRow> _prefixByCall = const <String, PrefixRow>{};
 
-  int findCallsignDxccId(String callsign) =>
-      _findMatch(callsign)?.dxccId ?? -1;
+  int findCallsignDxccId(String callsign) => _findMatch(callsign)?.dxccId ?? -1;
 
   /// CQ zone for a callsign, or null when the cty data has no match.
   int? findCallsignCqZone(String callsign) => _findMatch(callsign)?.cqz;

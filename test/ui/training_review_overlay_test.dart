@@ -112,10 +112,7 @@ void main() {
         matching: find.byType(RichText),
       ),
     );
-    expect(
-      _lineCount(value, '00:05:00'),
-      1,
-    );
+    expect(_lineCount(value, '00:05:00'), 1);
 
     expect(tester.takeException(), isNull);
     await _tearDown(tester, manager);
@@ -150,29 +147,27 @@ int _lineCount(RenderParagraph paragraph, String text) {
   return tops.length;
 }
 
-TrainingRunReview _review({
-  required Duration paused,
-  required int count,
-}) => TrainingRunReview(
-  metadata: TrainingRunMetadata(
-    runId: 'review-run',
-    contestId: 'CQ-WPX',
-    contestName: 'CQ WPX',
-    modeId: 'run',
-    difficultyId: 'standard',
-    questionSeed: 7,
-    audioSeed: 8,
-    startedAt: DateTime.utc(2026, 1, 1, 10),
-  ),
-  endedAt: DateTime.utc(2026, 1, 1, 10, 5),
-  qsoCount: 12,
-  correctCount: 10,
-  callsignErrors: 1,
-  exchangeErrors: 1,
-  score: 120,
-  pauseCount: count,
-  pausedDuration: paused,
-);
+TrainingRunReview _review({required Duration paused, required int count}) =>
+    TrainingRunReview(
+      metadata: TrainingRunMetadata(
+        runId: 'review-run',
+        contestId: 'CQ-WPX',
+        contestName: 'CQ WPX',
+        modeId: 'run',
+        difficultyId: 'standard',
+        questionSeed: 7,
+        audioSeed: 8,
+        startedAt: DateTime.utc(2026, 1, 1, 10),
+      ),
+      endedAt: DateTime.utc(2026, 1, 1, 10, 5),
+      qsoCount: 12,
+      correctCount: 10,
+      callsignErrors: 1,
+      exchangeErrors: 1,
+      score: 120,
+      pauseCount: count,
+      pausedDuration: paused,
+    );
 
 Future<_ReviewManager> _pumpOverlay(
   WidgetTester tester,

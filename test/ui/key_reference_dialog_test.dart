@@ -162,25 +162,26 @@ void main() {
   });
 
   for (final scale in [1.0, 1.3]) {
-    testWidgets('the function key menu has no overflow at ${scale}x text scale', (
-      tester,
-    ) async {
-      tester.platformDispatcher.textScaleFactorTestValue = scale;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    testWidgets(
+      'the function key menu has no overflow at ${scale}x text scale',
+      (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-      final prefs = await _createPrefs();
-      final settings = _ConflictingSettings(prefs: prefs);
-      await _openReference(tester, settings);
-      await tester.tap(find.text('Customize function keys'));
-      await tester.pumpAndSettle();
+        final prefs = await _createPrefs();
+        final settings = _ConflictingSettings(prefs: prefs);
+        await _openReference(tester, settings);
+        await tester.tap(find.text('Customize function keys'));
+        await tester.pumpAndSettle();
 
-      final f2 = find.byType(DropdownButtonFormField<String>).at(1);
-      await tester.ensureVisible(f2);
-      await tester.tap(f2);
-      await tester.pumpAndSettle();
+        final f2 = find.byType(DropdownButtonFormField<String>).at(1);
+        await tester.ensureVisible(f2);
+        await tester.tap(f2);
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }
 
@@ -199,13 +200,10 @@ class _ConflictingSettings extends AppSettings {
   @override
   List<FunctionKeyBinding> get functionKeyBindings => [
     for (final key in FunctionKey.values)
-      FunctionKeyBinding(
-        key,
-        switch (key) {
-          FunctionKey.f1 || FunctionKey.f2 => OperationAction.cq,
-          _ => null,
-        },
-      ),
+      FunctionKeyBinding(key, switch (key) {
+        FunctionKey.f1 || FunctionKey.f2 => OperationAction.cq,
+        _ => null,
+      }),
   ];
 }
 

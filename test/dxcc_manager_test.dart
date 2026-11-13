@@ -170,24 +170,28 @@ void main() {
     expect(dxcc.findCallsignDxccId('PW0F'), 56);
   });
 
-  test('the token fallback ignores tokens shorter than three characters',
-      () async {
-    final dxcc = DxccManager(database: db);
-    await dxcc.loadDxcc();
+  test(
+    'the token fallback ignores tokens shorter than three characters',
+    () async {
+      final dxcc = DxccManager(database: db);
+      await dxcc.loadDxcc();
 
-    // 4G and 7Q are table tokens, but too short to identify these calls.
-    expect(dxcc.findCallsignDxccId('4GRID'), -1);
-    expect(dxcc.findCallsignDxccId('7QAA'), -1);
-    expect(dxcc.findCallsignDxccId('7QNL'), -1);
-  });
+      // 4G and 7Q are table tokens, but too short to identify these calls.
+      expect(dxcc.findCallsignDxccId('4GRID'), -1);
+      expect(dxcc.findCallsignDxccId('7QAA'), -1);
+      expect(dxcc.findCallsignDxccId('7QNL'), -1);
+    },
+  );
 
-  test('falls back to the legacy whole-call lookup when the main call misses',
-      () async {
-    final dxcc = DxccManager(database: db);
-    await dxcc.loadDxcc();
+  test(
+    'falls back to the legacy whole-call lookup when the main call misses',
+    () async {
+      final dxcc = DxccManager(database: db);
+      await dxcc.loadDxcc();
 
-    // QQQQ has no row, so the old whole-call extraction answers with K1.
-    expect(dxcc.findCallsignDxccId('QQQQ/K1ABC'), 291);
-    expect(dxcc.findCallsignDxccId('QQQQQ'), -1);
-  });
+      // QQQQ has no row, so the old whole-call extraction answers with K1.
+      expect(dxcc.findCallsignDxccId('QQQQ/K1ABC'), 291);
+      expect(dxcc.findCallsignDxccId('QQQQQ'), -1);
+    },
+  );
 }

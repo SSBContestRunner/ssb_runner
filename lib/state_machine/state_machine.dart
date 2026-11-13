@@ -11,15 +11,9 @@ class StateMachine<S, E, Side> {
 
   StateMachine({
     required S initialState,
-    required Map<
-      Type,
-      Map<Type, TransitionDefinition<S, Side> Function(S state, E event)>
-    >
-    stateDefinitionMap,
-    required List<TransitionListener<S, E, Side>> transitionListeners,
-  }) : currentState = initialState,
-       _stateDefinitionMap = stateDefinitionMap,
-       _transitionListeners = transitionListeners;
+    required this._stateDefinitionMap,
+    required this._transitionListeners,
+  }) : currentState = initialState;
 
   S currentState;
 

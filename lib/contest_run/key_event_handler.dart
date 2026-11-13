@@ -116,14 +116,9 @@ class KeyEventHandler {
     // Only a bare `;` counts. The physical key is still accepted so a layout
     // that reports `:` for the same key keeps working, but Shift is treated as
     // a modifier like everywhere else and suppresses the shortcut.
-    _checkSingleKeyPressed(
-      event,
-      LogicalKeyboardKey.semicolon,
-      () {
-        _operationEventController.add(OperationEvent.hisCallAndMyExchange);
-      },
-      referencePhysicalKey: PhysicalKeyboardKey.semicolon,
-    );
+    _checkSingleKeyPressed(event, LogicalKeyboardKey.semicolon, () {
+      _operationEventController.add(OperationEvent.hisCallAndMyExchange);
+    }, referencePhysicalKey: PhysicalKeyboardKey.semicolon);
 
     _checkSingleKeyPressed(event, LogicalKeyboardKey.space, () {
       _inputAreaEventController.add(InputAreaEvent.switchCallsignAndExchange);

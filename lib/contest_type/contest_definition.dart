@@ -363,7 +363,7 @@ class _NumericContestType implements ContestType {
   _NumericContestType({
     required int exchangeAudioDigits,
     required ReceivedExchange receivedExchange,
-    required RegExp allowExchangeRegex,
+    required this._allowExchangeRegex,
     required MyExchangePlan plan,
     required StationExchangeConfig stationExchange,
     required String stationCallsign,
@@ -374,7 +374,6 @@ class _NumericContestType implements ContestType {
          receivedExchange,
          dxccManager,
        ),
-       _allowExchangeRegex = allowExchangeRegex,
        _scoreCalculator = _NumericScoreCalculator(
          stationCallsign,
          dxccManager,
@@ -428,8 +427,11 @@ class _NumericExchangeManager implements ExchangeManager {
       exchange.replaceFirst(RegExp(r'^0+(?=.)'), '');
 }
 
-typedef _PointsFor =
-    int Function(QsoTableData qso, DxccManager dxcc, String station);
+typedef _PointsFor = int Function(
+  QsoTableData qso,
+  DxccManager dxcc,
+  String station,
+);
 
 class _NumericScoreCalculator implements ScoreCalculator {
   _NumericScoreCalculator(

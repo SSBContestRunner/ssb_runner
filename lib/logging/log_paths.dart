@@ -117,9 +117,9 @@ String redactPath(String path) {
     return path;
   }
 
-  return _replaceHome(
-    path,
-  ).replaceFirst(_posixHomePattern, '~').replaceFirst(_windowsHomePattern, '~');
+  return _replaceHome(path)
+      .replaceFirst(_posixHomePattern, '~')
+      .replaceFirst(_windowsHomePattern, '~');
 }
 
 /// Redacts user-home prefixes anywhere in [text], including log messages that
@@ -129,7 +129,7 @@ String redactText(String text) {
     return text;
   }
 
-  return _replaceHome(
-    text,
-  ).replaceAll(_posixHomePattern, '~').replaceAll(_windowsHomePattern, '~');
+  return _replaceHome(text)
+      .replaceAll(_posixHomePattern, '~')
+      .replaceAll(_windowsHomePattern, '~');
 }

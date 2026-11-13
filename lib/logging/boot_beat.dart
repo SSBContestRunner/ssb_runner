@@ -43,14 +43,11 @@ int bootPhaseValue(String phase) {
 /// and then every [interval] until the boot trace reports `ready`.
 class BootBeat {
   BootBeat({
-    required BootBeatFn beat,
-    required String Function() phase,
-    required int Function() step,
-    Duration interval = const Duration(seconds: 2),
-  }) : _beat = beat,
-       _phase = phase,
-       _step = step,
-       _interval = interval;
+    required this._beat,
+    required this._phase,
+    required this._step,
+    this._interval = const Duration(seconds: 2),
+  });
 
   final BootBeatFn _beat;
   final String Function() _phase;

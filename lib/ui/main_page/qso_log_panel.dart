@@ -124,9 +124,8 @@ class _LogChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: foreground),
+            style: Theme.of(context).textTheme.labelMedium
+                ?.copyWith(color: foreground),
           ),
         ],
       ),
@@ -150,10 +149,8 @@ class _LogHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final style = Theme.of(context).textTheme.labelMedium?.copyWith(
-      color: scheme.onSurfaceVariant,
-      letterSpacing: 0.5,
-    );
+    final style = Theme.of(context).textTheme.labelMedium
+        ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.5);
 
     return Container(
       height: 34,

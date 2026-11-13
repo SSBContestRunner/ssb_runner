@@ -21,9 +21,7 @@ class QsoVoiceReplayButton extends StatelessWidget {
         ? scheme.primary
         : scheme.primaryContainer.withValues(alpha: 0.42);
     final foreground = isPlaying ? scheme.onPrimary : scheme.primary;
-    final icon = isPlaying
-        ? Icons.graphic_eq_rounded
-        : Icons.replay_rounded;
+    final icon = isPlaying ? Icons.graphic_eq_rounded : Icons.replay_rounded;
 
     return SizedBox(
       width: 48,
