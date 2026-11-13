@@ -48,14 +48,61 @@ if (-not $installer) {
 }
 Write-Host "smoke-testing $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
 
+# --- static assertions on the installer template ------------------------------
+# fastforge renders windows/packaging/exe/installer.iss and then deletes it after a
+# successful compile, so the generated script is not part of the artifact. Assert on the
+# source template and on make_config.yaml instead: cheap, and it catches the two
+# regressions this custom template exists to prevent (silently falling back to
+# English-only, and re-adding the "launch at startup" task). The /LANG canary in the
+# install step below then proves the four languages really made it into the compiled setup.
+$configPath = 'windows/packaging/exe/make_config.yaml'
+$templatePath = 'windows/packaging/exe/installer.iss'
+foreach ($requiredFile in @($configPath, $templatePath)) {
+  if (-not (Test-Path $requiredFile)) { Fail "missing $requiredFile (run this script from the repo root)" }
+}
+if ((Get-Content $configPath -Raw) -notmatch '(?m)^script_template:\s*installer\.iss\s*$') {
+  Fail "$configPath: script_template is not installer.iss"
+}
+
+# The template's own comments explain what was removed (and name the deprecated task), so
+# strip comment lines before asserting; only real script entries should match.
+$script = ((Get-Content $templatePath) | Where-Object { $_ -notmatch '^\s*;' }) -join "`n"
+
+$languageMatch = [regex]::Match($script, '(?ms)^\[Languages\](.*?)(?=^\[|\z)')
+if (-not $languageMatch.Success) { Fail "$templatePath: no [Languages] section" }
+$languageSection = $languageMatch.Groups[1].Value
+$languageCount = ([regex]::Matches($languageSection, '(?m)^Name:')).Count
+if ($languageCount -ne 4) {
+  Fail "$templatePath: expected 4 languages in [Languages], found $languageCount"
+}
+foreach ($languageFile in @(
+  'compiler:Default.isl',
+  'compiler:Languages\Unofficial\ChineseSimplified.isl',
+  'compiler:Languages\Unofficial\ChineseTraditional.isl',
+  'compiler:Languages\Japanese.isl'
+)) {
+  if ($languageSection -notmatch [regex]::Escape($languageFile)) {
+    Fail "${templatePath}: [Languages] is missing $languageFile"
+  }
+}
+if ($script -match 'launchAtStartup') { Fail "${templatePath}: still contains the launchAtStartup task" }
+if ($script -match '\{userstartup\}') { Fail "${templatePath}: still writes a {userstartup} shortcut" }
+
+Write-Host 'installer template has 4 languages and no startup task'
+
 # --- silent install ----------------------------------------------------------
 # /VERYSILENT + /SUPPRESSMSGBOXES + /NORESTART: the unattended switches the Inno template
 # supports. install_dir_name is {localappdata}\Programs\SSB Runner and privileges_required
 # is lowest, so no UAC prompt appears. The [Run] entry is postinstall skipifsilent, so the
 # installer does not launch the app and we start it ourselves below.
+#
+# /LANG=chinesetraditional is a runtime canary: it names one of the four [Languages] entries
+# in installer.iss, so a setup that lost the Traditional Chinese language file (the failure
+# mode of fastforge's built-in template) cannot silently pass. Everything asserted below is
+# language-independent.
 $installLog = Join-Path (Get-Location) 'installer.log'
 $proc = Start-Process -FilePath $installer.FullName -Wait -PassThru -ArgumentList @(
-  '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$installLog"
+  '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG=chinesetraditional', "/LOG=$installLog"
 )
 if ($proc.ExitCode -ne 0) {
   Write-Host "installer exited with $($proc.ExitCode); tail of ${installLog}:"
@@ -80,6 +127,11 @@ foreach ($rel in $required) {
 # ("SSB Runner") under Programs in the user's roaming AppData.
 $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\SSB Runner.lnk'
 if (-not (Test-Path $shortcut)) { Fail "Start menu shortcut missing: $shortcut" }
+
+# The installer no longer offers "launch at startup", so a fresh install must not write a
+# Startup shortcut. (Upgrades over an alpha that had one are intentionally not cleaned up.)
+$startupShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\SSB Runner.lnk'
+if (Test-Path $startupShortcut) { Fail "fresh install wrote a Startup shortcut: $startupShortcut" }
 
 Write-Host "bundle and shortcut look complete"
 
