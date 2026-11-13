@@ -7,11 +7,12 @@
 # report. PostMessage(WM_CLOSE) is exactly what clicking the X sends, so these scenarios
 # assert the user-visible outcome instead of internals.
 #
-# Limits: the runner lives in Session 0 with no audio device, so SoLoud init fails and
-# is swallowed by the startup path; the scenarios therefore exercise the "audio not
-# initialized" exit path and cannot reproduce a blocked audio driver by themselves.
-# Scenario 2 injects a permanently stuck cleanup through an environment variable and
-# proves the 5 s fallback, not the audio driver.
+# Limits: scenario 3 is the racy one. Closing the window while SoLoud is still
+# initialising used to skip the deinit and leave the process waiting inside
+# ExitProcess for a thread that no longer exists (docs/design/desktop_exit_design.md
+# §2.3); the init lasts 28-411 ms, so the scenario sweeps a few close delays instead
+# of sampling the window once. Scenario 2 injects a permanently stuck cleanup through
+# an environment variable and proves the 5 s fallback, not the audio driver.
 #
 # Usage (from the repo root, as CI does): pwsh .github/scripts/smoke-test-windows.ps1
 Set-StrictMode -Version Latest
@@ -20,6 +21,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'smoke-evidence.ps1')
 
 $AppDataLog = Join-Path $env:APPDATA 'com.ssbrunner\ssb_runner\log\latest.log'
+$ExitTraceDir = Join-Path $env:TEMP 'ssb_runner_boot'
 $CloseWaitSeconds = 10
 
 Add-Type @"
@@ -82,7 +84,9 @@ function Wait-ForWindow([System.Diagnostics.Process]$Process) {
     $hwnd = Get-TopWindow -TargetId $Process.Id
     if ($hwnd -ne [IntPtr]::Zero) { return $hwnd }
     if ($Process.HasExited) { return [IntPtr]::Zero }
-    Start-Sleep -Milliseconds 250
+    # 25 ms, not 250 ms: "close during startup" has to win the race against the
+    # boot sequence, and the audio init it must overlap lasts only tens of ms.
+    Start-Sleep -Milliseconds 25
   } while ((Get-Date) -lt $deadline)
   return [IntPtr]::Zero
 }
@@ -131,6 +135,7 @@ function Invoke-CloseScenario {
     [string]$ExePath,
     [hashtable]$Environment = @{},
     [int]$SettleSeconds = 0,
+    [int]$CloseDelayMs = 0,
     [switch]$ExpectExitLog
   )
 
@@ -154,6 +159,7 @@ function Invoke-CloseScenario {
   }
 
   if ($SettleSeconds -gt 0) { Start-Sleep -Seconds $SettleSeconds }
+  if ($CloseDelayMs -gt 0) { Start-Sleep -Milliseconds $CloseDelayMs }
   if ($proc.HasExited) {
     Collect-SmokeEvidence -Scenario $Name -Process $proc -Since $startedAt
     Fail "$Name`: app exited on its own before the window was closed (exit code $($proc.ExitCode))"
@@ -161,13 +167,30 @@ function Invoke-CloseScenario {
 
   [void][Win32]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
   if (-not $proc.WaitForExit($CloseWaitSeconds * 1000)) {
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    # Ask for the dump while the process is still alive: WER only writes one for
+    # a fault, and this is a hang.
+    Save-HangDump -Process $proc
     Collect-SmokeEvidence -Scenario $Name -Process $proc -Since $startedAt
+    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
     Fail "$Name`: process $($proc.Id) still alive $CloseWaitSeconds s after WM_CLOSE (leftover process)"
   }
   Write-Host "   process exited, exit code=$($proc.ExitCode)"
+  Show-ExitTrace -ProcessId $proc.Id
 
   if ($ExpectExitLog) { Assert-ExitLogged -Name $Name -Process $proc }
+}
+
+# Prints the Dart exit trace written synchronously next to the native one, so
+# every attempt says how far the exit got and which BOOT step was in flight.
+# (`$PID` is a read-only automatic variable, hence `ProcessId`.)
+function Show-ExitTrace([int]$ProcessId) {
+  $path = Join-Path $ExitTraceDir "exit_$ProcessId.log"
+  if (-not (Test-Path $path)) {
+    Write-Host '   (no exit trace)'
+    return
+  }
+  Write-Host "   --- exit trace (pid $ProcessId) ---"
+  Get-Content $path | ForEach-Object { Write-Host "   $_" }
 }
 
 # --- runner side -------------------------------------------------------------
@@ -197,15 +220,38 @@ Enable-CrashDumps
 Invoke-CloseScenario -Name 'window close (idle)' -ExePath $exe.FullName `
   -SettleSeconds 12 -ExpectExitLog
 
-# 2. Injected hang: the Dart side never answers the exit request, so only the 5 s
-#    fallback can end the process. Waiting for a settled app first is what makes this a
-#    fallback test rather than an early-close one.
+# 2. Injected hang: the Dart side never answers the exit request, so only the exit
+#    bounds can end the process -- the 5 s Dart fallback or the 5 s native watchdog.
+#    Waiting for a settled app first is what makes this a fallback test rather than an
+#    early-close one.
 Invoke-CloseScenario -Name 'window close with stuck cleanup (fallback)' `
   -ExePath $exe.FullName -Environment @{ SSB_RUNNER_TEST_EXIT_HANG = '1' } `
   -SettleSeconds 12
 
-# 3. Close during startup: the window exists before the first frame, so it is closed
-#    while boot is still running.
-Invoke-CloseScenario -Name 'window close during startup' -ExePath $exe.FullName
+# 3. Close during startup: the window exists before "application ready", so it is
+#    closed while boot is still running.
+#
+#    This is the racy one: the audio init that must be overlapped lasts 28-411 ms,
+#    so one delay value is one sample of that window. Sweep a few of them. Both
+#    lists are overridable for a targeted local run.
+$startupCloseDelaysMs = @(0, 20, 40, 80, 160)
+if ($env:SSB_SMOKE_STARTUP_CLOSE_DELAYS_MS) {
+  $startupCloseDelaysMs = @(
+    $env:SSB_SMOKE_STARTUP_CLOSE_DELAYS_MS -split ',' |
+      ForEach-Object { [int]$_.Trim() }
+  )
+}
+$startupCloseRounds = 2
+if ($env:SSB_SMOKE_STARTUP_CLOSE_ROUNDS) {
+  $startupCloseRounds = [int]$env:SSB_SMOKE_STARTUP_CLOSE_ROUNDS
+}
+
+for ($round = 1; $round -le $startupCloseRounds; $round++) {
+  foreach ($delay in $startupCloseDelaysMs) {
+    Invoke-CloseScenario `
+      -Name "window close during startup (delay=${delay}ms round $round)" `
+      -ExePath $exe.FullName -CloseDelayMs $delay
+  }
+}
 
 Write-Host 'Windows exit smoke test passed'

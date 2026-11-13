@@ -48,6 +48,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  // Reaching this line means WM_QUIT was posted and the loop unwound; a hang
+  // before it leaves the last record as `destroy_begin`.
+  startup_trace->WriteSnapshot("loop_exit");
+
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }

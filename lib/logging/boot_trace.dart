@@ -36,6 +36,12 @@ class BootTrace {
   /// Number of the last started BOOT step, reported with the heartbeat.
   int get stepIndex => _sequence;
 
+  /// Label of the last started BOOT step.
+  ///
+  /// Only used by the exit-path trace: when the app is closed while startup is
+  /// still running, this names the step that was in flight.
+  String? lastStep;
+
   int get elapsedMs => _sinceStart.elapsedMilliseconds;
 
   /// Time since the Dart entry point ran, measured on the same UTC clock as the
@@ -64,6 +70,7 @@ class BootTrace {
   }) async {
     final index = (++_sequence).toString().padLeft(2, '0');
     phase = 'booting';
+    lastStep = label;
     final stopwatch = Stopwatch()..start();
 
     log.info('BOOT $index $label start', tag: 'boot', fields: fields);
