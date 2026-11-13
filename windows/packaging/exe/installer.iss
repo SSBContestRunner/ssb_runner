@@ -11,6 +11,7 @@
 ;   - ShowLanguageDialog=auto
 ;   - [Languages] is fixed to the four languages the app ships
 ;   - the launchAtStartup task and the {userstartup} icon are removed
+;   - WizardSmallImageFile shows the app logo instead of Inno's stock box image
 ; Re-check the upstream template diff when upgrading fastforge.
 ;
 ; Languages here are independent of the in-app locales (en / zh_Hans / zh_Hant / ja in
@@ -44,6 +45,13 @@ OutputBaseFilename={{OUTPUT_BASE_FILENAME}}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile={{SETUP_ICON_FILE}}
+; Inno draws its own generic box in the wizard's upper-right corner unless
+; WizardSmallImageFile is set. fastforge injects only a fixed set of Liquid variables,
+; so derive the logo path from SETUP_ICON_FILE (same directory) instead of adding a
+; second config key: Liquid substitutes the icon path first, then ISCC resolves the
+; ISPP StringChange expression at compile time. Listing three sizes (100% / 200% /
+; 300%) lets Inno pick the one closest to the current DPI scale.
+WizardSmallImageFile={#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_58.png")},{#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_116.png")},{#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_174.png")}
 WizardStyle=modern
 PrivilegesRequired={{PRIVILEGES_REQUIRED}}
 ArchitecturesAllowed={{ARCHITECTURES_ALLOWED}}

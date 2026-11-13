@@ -112,6 +112,8 @@ OutputBaseFilename={{OUTPUT_BASE_FILENAME}}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile={{SETUP_ICON_FILE}}
+; 右上角小图：由 SETUP_ICON_FILE 同目录的 logo PNG 提供，见下方“实现注意”。
+WizardSmallImageFile={#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_58.png")},{#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_116.png")},{#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_174.png")}
 WizardStyle=modern
 PrivilegesRequired={{PRIVILEGES_REQUIRED}}
 ArchitecturesAllowed={{ARCHITECTURES_ALLOWED}}
@@ -145,6 +147,7 @@ Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY
 - Inno 按各 `.isl` 的 `LanguageID` 自动匹配；其内置规则保证简体/繁体互斥，`zh-TW` 命中繁体、`zh-HK` / `zh-MO` 会回落到繁体、`ja` 命中日文。
 - `Name:` 使用 `english` / `chinesesimplified` / `chinesetraditional` / `japanese`，后续可用 `/LANG=` 指定。
 - 模板会被 Liquid 解析：不要写 Inno 预处理器 `#define`；也不要在注释里写双花括号示例（会被当作占位符解析）。`{app}`、`{cm:...}` 等单花括号常量不受影响。
+- 右上角小图由 `windows/runner/resources/wizard_small_image_{58,116,174}.png`（与 `app_icon.ico` 同目录，取自 macOS `app_icon_1024.png`）提供。fastforge 只注入固定变量集，无法新增路径变量，所以用 ISPP 内联 `{#StringChange(...)}` 从 `SETUP_ICON_FILE` 推导绝对路径：Liquid 先替换占位符，ISCC 编译期再求值。这样既不依赖渲染后 `.iss` 所在的 `dist/<version>/` 层级，也不需要 `#define`。三档尺寸供 Inno 按当前 DPI 选择。
 - 不引入 `[InstallDelete]`：alpha 阶段不清理旧版 Startup 快捷方式。
 
 ### 4.2 修改 `windows/packaging/exe/make_config.yaml`
