@@ -61,7 +61,7 @@ foreach ($requiredFile in @($configPath, $templatePath)) {
   if (-not (Test-Path $requiredFile)) { Fail "missing $requiredFile (run this script from the repo root)" }
 }
 if ((Get-Content $configPath -Raw) -notmatch '(?m)^script_template:\s*installer\.iss\s*$') {
-  Fail "$configPath: script_template is not installer.iss"
+  Fail "${configPath}: script_template is not installer.iss"
 }
 
 # The template's own comments explain what was removed (and name the deprecated task), so
@@ -69,11 +69,11 @@ if ((Get-Content $configPath -Raw) -notmatch '(?m)^script_template:\s*installer\
 $script = ((Get-Content $templatePath) | Where-Object { $_ -notmatch '^\s*;' }) -join "`n"
 
 $languageMatch = [regex]::Match($script, '(?ms)^\[Languages\](.*?)(?=^\[|\z)')
-if (-not $languageMatch.Success) { Fail "$templatePath: no [Languages] section" }
+if (-not $languageMatch.Success) { Fail "${templatePath}: no [Languages] section" }
 $languageSection = $languageMatch.Groups[1].Value
 $languageCount = ([regex]::Matches($languageSection, '(?m)^Name:')).Count
 if ($languageCount -ne 4) {
-  Fail "$templatePath: expected 4 languages in [Languages], found $languageCount"
+  Fail "${templatePath}: expected 4 languages in [Languages], found $languageCount"
 }
 foreach ($languageFile in @(
   'compiler:Default.isl',
