@@ -92,7 +92,7 @@ Write-Host 'installer template has 4 languages and no startup task'
 
 # --- silent install ----------------------------------------------------------
 # /VERYSILENT + /SUPPRESSMSGBOXES + /NORESTART: the unattended switches the Inno template
-# supports. install_dir_name is {localappdata}\Programs\SSB Runner and privileges_required
+# supports. install_dir_name is {localappdata}\Programs\SSB_Runner and privileges_required
 # is lowest, so no UAC prompt appears. The [Run] entry is postinstall skipifsilent, so the
 # installer does not launch the app and we start it ourselves below.
 #

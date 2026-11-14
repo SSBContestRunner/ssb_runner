@@ -7,7 +7,7 @@ executable_name: ssb_runner.exe
 publisher_name: SSB Contest Runner
 publisher_url: https://ssbrunner.com/
 # 纯 per-user 安装，不弹 UAC；卸载同样只需当前用户权限。
-install_dir_name: "{localappdata}\\Programs\\SSB Runner"
+install_dir_name: "{localappdata}\\Programs\\SSB_Runner"
 privileges_required: lowest
 create_desktop_icon: false
 # 自定义模板：4 种安装语言、无“开机启动”任务。语言清单只在 installer.iss 维护，
