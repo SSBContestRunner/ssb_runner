@@ -106,7 +106,7 @@ display_name: SSB Runner
 executable_name: ssb_runner.exe
 publisher_name: SSB Contest Runner
 publisher_url: https://ssbrunner.com/
-install_dir_name: "{localappdata}\\Programs\\SSB Runner"
+install_dir_name: "{localappdata}\\Programs\\SSB_Runner"
 privileges_required: lowest
 create_desktop_icon: false
 script_template: installer.iss
@@ -117,7 +117,7 @@ setup_icon_file: windows/runner/resources/app_icon.ico
 
 - `app_id` 是安装器识别“同一个应用”的唯一键：它决定“升级覆盖旧版本”还是“并存两个版本”，发布后不可更改。
   - Inno 的 `AppId` 允许任意唯一字符串，但花括号会被当作常量解析；因此写裸 GUID（`6F1C...`），不要写成 `{6F1C...}`。
-- `privileges_required: lowest` → 安装到 `%LOCALAPPDATA%\Programs\SSB Runner`，不触发 UAC；卸载只需当前用户权限。
+- `privileges_required: lowest` → 安装到 `%LOCALAPPDATA%\Programs\SSB_Runner`，不触发 UAC；卸载只需当前用户权限。
 - `install_dir_name` 显式写出，避免依赖 `{autopf64}` 的模式差异。
 - `setup_icon_file` 用现有的 `app_icon.ico`（256×256）。
 - `script_template: installer.iss` 启用[自定义模板](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/windows/packaging/exe/installer.iss)（fastforge 会先做 Liquid 渲染）。它替换内置模板的原因：内置模板无条件生成 `launchAtStartup` 任务与 `{userstartup}` 快捷方式，`launch_at_startup: false` 只能让复选框默认不勾选、无法移除；语言列表也依赖一张没有繁体中文条目的映射表。
