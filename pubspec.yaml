@@ -165,16 +165,16 @@ flutter:
 
   fonts:
     # Latin/digit face for data and UI text. Subsetted from Iosevka v34.9.1
-    # (SIL OFL, see fonts/LICENSE-Iosevka.txt) to Basic Latin plus the symbols
-    # the UI renders (· × – — …). Regenerate with pyftsubset from the union of
-    # lib/l10n/*.arb and lib/**/*.dart when adding characters outside it.
+    # (SIL OFL, see fonts/LICENSE-Iosevka.txt) to printable ASCII plus the
+    # symbols the UI renders (· × – — … ✕). Rebuild with tool/build_fonts.py.
     - family: Iosevka
       fonts:
         - asset: fonts/Iosevka-Regular-sub.ttf
     # CJK face for everything Iosevka lacks, subsetted to the characters used
-    # by the app's UI strings. Source: Noto Sans SC (SIL OFL, see
-    # fonts/LICENSE-NotoSansSC.txt); regenerate with pyftsubset from the union
-    # of lib/l10n/*.arb when adding new UI text.
+    # by the app's UI strings. Source: Noto Sans SC 2.004 (SIL OFL, see
+    # fonts/LICENSE-NotoSansSC.txt). Rebuild with tool/build_fonts.py; do not
+    # hand-edit, because a glyph missing here falls back to a system font per
+    # character (Microsoft YaHei on Windows) and breaks the typography.
     - family: Noto Sans SC
       fonts:
         - asset: fonts/NotoSansSC-Regular-sub.otf
