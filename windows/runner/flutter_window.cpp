@@ -1,5 +1,7 @@
 #include "flutter_window.h"
 
+#include <objbase.h>
+
 #include <cstdlib>
 #include <optional>
 
@@ -53,6 +55,15 @@ bool FlutterWindow::OnCreate() {
   if (startup_trace_) {
     startup_trace_->Mark(StartupPhase::kPluginsRegistered);
   }
+
+  // WASAPI reads need COM on the platform thread. The runner may already have
+  // initialised it in a different apartment; either way the probe only needs a
+  // usable apartment, so RPC_E_CHANGED_MODE is tolerated.
+  ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+  audio_output_probe_ = std::make_unique<AudioOutputProbe>(
+      flutter_controller_->engine()->messenger(), GetHandle());
+
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([this]() {
@@ -92,6 +103,15 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   // call sites are safe because ArmExitWatchdog() arms once.
   if (message == WM_CLOSE) {
     ArmExitWatchdog();
+  }
+
+  // Posted by the audio probe from a COM callback thread; replying here keeps
+  // the Dart event sink on the platform thread.
+  if (message == AudioOutputProbe::kChangedMessage) {
+    if (audio_output_probe_) {
+      audio_output_probe_->NotifyChanged();
+    }
+    return 0;
   }
 
   // Give Flutter, including plugins, an opportunity to handle window messages.

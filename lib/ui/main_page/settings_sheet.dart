@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/audio/accent_policy.dart';
+import 'package:ssb_runner/audio/audio_check_service.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
 import 'package:ssb_runner/common/constants.dart';
 import 'package:ssb_runner/common/upper_case_formatter.dart';
@@ -576,6 +577,10 @@ class _AudioPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          _AudioTestToneRow(enabled: enabled),
+          const SizedBox(height: 4),
+          _LowVolumeWarningSwitch(enabled: enabled),
+          const SizedBox(height: 16),
           _menu<IncomingAccent>(
             context: context,
             enabled: enabled,
@@ -619,6 +624,95 @@ class _AudioPanel extends StatelessWidget {
             onSelected: cubit.setPhonic,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AudioTestToneRow extends StatefulWidget {
+  const _AudioTestToneRow({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  State<_AudioTestToneRow> createState() => _AudioTestToneRowState();
+}
+
+/// Manual check that the output is actually audible.
+///
+/// It covers the blind spots the OS cannot report (HDMI routing, a powered-off
+/// Bluetooth speaker, a speaker knob at zero) but leaves the judgement to the
+/// operator: no dialog, no effect on a running session (design §5 E2).
+class _AudioTestToneRowState extends State<_AudioTestToneRow> {
+  final AudioCheckService _service = AudioCheckService();
+  bool _playing = false;
+
+  Future<void> _play() async {
+    setState(() => _playing = true);
+    final played = await _service.play();
+    if (!mounted) return;
+    setState(() => _playing = false);
+    if (played) return;
+
+    final l10n = AppLocalizations.of(context);
+    toastification.show(
+      title: Text(l10n.audioTestToneFailed),
+      autoCloseDuration: const Duration(seconds: 4),
+      type: ToastificationType.error,
+      style: ToastificationStyle.fillColored,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return _ListRow(
+      icon: Icons.hearing_outlined,
+      title: l10n.audioTestToneTitle,
+      subtitle: _playing
+          ? l10n.audioTestTonePlaying
+          : l10n.audioTestToneSubtitle,
+      enabled: widget.enabled && !_playing,
+      onTap: _play,
+    );
+  }
+}
+
+class _LowVolumeWarningSwitch extends StatefulWidget {
+  const _LowVolumeWarningSwitch({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  State<_LowVolumeWarningSwitch> createState() =>
+      _LowVolumeWarningSwitchState();
+}
+
+class _LowVolumeWarningSwitchState extends State<_LowVolumeWarningSwitch> {
+  late bool _value = context.read<AppSettings>().audioPreflightLowVolumeWarning;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final settings = context.read<AppSettings>();
+
+    return Opacity(
+      opacity: widget.enabled ? 1 : 0.38,
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: _value,
+        title: Text(
+          l10n.audioPreflightLowVolumeWarningLabel,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        subtitle: Text(l10n.audioPreflightLowVolumeWarningHint),
+        onChanged: widget.enabled
+            ? (value) {
+                settings.audioPreflightLowVolumeWarning = value;
+                setState(() => _value = value);
+              }
+            : null,
       ),
     );
   }

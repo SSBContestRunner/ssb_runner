@@ -5,7 +5,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ssb_runner/audio/audio_alert_state.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
+import 'package:ssb_runner/audio/audio_output_monitor.dart';
+import 'package:ssb_runner/audio/audio_output_probe.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
@@ -17,6 +20,7 @@ import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/pending_replay.dart';
+import 'package:ssb_runner/ui/main_page/app_topbar.dart';
 import 'package:ssb_runner/ui/main_page/main_page.dart';
 import 'package:ssb_runner/ui/main_page/qso_console.dart';
 import 'package:ssb_runner/ui/main_page/qso_log_panel.dart';
@@ -79,6 +83,82 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  // Design §7.2: the badge may insert a 40 dp slot, but the topbar must stay
+  // 64 dp high and overflow-free at the minimum window with the largest text.
+  for (final locale in const [Locale('en'), Locale('ja')]) {
+    testWidgets(
+      'the audio badge keeps the topbar whole at 1108x796 '
+      '(${locale.languageCode}, 1.3x)',
+      (tester) async {
+        final monitor = AudioOutputMonitor(
+          probe: const UnsupportedAudioOutputProbe(),
+          readEngine: () => AudioEngineStatus.unknown,
+          disabled: true,
+        );
+        monitor.snapshot.value = const AudioMonitorSnapshot(
+          reason: AudioAlertReason.low,
+          volume: 0.05,
+          deviceName: 'Speakers',
+        );
+
+        await _pumpMainPage(
+          tester,
+          const Size(1108, 796),
+          locale: locale,
+          textScale: 1.3,
+          audioMonitor: monitor,
+        );
+
+        expect(find.byKey(const Key('audioStatusBadge')), findsOneWidget);
+        expect(tester.getSize(find.byType(AppTopbar)).height, 64);
+        expect(tester.takeException(), isNull);
+        monitor.dispose();
+      },
+    );
+  }
+
+  testWidgets('a muted output blocks RUN before the session starts', (
+    tester,
+  ) async {
+    final monitor = AudioOutputMonitor(
+      probe: const UnsupportedAudioOutputProbe(),
+      readEngine: () => AudioEngineStatus.unknown,
+      disabled: true,
+    );
+    monitor.snapshot.value = const AudioMonitorSnapshot(
+      reason: AudioAlertReason.muted,
+    );
+
+    final settings = await _pumpMainPage(
+      tester,
+      const Size(1280, 720),
+      audioMonitor: monitor,
+    );
+    settings
+      ..stationCallsign = 'BI1QJQ'
+      ..contestDuration = 30;
+    await tester.pump();
+    expect(find.text('Ready'), findsOneWidget);
+
+    await tester.tap(find.text('Start training'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('System output is muted; call audio will not be heard'),
+      findsOneWidget,
+    );
+    expect(find.text('Start anyway'), findsOneWidget);
+
+    // Dismissing the dialog must not start the session.
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.text('Start anyway'), findsNothing);
+    expect(find.text('Pause training'), findsNothing);
+
+    expect(tester.takeException(), isNull);
+    monitor.dispose();
+  });
 
   testWidgets('fixing the gaps flips the chip to ready and clears the badge', (
     tester,
@@ -777,6 +857,7 @@ Future<AppSettings> _pumpMainPage(
   Size size, {
   Locale locale = const Locale('en'),
   double textScale = 1,
+  AudioOutputMonitor? audioMonitor,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -826,6 +907,8 @@ Future<AppSettings> _pumpMainPage(
               value: contestManager.contestTimer,
             ),
             RepositoryProvider<ContestInputHandler>.value(value: inputHandler),
+            if (audioMonitor != null)
+              RepositoryProvider<AudioOutputMonitor>.value(value: audioMonitor),
           ],
           child: const Scaffold(body: MainPage()),
         ),

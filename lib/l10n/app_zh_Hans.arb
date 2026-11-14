@@ -286,5 +286,21 @@
     }
   },
   "endPausedConfirm": "结束并查看回顾",
-  "endRunningBody": "未完成的题目与剩余时间将丢失，已记录的 QSO 会保留。"
+  "endRunningBody": "未完成的题目与剩余时间将丢失，已记录的 QSO 会保留。",
+  "audioBadgeMutedTooltip": "系统输出已静音，将听不到呼叫音频",
+  "audioBadgeLowTooltip": "系统音量仅 {percent}%，可能听不清呼叫音频",
+  "audioBadgeNoDeviceTooltip": "未检测到可用的音频输出设备",
+  "audioBadgeEngineDownTooltip": "音频引擎未启动，本局不会有声音",
+  "audioBadgeOpenSoundSettings": "打开系统声音设置",
+  "audioBadgeVolumeLabel": "当前音量 {percent}%",
+  "audioTestToneTitle": "播放试音",
+  "audioTestToneSubtitle": "以素材原始音量播放约 0.8 秒，按听感调整系统音量",
+  "audioTestTonePlaying": "播放中…",
+  "audioTestToneFailed": "音频播放失败",
+  "audioPreflightRecheck": "重新检测",
+  "audioPreflightRetry": "重试",
+  "audioPreflightStartAnyway": "仍然开始",
+  "audioPreflightDontAskLowVolume": "低音量时不再提示",
+  "audioPreflightLowVolumeWarningLabel": "低音量时提示",
+  "audioPreflightLowVolumeWarningHint": "关闭后低音量不再阻断开赛"
 }

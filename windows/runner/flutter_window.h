@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "audio_output_probe.h"
 #include "startup_trace.h"
 #include "win32_window.h"
 
@@ -33,6 +34,9 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // Reports the system output volume/mute to Dart (audio preflight design).
+  std::unique_ptr<AudioOutputProbe> audio_output_probe_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

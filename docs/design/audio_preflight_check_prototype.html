@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>音频输出检测 · 待决事项原型 · SSB Runner</title>
+<style>
+@font-face {
+  font-family: "ProtoIosevka";
+  src: url("../../fonts/Iosevka-Regular-sub.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ProtoNoto";
+  src: url("../../fonts/NotoSansSC-Regular-sub.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ProtoNoto";
+  src: url("../../fonts/NotoSansSC-Medium-sub.otf") format("opentype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root {
+  --page: #E8EEF7;
+  --page-grid: rgba(0, 89, 186, 0.055);
+  --app: #F4F8FE;
+  --panel: #FBFDFF;
+  --panel-2: #FFFFFF;
+  --container: #EAF1FA;
+  --container-high: #E1EAF6;
+  --container-highest: #D5E2F1;
+  --outline: #6C7E93;
+  --outline-variant: #C3D2E2;
+  --line: rgba(195, 210, 226, 0.8);
+  --on-surface: #182030;
+  --on-surface-variant: #4D5E73;
+  --muted: #6B7C92;
+  --primary: #0059BA;
+  --on-primary: #FFFFFF;
+  --primary-container: #D5E6FF;
+  --on-primary-container: #002A56;
+  --secondary-container: #C6EAF5;
+  --on-secondary-container: #003441;
+  --tertiary: #8A5200;
+  --tertiary-container: #FFE3B3;
+  --on-tertiary-container: #2E1B00;
+  --error: #BA1A1A;
+  --error-container: #FFDAD6;
+  --on-error-container: #410002;
+  --warning: #8A5200;
+  --warning-container: #FCE3AC;
+  --on-warning-container: #2E1B00;
+  --success: #177D4B;
+  --success-container: #C6F2DC;
+  --shadow: rgba(13, 42, 82, 0.14);
+  --hatch: rgba(0, 40, 90, 0.034);
+  --font-ui: "ProtoNoto", "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-data: "ProtoIosevka", "Iosevka", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+}
+
+body[data-theme="dark"] {
+  --page: #050C19;
+  --page-grid: rgba(167, 204, 255, 0.055);
+  --app: #0B1526;
+  --panel: #111E32;
+  --panel-2: #16253C;
+  --container: #16253C;
+  --container-high: #1E304A;
+  --container-highest: #273B58;
+  --outline: #8497AE;
+  --outline-variant: #394C66;
+  --line: rgba(57, 76, 102, 0.85);
+  --on-surface: #E4ECF9;
+  --on-surface-variant: #B6C7DD;
+  --muted: #8296AF;
+  --primary: #A7CCFF;
+  --on-primary: #00315E;
+  --primary-container: #00498C;
+  --on-primary-container: #D6E7FF;
+  --secondary-container: #00515F;
+  --on-secondary-container: #BFEDF7;
+  --tertiary: #FFD08A;
+  --tertiary-container: #653F00;
+  --on-tertiary-container: #FFE3B3;
+  --error: #FFB4AB;
+  --error-container: #93000A;
+  --on-error-container: #FFDAD6;
+  --warning: #FFD08A;
+  --warning-container: #5C3A00;
+  --on-warning-container: #FFE3B3;
+  --success: #6FDFAC;
+  --success-container: #0C4A32;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --hatch: rgba(255, 255, 255, 0.045);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 26px 24px 70px;
+  background-color: var(--page);
+  background-image:
+    linear-gradient(var(--page-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--page-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--on-surface);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.55;
+  transition: background-color .25s ease, color .25s ease;
+}
+
+.page { max-width: 1380px; margin: 0 auto; }
+
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 14px; }
+.page-head h1 { margin: 0; font-size: 21px; font-weight: 500; letter-spacing: .2px; }
+.page-head h1 .ver { margin-left: 8px; padding: 1px 7px; border-radius: 6px; background: var(--primary-container); color: var(--on-primary-container); font-family: var(--font-data); font-size: 10.5px; letter-spacing: .6px; vertical-align: 2px; }
+.page-head .sub { margin: 5px 0 0; color: var(--muted); font-size: 13px; max-width: 780px; }
+.page-head .sub a { color: var(--primary); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--primary) 40%, transparent); }
+.page-head .meta { font-family: var(--font-data); font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; letter-spacing: .4px; }
+.page-head .meta b { color: var(--primary); font-weight: 500; }
+
+.toolbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: color-mix(in srgb, var(--panel-2) 88%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 26px -22px var(--shadow);
+}
+.ctl { display: flex; align-items: center; gap: 9px; }
+.ctl-label { font-size: 11px; letter-spacing: .6px; color: var(--muted); white-space: nowrap; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--container); border-radius: 10px; }
+.seg button {
+  appearance: none; border: 0; background: transparent; color: var(--on-surface-variant);
+  padding: 5px 9px; border-radius: 8px; font: inherit; font-size: 11.5px; cursor: pointer;
+  white-space: nowrap; transition: background .16s ease, color .16s ease;
+}
+.seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--primary); font-weight: 500; box-shadow: 0 1px 3px rgba(13,42,82,.12); }
+.seg button:hover { color: var(--primary); }
+.jump { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.jump a {
+  font-family: var(--font-data); font-size: 11px; letter-spacing: .4px; text-decoration: none;
+  color: var(--on-surface-variant); padding: 4px 8px; border-radius: 7px; border: 1px solid transparent;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.jump a:hover { color: var(--primary); border-color: var(--outline-variant); background: var(--panel-2); }
+.progress-pill { margin-left: auto; display: flex; align-items: center; gap: 7px; font-family: var(--font-data); font-size: 11px; color: var(--muted); letter-spacing: .5px; }
+.progress-pill b { color: var(--primary); font-weight: 500; }
+.progress-pill .bar { width: 86px; height: 4px; border-radius: 99px; background: var(--container-highest); overflow: hidden; }
+.progress-pill .bar i { display: block; height: 100%; width: 0; background: var(--primary); border-radius: 99px; transition: width .25s ease; }
+.btn {
+  appearance: none; border: 1px solid var(--outline-variant); background: var(--panel-2);
+  color: var(--on-surface); font: inherit; font-size: 11.5px; padding: 6px 12px; border-radius: 9px;
+  cursor: pointer; transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.btn:hover { border-color: var(--primary); color: var(--primary); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.btn.primary:hover { filter: brightness(1.06); color: var(--on-primary); }
+
+/* ── 应用 mock ─────────────────────────────────────────── */
+.stage-wrap { overflow-x: auto; padding-bottom: 4px; }
+.stage {
+  position: relative;
+  width: 1108px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 26px 60px -38px var(--shadow), 0 1px 0 rgba(255,255,255,.5) inset;
+  background: var(--app);
+}
+.stage::before {
+  content: ""; display: block; height: 3px;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 35%, transparent) 62%, transparent);
+}
+.stage-caption { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 2px 0; color: var(--muted); font-size: 12px; }
+.stage-caption b { color: var(--on-surface-variant); font-weight: 500; }
+.stage-caption .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--outline); align-self: center; }
+
+.topbar {
+  height: 64px; display: flex; align-items: center;
+  padding: 0 20px; border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; flex: none; }
+.brand-mark {
+  width: 38px; height: 38px; border-radius: 12px; background: var(--primary);
+  display: grid; place-items: center; color: var(--on-primary);
+  box-shadow: 0 6px 14px -8px var(--primary);
+}
+.brand-mark svg { width: 20px; height: 20px; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-name { font-size: 15px; font-weight: 500; letter-spacing: .1px; }
+.brand-ver { margin-top: 2px; font-family: var(--font-data); font-size: 11px; color: var(--muted); letter-spacing: .4px; }
+.vrule { width: 1px; height: 28px; background: var(--outline-variant); margin: 0 12px; flex: none; }
+.contest-block { flex: 1; min-width: 0; }
+.contest-name { font-size: 15px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contest-meta { font-family: var(--font-data); font-size: 11px; line-height: 16px; color: var(--muted); letter-spacing: .4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-actions { display: flex; align-items: center; gap: 4px; flex: none; margin-left: 8px; }
+
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent;
+  display: grid; place-items: center; cursor: pointer; color: var(--on-surface-variant);
+  transition: background .16s ease, color .16s ease;
+}
+.icon-btn:hover { background: var(--container); color: var(--primary); }
+.icon-btn.filled { width: 40px; height: 40px; background: var(--secondary-container); color: var(--on-secondary-container); position: relative; }
+.icon-btn.filled:hover { background: color-mix(in srgb, var(--secondary-container) 82%, var(--primary)); }
+.icon-btn svg { width: 22px; height: 22px; }
+.icon-btn.filled svg { width: 20px; height: 20px; }
+.icon-btn .issue-dot { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--error); }
+
+/* badge */
+.badge-wrap { position: relative; }
+.badge-slot {
+  position: relative; width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent;
+  display: grid; place-items: center; cursor: pointer; padding: 0;
+  color: var(--on-surface-variant);
+  transition: color .18s ease, opacity .18s ease, width .2s ease, margin .2s ease;
+}
+.badge-slot svg { width: 22px; height: 22px; }
+.badge-slot .ic-off { display: none; }
+.badge-slot.is-alert { color: var(--error); }
+.badge-slot.is-alert .ic-on { display: none; }
+.badge-slot.is-alert .ic-off { display: block; }
+.badge-slot.is-alert::after {
+  content: ""; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--error);
+}
+.badge-slot.is-normal { opacity: .55; }
+.badge-slot.is-normal:hover { opacity: .9; background: var(--container); }
+.badge-slot.is-hidden { width: 0; margin-left: -4px; opacity: 0; pointer-events: none; overflow: hidden; }
+.badge-slot:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.badge-slot .ring {
+  position: absolute; inset: -5px; border: 1.5px dashed color-mix(in srgb, var(--primary) 55%, transparent);
+  border-radius: 50%; pointer-events: none;
+}
+
+/* tooltip */
+.tip {
+  position: absolute; left: 50%; top: calc(100% + 8px); transform: translate(-50%, 4px);
+  width: max-content; max-width: 300px; padding: 7px 10px; border-radius: 9px;
+  background: var(--on-surface); color: var(--app); font-size: 11px; line-height: 1.45;
+  opacity: 0; pointer-events: none; transition: opacity .16s ease, transform .16s ease;
+  z-index: 30; box-shadow: 0 12px 26px -16px var(--shadow); text-align: left;
+}
+.badge-slot:hover .tip, .badge-slot:focus-visible .tip { opacity: 1; transform: translate(-50%, 0); }
+
+/* detail popover */
+.badge-popover {
+  position: absolute; top: 46px; right: 0; width: 292px; z-index: 40;
+  background: var(--container-high); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 24px 48px -24px var(--shadow);
+  padding: 14px 16px 12px; text-align: left;
+  opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+.badge-popover.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.bp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.bp-head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--error); flex: none; }
+.bp-head b { font-size: 13px; font-weight: 500; }
+.bp-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12px; color: var(--on-surface-variant); }
+.bp-row b { color: var(--on-surface); font-weight: 500; font-family: var(--font-data); font-size: 12px; }
+.bp-actions { display: flex; gap: 6px; margin-top: 10px; }
+.bp-actions .btn { flex: 1; }
+
+/* body */
+.app-body { display: flex; gap: 14px; padding: 16px; height: 732px; }
+.app-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.app-right { width: 384px; flex: none; display: flex; flex-direction: column; gap: 12px; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.log-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.log-head { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 18px; }
+.log-title { flex: 1; min-width: 0; }
+.log-title h3 { margin: 0; font-size: 14.5px; font-weight: 500; }
+.log-title p { margin: 1px 0 0; font-size: 11px; color: var(--muted); }
+.chip { height: 26px; padding: 0 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; background: var(--secondary-container); color: var(--on-secondary-container); font-variant-numeric: tabular-nums; flex: none; }
+.log-table { flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.log-header {
+  height: 34px; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--line);
+  color: var(--muted); font-size: 10.5px; letter-spacing: .6px;
+}
+.log-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 12px; }
+.log-empty .ico { width: 38px; height: 38px; border-radius: 12px; background: var(--container); display: grid; place-items: center; margin-bottom: 6px; color: var(--outline); }
+.log-empty .ico svg { width: 20px; height: 20px; }
+.c-utc { width: 74px; padding: 0 10px; }
+.c-call { flex: 105; padding: 0 10px; }
+.c-rst { width: 50px; padding: 0 10px; }
+.c-ex { flex: 100; padding: 0 10px; }
+.c-cor { width: 120px; padding: 0 10px; }
+
+.console { padding: 12px 16px 14px; background: var(--container); border-radius: 16px; flex: none; }
+.phase-bar { display: flex; align-items: center; gap: 8px; height: 26px; margin-bottom: 8px; }
+.phase-dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--tertiary-container); color: var(--on-tertiary-container); flex: none; }
+.phase-dot svg { width: 15px; height: 15px; }
+.phase-text { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phase-abandon { margin-left: auto; font-size: 11px; color: var(--primary); opacity: .85; white-space: nowrap; }
+.fields { display: flex; gap: 10px; }
+.field {
+  position: relative; height: 64px; min-width: 0;
+  background: var(--panel-2); border: 1px solid var(--outline-variant); border-radius: 12px;
+  padding: 20px 13px 8px; display: flex; align-items: center;
+}
+.f-call { flex: 34 1 0; }
+.f-rst { flex: 9 1 0; }
+.f-sent { flex: 14 1 0; }
+.f-rcvd { flex: 34 1 0; }
+.field-label { position: absolute; left: 13px; top: 7px; font-size: 10.5px; color: var(--on-surface-variant); white-space: nowrap; }
+.field-value { font-family: var(--font-data); font-size: 22px; letter-spacing: 1.2px; color: var(--on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.field-value.muted { color: var(--muted); }
+.fkey-row { display: flex; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 10.5px; letter-spacing: .2px; }
+.fkey-row span { display: inline-flex; align-items: center; gap: 4px; }
+.fkey-row kbd { font-family: var(--font-data); font-size: 10px; padding: 1px 5px; border-radius: 5px; border: 1px solid var(--outline-variant); background: var(--panel); color: var(--on-surface-variant); }
+
+/* session card */
+.session { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.session-head { min-height: 68px; padding: 0 20px; display: flex; flex-direction: column; justify-content: center; gap: 1px; flex: none; }
+.session-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.session-title { font-size: 15px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-chip {
+  height: 26px; padding: 0 10px; border-radius: 8px; background: var(--primary-container); color: var(--primary);
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; letter-spacing: .2px;
+  white-space: nowrap; flex: none;
+}
+.status-chip svg { width: 14px; height: 14px; }
+.session-meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .2px; }
+.session-scroll { flex: 1; min-height: 0; padding: 0 20px; overflow: hidden; }
+.timer-row { display: flex; align-items: flex-end; gap: 8px; }
+.timer-main { flex: 3; font-family: var(--font-data); font-size: 42px; line-height: 48px; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+.timer-side { flex: 2; padding-bottom: 5px; text-align: right; font-family: var(--font-data); font-size: 12px; line-height: 17px; color: var(--on-surface-variant); white-space: nowrap; }
+.progress { margin-top: 10px; }
+.progress .track { height: 6px; border-radius: 3px; background: var(--container-highest); overflow: hidden; }
+.progress .track i { display: block; width: 0; height: 100%; background: var(--primary); }
+.progress .labels { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-data); font-size: 12px; color: var(--on-surface-variant); }
+.stats { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.stat { background: color-mix(in srgb, var(--container) 50%, transparent); border-radius: 10px; padding: 8px 10px; }
+.stat .k { font-size: 10.5px; letter-spacing: .4px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.stat .v { font-family: var(--font-data); font-size: 18px; line-height: 24px; letter-spacing: .4px; }
+.stat .v small { font-size: 11px; color: var(--muted); letter-spacing: .2px; margin-left: 2px; }
+.session-actions { flex: none; padding: 0 20px 18px; }
+.run-btn {
+  width: 100%; height: 52px; border: 0; border-radius: 16px; background: var(--primary); color: var(--on-primary);
+  font-family: var(--font-ui); font-size: 15px; font-weight: 500; letter-spacing: .5px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+}
+.run-btn svg { width: 20px; height: 20px; }
+.end-btn {
+  width: 100%; height: 40px; margin-top: 8px; border: 0; background: transparent; color: var(--error);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 500; letter-spacing: .1px; border-radius: 12px; cursor: pointer;
+}
+.run-note { margin-top: 8px; text-align: center; font-size: 10.5px; color: var(--muted); }
+
+.rules { flex: none; padding: 14px 18px; }
+.rules-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; font-size: 14px; font-weight: 500; }
+.rules-head svg { width: 16px; height: 16px; color: var(--on-surface-variant); }
+.rule-line { padding: 7px 0; border-top: 1px solid color-mix(in srgb, var(--outline-variant) 70%, transparent); font-family: var(--font-data); font-size: 13px; line-height: 19px; letter-spacing: .1px; }
+
+/* ── 决策区 ───────────────────────────────────────────── */
+.decision { margin-top: 30px; }
+.d-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.d-num {
+  font-family: var(--font-data); font-size: 12px; letter-spacing: 1px; color: var(--primary);
+  background: var(--primary-container); border-radius: 8px; padding: 3px 8px; margin-top: 1px; flex: none;
+}
+.d-head h2 { margin: 0; font-size: 16.5px; font-weight: 500; letter-spacing: .2px; }
+.d-head p { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; max-width: 900px; }
+.d-head p b { color: var(--on-surface-variant); font-weight: 500; }
+.d-state {
+  margin-left: auto; flex: none; font-family: var(--font-data); font-size: 11px; letter-spacing: .5px;
+  padding: 4px 9px; border-radius: 8px; border: 1px dashed var(--outline-variant); color: var(--muted); white-space: nowrap;
+}
+.d-state.is-set { border-style: solid; border-color: color-mix(in srgb, var(--primary) 45%, transparent); color: var(--primary); background: color-mix(in srgb, var(--primary-container) 55%, transparent); }
+
+.option-grid { display: grid; gap: 14px; }
+.option-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.option-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.option {
+  position: relative; text-align: left; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 14px 16px 15px; display: flex; flex-direction: column; gap: 11px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.option:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); box-shadow: 0 12px 30px -26px var(--shadow); }
+.option:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.option[aria-checked="true"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent), 0 14px 34px -30px var(--shadow);
+}
+.opt-top { display: flex; align-items: center; gap: 8px; }
+.radio {
+  width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--outline); flex: none;
+  display: grid; place-items: center; transition: border-color .16s ease;
+}
+.radio::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); transform: scale(0); transition: transform .16s ease; }
+.option[aria-checked="true"] .radio { border-color: var(--primary); }
+.option[aria-checked="true"] .radio::after { transform: scale(1); }
+.opt-name { font-size: 13.5px; font-weight: 500; letter-spacing: .1px; }
+.tag {
+  margin-left: auto; font-size: 10px; letter-spacing: .4px; padding: 2px 7px; border-radius: 6px;
+  background: var(--container); color: var(--on-surface-variant); border: 1px solid var(--outline-variant); white-space: nowrap;
+}
+.tag.plan { background: var(--primary-container); color: var(--on-primary-container); border-color: transparent; }
+.opt-visual { position: relative; }
+.opt-note { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.pros-cons { display: grid; gap: 5px; font-size: 12px; line-height: 1.5; }
+.pc { display: flex; gap: 7px; }
+.pc .sign { font-family: var(--font-data); font-size: 11px; flex: none; width: 9px; text-align: center; margin-top: 1px; }
+.pc.plus .sign { color: var(--success); }
+.pc.minus .sign { color: var(--error); }
+.pc span { color: var(--on-surface-variant); }
+
+/* 裁剪 mock */
+.crop {
+  position: relative; height: 96px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--app); overflow: hidden;
+}
+.crop .crop-label { position: absolute; left: 14px; top: 9px; font-size: 10.5px; letter-spacing: .4px; color: var(--muted); }
+.crop .crop-label b { color: var(--on-surface-variant); font-weight: 500; }
+.crop-actions { position: absolute; right: 20px; top: 50%; transform: translateY(-11px); display: flex; align-items: center; gap: 4px; }
+.crop-topbar::after { content: ""; position: absolute; left: 0; right: 0; top: 64px; height: 1px; background: var(--line); }
+.crop-actions .icon-btn { cursor: default; }
+.crop-head { height: 118px; padding: 14px 20px 0; background: var(--panel); }
+.crop-head .crop-label { top: 9px; }
+.crop-head .session-title-row { margin-top: 10px; }
+.crop-note { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.crop-note b { color: var(--on-surface-variant); font-weight: 500; }
+
+.header-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--error); position: relative; flex: none; cursor: pointer;
+}
+.header-dot .ring { position: absolute; inset: -5px; border: 1.5px dashed color-mix(in srgb, var(--primary) 55%, transparent); border-radius: 50%; }
+
+.d2-bar { position: relative; height: 88px; border-radius: 14px; border: 1px solid var(--line); background: var(--app); overflow: hidden; display: flex; align-items: center; padding: 0 16px; }
+.d2-bar .d2-state { font-size: 10.5px; letter-spacing: .4px; color: var(--muted); position: absolute; left: 14px; top: 9px; }
+.d2-bar .d2-state b { color: var(--on-surface-variant); font-weight: 500; }
+.d2-bar .crop-actions { position: static; transform: none; margin-left: auto; }
+.d2-toggle {
+  align-self: flex-start; border: 1px solid var(--outline-variant); background: var(--panel-2); color: var(--on-surface-variant);
+  font: inherit; font-size: 11px; padding: 4px 9px; border-radius: 7px; cursor: pointer;
+}
+.d2-toggle:hover { border-color: var(--primary); color: var(--primary); }
+.shift-note { display: none; margin-top: 8px; font-size: 11px; color: var(--error); }
+.shift-note.show { display: block; }
+
+/* 轮询赛车 */
+.race { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+.race-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.race-head b { font-size: 13.5px; font-weight: 500; }
+.race-head span { font-size: 11.5px; color: var(--muted); }
+.race-head .btn { margin-left: auto; }
+.lane { padding: 9px 0; border-top: 1px solid color-mix(in srgb, var(--outline-variant) 60%, transparent); }
+.lane:first-of-type { border-top: 0; }
+.lane-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.lane-name { font-size: 12.5px; font-weight: 500; }
+.lane-sub { font-size: 10.5px; color: var(--muted); }
+.lane-time { margin-left: auto; font-family: var(--font-data); font-size: 11px; color: var(--muted); letter-spacing: .4px; }
+.lane.done .lane-time { color: var(--error); }
+.track { position: relative; height: 22px; border-radius: 7px; background: var(--container); overflow: hidden; }
+.track .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: color-mix(in srgb, var(--primary) 20%, transparent); }
+.track .event { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 7px; height: 7px; border-radius: 50%; background: var(--outline); }
+.track .lane-badge {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; letter-spacing: .2px;
+  color: var(--error); background: var(--error-container); border-radius: 6px; padding: 1px 7px;
+  opacity: 0; transition: opacity .18s ease;
+}
+.track .lane-badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--error); }
+.lane.done .lane-badge { opacity: 1; }
+.lane.done .track { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--error) 30%, transparent); }
+
+/* 选项列表（D3） */
+.choices { display: grid; gap: 10px; margin-top: 14px; }
+.choice {
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.choice:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); }
+.choice[aria-checked="true"] { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent); }
+.choice .radio { margin-top: 2px; }
+.choice .body { min-width: 0; }
+.choice .name { font-size: 13px; font-weight: 500; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.choice .desc { margin-top: 2px; font-size: 11.5px; color: var(--on-surface-variant); }
+.choice .tag { margin-left: 0; }
+.choice:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* 设置抽屉 mock */
+.settings-mock { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.sm-title { font-size: 11px; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
+.sm-slider { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sm-slider .ico { color: var(--on-surface-variant); display: grid; place-items: center; }
+.sm-slider .ico svg { width: 18px; height: 18px; }
+.sm-slider .rail { flex: 1; height: 4px; border-radius: 99px; background: var(--container-highest); position: relative; }
+.sm-slider .rail i { position: absolute; left: 0; top: 0; bottom: 0; width: 60%; border-radius: 99px; background: var(--primary); }
+.sm-slider .rail::after { content: ""; position: absolute; left: 60%; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); transform: translate(-50%, -50%); }
+.sm-slider .pct { font-family: var(--font-data); font-size: 11px; color: var(--muted); width: 34px; text-align: right; }
+.sm-row { display: flex; align-items: center; gap: 12px; }
+.sm-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--primary-container); color: var(--on-primary-container); display: grid; place-items: center; flex: none; }
+.sm-icon svg { width: 19px; height: 19px; }
+.sm-text { flex: 1; min-width: 0; }
+.sm-text b { display: block; font-size: 13px; font-weight: 500; }
+.sm-text span { display: block; font-size: 11px; color: var(--muted); }
+.sm-play { flex: none; }
+.sm-play[disabled] { opacity: .6; cursor: default; }
+.asset-line {
+  margin-top: 10px; padding: 7px 9px; border-radius: 8px; background: var(--container);
+  font-family: var(--font-data); font-size: 10.5px; color: var(--on-surface-variant);
+  word-break: break-all; line-height: 1.5;
+}
+.audio-note { margin-top: 8px; font-size: 10.5px; color: var(--muted); }
+.audio-note.is-warn { color: var(--error); }
+
+/* 阻断 mini stage */
+.mini-stage { position: relative; height: 330px; border-radius: 14px; border: 1px solid var(--line); background: var(--app); overflow: hidden; }
+.mini-app { position: absolute; inset: 0; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.mini-top { height: 34px; display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid var(--line); flex: none; }
+.mini-top .grow { flex: 1; }
+.mini-top .badge-slot { width: 32px; height: 32px; cursor: default; }
+.mini-top .badge-slot svg { width: 18px; height: 18px; }
+.mini-top .badge-slot.is-normal { opacity: .5; }
+.mini-top .icon-btn { width: 32px; height: 32px; cursor: default; }
+.mini-top .icon-btn svg { width: 17px; height: 17px; }
+.mini-session { flex: 1; min-height: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.mini-head { display: flex; align-items: center; gap: 6px; }
+.mini-head b { font-size: 12.5px; font-weight: 500; }
+.mini-head .status-chip { height: 22px; padding: 0 7px; font-size: 10.5px; gap: 4px; }
+.mini-head .status-chip svg { width: 12px; height: 12px; }
+.mini-timer { font-family: var(--font-data); font-size: 26px; letter-spacing: 1.5px; line-height: 32px; }
+.mini-progress { height: 5px; border-radius: 3px; background: var(--container-highest); overflow: hidden; }
+.mini-progress i { display: block; height: 100%; width: 0; background: var(--primary); }
+.mini-stats { display: flex; gap: 8px; font-family: var(--font-data); font-size: 10.5px; color: var(--muted); }
+.mini-run { margin-top: auto; height: 38px; border-radius: 12px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-size: 12.5px; font-weight: 500; letter-spacing: .4px; }
+.scrim { position: absolute; inset: 0; background: rgba(4, 12, 26, .46); display: grid; place-items: center; padding: 16px; }
+body[data-theme="dark"] .scrim { background: rgba(0, 0, 0, .58); }
+.dialog {
+  width: 300px; max-width: 100%; background: var(--container-high); border-radius: 22px; padding: 18px;
+  box-shadow: 0 26px 50px -22px rgba(0,0,0,.45); text-align: left;
+}
+.dialog h4 { margin: 0 0 8px; font-size: 15px; font-weight: 500; }
+.dialog p { margin: 0 0 10px; font-size: 11.5px; line-height: 1.55; color: var(--on-surface-variant); }
+.dlg-reason { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 9px; background: var(--error-container); color: var(--on-error-container); font-size: 11.5px; margin-bottom: 8px; }
+.dlg-reason i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.dlg-rows { display: grid; gap: 2px; margin-bottom: 10px; }
+.dlg-rows div { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; color: var(--muted); }
+.dlg-rows b { font-family: var(--font-data); color: var(--on-surface); font-weight: 500; }
+.dlg-actions { display: flex; flex-direction: column; gap: 6px; }
+.dlg-btn { height: 34px; border: 0; border-radius: 11px; font-family: var(--font-ui); font-size: 12px; font-weight: 500; cursor: pointer; }
+.dlg-btn.primary { background: var(--primary); color: var(--on-primary); }
+.dlg-btn.tonal { background: var(--container-highest); color: var(--on-surface); }
+.dlg-btn.text { background: transparent; color: var(--primary); }
+.mini-toast {
+  position: absolute; left: 50%; top: 44px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px; width: max-content; max-width: 92%;
+  padding: 9px 12px; border-radius: 10px; background: #F6C25B; color: #3D2A00;
+  font-size: 11.5px; line-height: 1.4; box-shadow: 0 16px 30px -20px rgba(0,0,0,.5);
+}
+body[data-theme="dark"] .mini-toast { background: #7A5410; color: #FFE9BE; }
+.mini-toast svg { width: 15px; height: 15px; flex: none; }
+.mini-caption { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.mini-caption b { color: var(--on-surface-variant); font-weight: 500; }
+.pass-note { margin-top: 8px; font-size: 10.5px; color: var(--muted); }
+
+/* 汇总 */
+.summary { margin-top: 34px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px 20px; }
+.summary-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.summary-head h2 { margin: 0; font-size: 16px; font-weight: 500; }
+.summary-head .count { font-family: var(--font-data); font-size: 11px; color: var(--muted); letter-spacing: .5px; }
+.summary-head .count b { color: var(--primary); font-weight: 500; }
+.summary p.hint { margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+.sum-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.sum-list li { display: flex; gap: 12px; align-items: baseline; background: var(--panel-2); padding: 10px 14px; font-size: 12.5px; }
+.sum-list .idx { font-family: var(--font-data); font-size: 11px; color: var(--muted); width: 20px; flex: none; letter-spacing: .4px; }
+.sum-list .q { color: var(--on-surface-variant); width: 150px; flex: none; }
+.sum-list .a { font-weight: 500; }
+.sum-list .a.pending { color: var(--muted); font-weight: 400; }
+.summary-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.summary-actions .copied { font-size: 11.5px; color: var(--success); opacity: 0; transition: opacity .2s ease; }
+.summary-actions .copied.show { opacity: 1; }
+.decision-text {
+  margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--container);
+  font-family: var(--font-data); font-size: 11.5px; line-height: 1.7; color: var(--on-surface-variant);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+.foot { margin-top: 26px; font-size: 11.5px; color: var(--muted); line-height: 1.7; }
+.foot b { color: var(--on-surface-variant); font-weight: 500; }
+
+@media (max-width: 1080px) {
+  .option-grid.cols-2, .option-grid.cols-3 { grid-template-columns: 1fr; }
+  .page-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .page-head .meta { text-align: left; }
+}
+</style>
+</head>
+<body data-theme="light">
+<div class="page">
+
+  <header class="page-head">
+    <div>
+      <h1>音频输出检测 · 界面原型 <span class="ver">DECISION PREVIEW</span></h1>
+      <p class="sub">对应 <a href="./audio_preflight_check_design.md">audio_preflight_check_design.md</a> 第 9 节「待确认事项」。样式取自应用现有 Clear Sky 主题与 1108×796 窗口；标注文案仅为示意，不代表最终实现。</p>
+    </div>
+    <div class="meta">待决 <b id="metaPending">5</b> 项 · 已决 <b id="metaDone">0</b> 项</div>
+  </header>
+
+  <div class="toolbar">
+    <div class="ctl">
+      <span class="ctl-label">主题</span>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-theme-btn="light" aria-pressed="true">浅色</button>
+        <button type="button" data-theme-btn="dark" aria-pressed="false">深色</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">跳转</span>
+      <div class="jump">
+        <a href="#d1">D1 位置</a>
+        <a href="#d2">D2 正常态</a>
+        <a href="#d3">D3 间隔</a>
+        <a href="#d4">D4 素材</a>
+        <a href="#d5">D5 阻断</a>
+        <a href="#summary">汇总</a>
+      </div>
+    </div>
+    <div class="progress-pill">
+      <span>已决 <b id="progressText">0 / 5</b></span>
+      <span class="bar"><i id="progressBar"></i></span>
+    </div>
+    <button type="button" class="btn" id="resetBtn">重置全部</button>
+  </div>
+
+  <!-- 基线：当前应用 + 方案 A 生效的样子 -->
+  <div class="stage-wrap">
+    <div class="stage" aria-label="应用主界面基线示意">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+              <circle cx="12" cy="12" r="2.2"></circle>
+              <path d="M7.8 16.2a5.9 5.9 0 0 1 0-8.4M16.2 7.8a5.9 5.9 0 0 1 0 8.4M4.8 19.2a10.2 10.2 0 0 1 0-14.4M19.2 4.8a10.2 10.2 0 0 1 0 14.4"></path>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">SSB Runner</span>
+            <span class="brand-ver">v2.6.0</span>
+          </div>
+        </div>
+        <div class="vrule"></div>
+        <div class="contest-block">
+          <div class="contest-name">CQ WW DX Contest</div>
+          <div class="contest-meta">比赛训练 · 进阶 · BG5DRB</div>
+        </div>
+        <div class="top-actions">
+          <button type="button" class="icon-btn" title="键位说明">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+          </button>
+          <button type="button" class="icon-btn" title="切换主题">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+          </button>
+          <div class="badge-wrap">
+            <button type="button" class="badge-slot is-alert" id="heroBadge" aria-haspopup="dialog" aria-label="音频输出异常，点击查看详情">
+              <svg class="ic-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              <svg class="ic-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>
+              <span class="ring"></span>
+              <span class="tip">系统音量仅 8%，可能听不清呼叫音频</span>
+            </button>
+            <div class="badge-popover" id="heroPopover" role="dialog" aria-label="音频输出详情">
+              <div class="bp-head"><span class="dot"></span><b>音频输出可能不可用</b></div>
+              <div class="bp-row"><span>原因</span><b>系统音量仅 8%</b></div>
+              <div class="bp-row"><span>当前音量</span><b>8%</b></div>
+              <div class="bp-row"><span>输出设备</span><b>MacBook Pro 扬声器</b></div>
+              <div class="bp-actions">
+                <button type="button" class="btn primary">打开系统声音设置</button>
+                <button type="button" class="btn" data-close-popover>关闭</button>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="icon-btn filled" title="设置" style="margin-left:4px">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            <span class="issue-dot"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="app-body">
+        <div class="app-left">
+          <section class="panel log-panel">
+            <div class="log-head">
+              <div class="log-title">
+                <h3>QSO 日志</h3>
+                <p>实时记录本轮通联</p>
+              </div>
+              <span class="chip">0 条</span>
+            </div>
+            <div class="log-table">
+              <div class="log-header">
+                <span class="c-utc">UTC</span>
+                <span class="c-call">呼号</span>
+                <span class="c-rst">RST</span>
+                <span class="c-ex">交换</span>
+                <span class="c-cor">修正</span>
+              </div>
+              <div class="log-empty">
+                <span class="ico">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm2 4v2h12V8H6zm0 4v2h8v-2H6z"/></svg>
+                </span>
+                <span>尚未开始训练</span>
+                <span style="font-size:10.5px">按 RUN 后，通联会实时出现在这里</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="console">
+            <div class="phase-bar">
+              <span class="phase-dot">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </span>
+              <span class="phase-text">待机 · 按 RUN 开始本轮训练</span>
+              <span class="phase-abandon">F1 放弃本轮</span>
+            </div>
+            <div class="fields">
+              <div class="field f-call">
+                <span class="field-label">呼号</span>
+                <span class="field-value muted">—</span>
+              </div>
+              <div class="field f-rst">
+                <span class="field-label">RST</span>
+                <span class="field-value">599</span>
+              </div>
+              <div class="field f-sent">
+                <span class="field-label">发送交换</span>
+                <span class="field-value">59 05</span>
+              </div>
+              <div class="field f-rcvd">
+                <span class="field-label">接收交换</span>
+                <span class="field-value muted">—</span>
+              </div>
+            </div>
+            <div class="fkey-row">
+              <span><kbd>F2</kbd> 呼叫</span>
+              <span><kbd>F3</kbd> 重复</span>
+              <span><kbd>F4</kbd> 确认</span>
+              <span style="margin-left:auto">Ctrl+Enter 提交</span>
+            </div>
+          </section>
+        </div>
+
+        <div class="app-right">
+          <section class="session">
+            <div class="session-head">
+              <div class="session-title-row">
+                <span class="session-title">本轮训练</span>
+                <span class="status-chip">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                  就绪
+                </span>
+              </div>
+              <div class="session-meta">CQ WW DX · 比赛 · 20 分钟</div>
+            </div>
+            <div class="session-scroll">
+              <div class="timer-row">
+                <div class="timer-main">00:00:00</div>
+                <div class="timer-side">已用 00:00:00<br>剩余 20:00</div>
+              </div>
+              <div class="progress">
+                <div class="track"><i></i></div>
+                <div class="labels"><span>0 分钟</span><span>20 分钟</span></div>
+              </div>
+              <div class="stats">
+                <div class="stat"><div class="k">有效分</div><div class="v">0</div></div>
+                <div class="stat"><div class="k">通联</div><div class="v">0 <small>条</small></div></div>
+                <div class="stat"><div class="k">待修正</div><div class="v">0</div></div>
+                <div class="stat"><div class="k">平均速度</div><div class="v">0.0 <small>秒</small></div></div>
+              </div>
+            </div>
+            <div class="session-actions">
+              <button type="button" class="run-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                开始训练
+              </button>
+              <button type="button" class="end-btn">结束本局</button>
+              <div class="run-note">开始后计时与音频同步启动</div>
+            </div>
+          </section>
+
+          <section class="panel rules">
+            <div class="rules-head">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              比赛规则 · CQ WW DX
+            </div>
+            <div class="rule-line">交换：59 + CQ 分区（例 59 05）</div>
+            <div class="rule-line">计分：每个有效 QSO 计 1 分</div>
+            <div class="rule-line">重复通联不计分，也不扣分</div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="stage-caption">
+    <span><b>基线示意</b>：顶栏已按方案 A 放入 8% 音量的异常 badge，点击可展开详情弹层。</span>
+    <span class="dot"></span>
+    <span>悬停 badge 可看 tooltip；会话卡片与 RUN 保持现状不变。</span>
+  </div>
+
+  <!-- D1 -->
+  <section class="decision" id="d1">
+    <div class="d-head">
+      <span class="d-num">D1</span>
+      <div>
+        <h2>badge 放在哪里？</h2>
+        <p>文档待确认 #1：<b>顶栏图标，还是会话卡片头部的小圆点？</b>两者都不阻断开赛、都只做提示，差别是可见范围与布局代价。</p>
+      </div>
+      <span class="d-state" data-state-for="d1">待决</span>
+    </div>
+
+    <div class="option-grid cols-2" role="radiogroup" aria-label="badge 位置">
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d1" data-value="a" data-label="A · 顶栏常驻图标">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">A · 顶栏常驻图标</span>
+          <span class="tag plan">文档当前方案</span>
+        </div>
+        <div class="opt-visual">
+          <div class="crop crop-topbar">
+            <span class="crop-label"><b>顶栏右侧</b> · 主题与设置之间 · 40×40</span>
+            <div class="crop-actions">
+              <span class="icon-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+              </span>
+              <span class="icon-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+              </span>
+              <span class="badge-slot is-alert" style="cursor:default">
+                <svg class="ic-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <svg class="ic-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>
+                <span class="ring"></span>
+              </span>
+              <span class="icon-btn filled" style="cursor:default">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                <span class="issue-dot"></span>
+              </span>
+            </div>
+          </div>
+          <div class="crop-note">异常时只替换图标与颜色，<b>右侧图标不位移</b>；正常态保留弱化占位。</div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>常驻可见：待机、比赛中都在，不依赖会话卡片滚动位置。</span></div>
+          <div class="pc plus"><span class="sign">+</span><span>与设置红点共用“全局状态”位置，语义统一。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>离 RUN 较远，开赛瞬间注意力在卡片右下。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>顶栏图标从 3 个增至 4 个（含设置）。</span></div>
+        </div>
+      </div>
+
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d1" data-value="b" data-label="B · 会话卡片头部圆点">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">B · 会话卡片头部圆点</span>
+          <span class="tag">备选</span>
+        </div>
+        <div class="opt-visual">
+          <div class="crop crop-head">
+            <span class="crop-label"><b>会话卡片头部</b> · 状态 chip 右侧 · 8dp 圆点</span>
+            <div class="session-title-row">
+              <span class="session-title">本轮训练</span>
+              <span class="status-chip">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                就绪
+              </span>
+              <span class="header-dot"><span class="ring"></span></span>
+            </div>
+            <div class="session-meta" style="margin-top:2px">CQ WW DX · 比赛 · 20 分钟</div>
+          </div>
+          <div class="crop-note">圆点只表达“有问题”，点击后才展开原因；<b>不占顶栏</b>。</div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>紧邻状态 chip 与 RUN，开赛前最容易被看到。</span></div>
+          <div class="pc plus"><span class="sign">+</span><span>不增加顶栏元素，保持现有顶栏节奏。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>卡片头部宽度预算已用于标题 / 状态 chip / 复盘胶囊，加元素会挤压标题。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>只在会话卡片可见；复盘覆盖或滚到规则卡时看不到。</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D2 -->
+  <section class="decision" id="d2">
+    <div class="d-head">
+      <span class="d-num">D2</span>
+      <div>
+        <h2>正常态要不要显示？</h2>
+        <p>文档待确认 #2：<b>正常时保留弱化的音量图标，还是完全不显示？</b>用下面的“预览异常”看切换瞬间的布局代价。</p>
+      </div>
+      <span class="d-state" data-state-for="d2">待决</span>
+    </div>
+
+    <div class="option-grid cols-2" role="radiogroup" aria-label="正常态显示">
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d2" data-value="a" data-label="A · 保留弱化图标（固定占位）">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">A · 保留弱化图标</span>
+          <span class="tag plan">文档当前方案</span>
+        </div>
+        <div class="opt-visual">
+          <div class="d2-bar">
+            <span class="d2-state">正常态 · <b>55% 不透明度</b></span>
+            <div class="crop-actions" id="d2aActions">
+              <span class="icon-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+              </span>
+              <span class="icon-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+              </span>
+              <span class="badge-slot is-normal" id="d2aBadge">
+                <svg class="ic-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <svg class="ic-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>
+              </span>
+              <span class="icon-btn filled" style="cursor:default">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                <span class="issue-dot"></span>
+              </span>
+            </div>
+          </div>
+          <button type="button" class="d2-toggle" data-d2="a" style="margin-top:8px">预览异常</button>
+          <div class="crop-note" id="d2aNote">切换时仅图标与颜色变化，<b>右侧设置按钮位置不变</b>。</div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>布局稳定：异常/恢复都不会推动右侧图标。</span></div>
+          <div class="pc plus"><span class="sign">+</span><span>保留“音频在哪里”的可发现性，新用户能猜到。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>常驻多一个图标，顶栏视觉噪音略高。</span></div>
+        </div>
+      </div>
+
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d2" data-value="b" data-label="B · 正常态完全隐藏">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">B · 正常态完全隐藏</span>
+          <span class="tag">备选</span>
+        </div>
+        <div class="opt-visual">
+          <div class="d2-bar">
+            <span class="d2-state">正常态 · <b>不占位</b></span>
+            <div class="crop-actions" id="d2bActions">
+              <span class="icon-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+              </span>
+              <span class="icon-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+              </span>
+              <span class="badge-slot is-hidden" id="d2bBadge">
+                <svg class="ic-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <svg class="ic-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>
+              </span>
+              <span class="icon-btn filled" style="cursor:default">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                <span class="issue-dot"></span>
+              </span>
+            </div>
+          </div>
+          <button type="button" class="d2-toggle" data-d2="b" style="margin-top:8px">预览异常</button>
+          <div class="shift-note" id="d2bShift">异常出现时，右侧 3 个图标整体左移 40dp，恢复时再移回来。</div>
+          <div class="crop-note">正常态更干净，但问题出现前用户不知道这里有音频状态。</div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>正常态最“小”，顶栏更干净。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>出现/消失时右侧图标与设置按钮整体位移（40dp）。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>可发现性差：新用户不知道此处会出现音频状态。</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D3 -->
+  <section class="decision" id="d3">
+    <div class="d-head">
+      <span class="d-num">D3</span>
+      <div>
+        <h2>轮询间隔能不能接受？</h2>
+        <p>文档待确认 #3：<b>2s（macOS/Windows）/ 3s（Linux）是否可接受，还是必须上事件驱动？</b>点“模拟系统静音”看提示延迟。</p>
+      </div>
+      <span class="d-state" data-state-for="d3">待决</span>
+    </div>
+
+    <div class="race">
+      <div class="race-head">
+        <b>提示出现时间线</b>
+        <span>假设 t=0 时系统被静音，badge 在下列时刻出现</span>
+        <button type="button" class="btn primary" id="raceBtn">模拟系统静音</button>
+      </div>
+      <div class="lane" data-delay="2000">
+        <div class="lane-head">
+          <span class="lane-name">轮询 2s</span>
+          <span class="lane-sub">macOS / Windows · 原生属性读取，微秒级</span>
+          <span class="lane-time">—</span>
+        </div>
+        <div class="track">
+          <span class="event"></span>
+          <span class="fill"></span>
+          <span class="lane-badge"><i></i>badge 出现</span>
+        </div>
+      </div>
+      <div class="lane" data-delay="3000">
+        <div class="lane-head">
+          <span class="lane-name">轮询 3s</span>
+          <span class="lane-sub">Linux · 每轮 fork 一个 pactl/wpctl 进程，5–15ms</span>
+          <span class="lane-time">—</span>
+        </div>
+        <div class="track">
+          <span class="event"></span>
+          <span class="fill"></span>
+          <span class="lane-badge"><i></i>badge 出现</span>
+        </div>
+      </div>
+      <div class="lane" data-delay="250">
+        <div class="lane-head">
+          <span class="lane-name">事件驱动</span>
+          <span class="lane-sub">CoreAudio 属性监听 / WASAPI Notify / pactl subscribe</span>
+          <span class="lane-time">—</span>
+        </div>
+        <div class="track">
+          <span class="event"></span>
+          <span class="fill"></span>
+          <span class="lane-badge"><i></i>badge 出现</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="choices" role="radiogroup" aria-label="轮询间隔">
+      <div class="choice" role="radio" tabindex="0" aria-checked="false" data-group="d3" data-value="a" data-label="A · P0 轮询 2s / 3s">
+        <span class="radio"></span>
+        <div class="body">
+          <div class="name">A · P0 只做轮询：2s / 3s <span class="tag plan">文档当前方案</span></div>
+          <div class="desc">满足“实时”的体感（≤3s），实现最省；事件驱动留到 P0-c 再替换同一 probe 接口。</div>
+        </div>
+      </div>
+      <div class="choice" role="radio" tabindex="0" aria-checked="false" data-group="d3" data-value="b" data-label="B · P0 直接上事件驱动 + 轮询兜底">
+        <span class="radio"></span>
+        <div class="body">
+          <div class="name">B · P0 直接上事件驱动，轮询兜底</div>
+          <div class="desc">延迟 &lt;0.5s，但三平台各写一套监听器，且监听失效仍需轮询，P0 工作量显著增加。</div>
+        </div>
+      </div>
+      <div class="choice" role="radio" tabindex="0" aria-checked="false" data-group="d3" data-value="c" data-label="C · 统一 5s 轮询">
+        <span class="radio"></span>
+        <div class="body">
+          <div class="name">C · 统一放长到 5s，进一步省开销</div>
+          <div class="desc">CPU / fork 最少，但比赛中调音量后可能错过一整道题，与“实时”目标冲突。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D4 -->
+  <section class="decision" id="d4">
+    <div class="d-head">
+      <span class="d-num">D4</span>
+      <div>
+        <h2>试音用什么素材？</h2>
+        <p>文档待确认 #4：<b>优先固定真实片段，还是直接用生成双音？</b>两边的“播放”都可用，真实片段加载失败时会自动退化并提示。</p>
+      </div>
+      <span class="d-state" data-state-for="d4">待决</span>
+    </div>
+
+    <div class="option-grid cols-2" role="radiogroup" aria-label="试音素材">
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d4" data-value="a" data-label="A · 固定真实片段（失败退化双音）">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">A · 固定真实片段，失败退化双音</span>
+          <span class="tag plan">文档当前方案</span>
+        </div>
+        <div class="opt-visual">
+          <div class="settings-mock">
+            <div class="sm-title">设置 → 声音</div>
+            <div class="sm-slider">
+              <span class="ico">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+              </span>
+              <span class="rail"><i></i></span>
+              <span class="pct">80%</span>
+            </div>
+            <div class="sm-row">
+              <span class="sm-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </span>
+              <div class="sm-text">
+                <b>播放试音</b>
+                <span>按当前来台音量播放约 0.8 秒</span>
+              </div>
+              <button type="button" class="btn sm-play" id="playClip">播放</button>
+            </div>
+            <div class="asset-line">assets/voice/US/Common/ROGER_YOU_ARE_59.wav</div>
+            <div class="audio-note" id="clipNote">原型播放完整片段；实机裁剪至 0.8s。</div>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>顺带验证真实资源的解码与播放链路。</span></div>
+          <div class="pc plus"><span class="sign">+</span><span>听到的就是比赛里会听到的声音。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>资源缺失/损坏时试音也会静音，必须实现双音兜底。</span></div>
+        </div>
+      </div>
+
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d4" data-value="b" data-label="B · 仅生成双音（700Hz → 1000Hz）">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">B · 仅生成双音（700Hz → 1000Hz）</span>
+          <span class="tag">备选</span>
+        </div>
+        <div class="opt-visual">
+          <div class="settings-mock">
+            <div class="sm-title">设置 → 声音</div>
+            <div class="sm-slider">
+              <span class="ico">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+              </span>
+              <span class="rail"><i></i></span>
+              <span class="pct">80%</span>
+            </div>
+            <div class="sm-row">
+              <span class="sm-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </span>
+              <div class="sm-text">
+                <b>播放试音</b>
+                <span>按当前来台音量播放约 0.8 秒</span>
+              </div>
+              <button type="button" class="btn sm-play" id="playTone">播放</button>
+            </div>
+            <div class="asset-line">生成：700Hz → 1000Hz，30ms 淡入淡出</div>
+            <div class="audio-note" id="toneNote">不依赖任何资源文件，永远可播。</div>
+          </div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>不依赖资源，代码最简单，失败路径少。</span></div>
+          <div class="pc plus"><span class="sign">+</span><span>任何平台、任何安装方式都一定能播。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>只能证明“链路通”，不能证明“素材能解码”。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>听感与真实呼叫差异大，用户可能误判音量。</span></div>
+        </div>
+      </div>
+    </div>
+    <audio id="realClip" src="../../assets/voice/US/Common/ROGER_YOU_ARE_59.wav" preload="metadata"></audio>
+  </section>
+
+  <!-- D5 -->
+  <section class="decision" id="d5">
+    <div class="d-head">
+      <span class="d-num">D5</span>
+      <div>
+        <h2>E1 阻断到什么程度？</h2>
+        <p>文档待确认 #5：<b>全部异常阻断 / 仅引擎未初始化阻断 / 仅提示不阻断。</b>文档建议等 P0 真机反馈后再定；三种交互如下。</p>
+      </div>
+      <span class="d-state" data-state-for="d5">待决</span>
+    </div>
+
+    <div class="option-grid cols-3" role="radiogroup" aria-label="E1 阻断范围">
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d5" data-value="a" data-label="A · 全部异常阻断">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">A · 全部异常阻断</span>
+        </div>
+        <div class="opt-visual">
+          <div class="mini-stage">
+            <div class="mini-app">
+              <div class="mini-top">
+                <span class="grow"></span>
+                <span class="badge-slot is-alert">
+                  <svg class="ic-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+                  <svg class="ic-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+                </span>
+                <span class="icon-btn filled">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                </span>
+              </div>
+              <div class="mini-session">
+                <div class="mini-head"><b>本轮训练</b><span class="status-chip">就绪</span></div>
+                <div class="mini-timer">00:00:00</div>
+                <div class="mini-progress"><i></i></div>
+                <div class="mini-stats"><span>有效分 0</span><span>通联 0</span><span>速度 0.0s</span></div>
+                <div class="mini-run">开始训练</div>
+              </div>
+            </div>
+            <div class="scrim">
+              <div class="dialog">
+                <h4>音频输出可能不可用</h4>
+                <p>点亮开始前会先检查系统音量、输出设备与引擎状态。</p>
+                <div class="dlg-reason"><i></i>系统音量仅 8%，可能听不清呼叫音频</div>
+                <div class="dlg-rows">
+                  <div><span>输出设备</span><b>MacBook Pro 扬声器</b></div>
+                  <div><span>当前音量</span><b>8%</b></div>
+                </div>
+                <div class="dlg-actions">
+                  <button type="button" class="dlg-btn primary">打开系统声音设置</button>
+                  <button type="button" class="dlg-btn tonal">重新检测</button>
+                  <button type="button" class="dlg-btn text">仍然开始</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pass-note">静音 / 低音量 / 无设备 / 引擎故障都会先拦截。</div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>最大程度避免整局无声。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>勾选“仍然开始”会形成肌肉记忆，长期使用变烦。</span></div>
+        </div>
+      </div>
+
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d5" data-value="b" data-label="B · 仅引擎未初始化阻断">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">B · 仅引擎故障阻断</span>
+        </div>
+        <div class="opt-visual">
+          <div class="mini-stage">
+            <div class="mini-app">
+              <div class="mini-top">
+                <span class="grow"></span>
+                <span class="badge-slot is-alert">
+                  <svg class="ic-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+                  <svg class="ic-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+                </span>
+                <span class="icon-btn filled">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                </span>
+              </div>
+              <div class="mini-session">
+                <div class="mini-head"><b>本轮训练</b><span class="status-chip">就绪</span></div>
+                <div class="mini-timer">00:00:00</div>
+                <div class="mini-progress"><i></i></div>
+                <div class="mini-stats"><span>有效分 0</span><span>通联 0</span><span>速度 0.0s</span></div>
+                <div class="mini-run">开始训练</div>
+              </div>
+            </div>
+            <div class="scrim">
+              <div class="dialog">
+                <h4>音频引擎未启动</h4>
+                <p>本局将全程没有声音。可以重试初始化，或仍然开始。</p>
+                <div class="dlg-reason"><i></i>音频引擎未就绪，比赛不会播放任何音频</div>
+                <div class="dlg-actions">
+                  <button type="button" class="dlg-btn primary">重试</button>
+                  <button type="button" class="dlg-btn text">仍然开始</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pass-note">音量 / 设备问题只出 badge 与 E3 toast，不拦开赛。</div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>只拦“一定没声音”的引擎故障，打断最少。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>静音 / 无设备时仍可能开局无声。</span></div>
+        </div>
+      </div>
+
+      <div class="option" role="radio" tabindex="0" aria-checked="false" data-group="d5" data-value="c" data-label="C · 不阻断，仅提示">
+        <div class="opt-top">
+          <span class="radio"></span>
+          <span class="opt-name">C · 不阻断，仅提示</span>
+        </div>
+        <div class="opt-visual">
+          <div class="mini-stage">
+            <div class="mini-app">
+              <div class="mini-top">
+                <span class="grow"></span>
+                <span class="badge-slot is-alert">
+                  <svg class="ic-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+                  <svg class="ic-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+                </span>
+                <span class="icon-btn filled">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                </span>
+              </div>
+              <div class="mini-session">
+                <div class="mini-head"><b>本轮训练</b><span class="status-chip">就绪</span></div>
+                <div class="mini-timer">00:00:00</div>
+                <div class="mini-progress"><i></i></div>
+                <div class="mini-stats"><span>有效分 0</span><span>通联 0</span><span>速度 0.0s</span></div>
+                <div class="mini-run">开始训练</div>
+              </div>
+            </div>
+            <div class="mini-toast">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+              <span>系统音量仅 8%，可能听不清呼叫音频</span>
+            </div>
+          </div>
+          <div class="pass-note">RUN 直接开始，仅 badge + 比赛中 warning toast。</div>
+        </div>
+        <div class="pros-cons">
+          <div class="pc plus"><span class="sign">+</span><span>零打断，P0 行为完全不变。</span></div>
+          <div class="pc minus"><span class="sign">−</span><span>对“不知道要看 badge”的用户没有保护。</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="foot" style="margin-top:10px">三种方案都需要补上 RUN 的忙态与重入保护（连点只能开始一局）；这一点与阻断范围无关。</p>
+  </section>
+
+  <!-- 汇总 -->
+  <section class="summary" id="summary">
+    <div class="summary-head">
+      <h2>决策汇总</h2>
+      <span class="count">已决 <b id="summaryDone">0</b> / 5</span>
+    </div>
+    <p class="hint">选择会保存在本机浏览器；点“复制决策结论”可直接把下面这段回填到设计文档第 9 节。</p>
+    <ul class="sum-list">
+      <li><span class="idx">D1</span><span class="q">badge 位置</span><span class="a pending" id="sum-d1">待定</span></li>
+      <li><span class="idx">D2</span><span class="q">正常态显示</span><span class="a pending" id="sum-d2">待定</span></li>
+      <li><span class="idx">D3</span><span class="q">轮询间隔</span><span class="a pending" id="sum-d3">待定</span></li>
+      <li><span class="idx">D4</span><span class="q">试音素材</span><span class="a pending" id="sum-d4">待定</span></li>
+      <li><span class="idx">D5</span><span class="q">E1 阻断范围</span><span class="a pending" id="sum-d5">待定</span></li>
+    </ul>
+    <div class="decision-text" id="decisionText">音频输出检测 · 待决事项决策（2026-11-14）
+1. D1 badge 位置：待定
+2. D2 正常态显示：待定
+3. D3 轮询间隔：待定
+4. D4 试音素材：待定
+5. D5 E1 阻断范围：待定</div>
+    <div class="summary-actions">
+      <button type="button" class="btn primary" id="copyBtn">复制决策结论</button>
+      <button type="button" class="btn" id="resetBtn2">重置全部</button>
+      <span class="copied" id="copiedTip">已复制到剪贴板</span>
+    </div>
+  </section>
+
+  <p class="foot">
+    <b>原型说明</b>：所有百分比、设备名、音量与文案均为示意；交互（选择、试听、延迟演示）只服务于评审，不代表最终实现。真实实现仍受平台能力、沙箱与资源加载链路约束，详见设计文档第 2、4 节。
+  </p>
+
+</div>
+
+<script>
+(function () {
+  var GROUPS = ['d1', 'd2', 'd3', 'd4', 'd5'];
+  var STORE_KEY = 'ssb-audio-preflight-decisions-v2';
+  var picks = {};
+
+  try {
+    picks = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {};
+  } catch (e) {
+    picks = {};
+  }
+
+  var radios = Array.prototype.slice.call(document.querySelectorAll('[role="radio"][data-group]'));
+
+  function selectedEl(group) {
+    return radios.filter(function (el) {
+      return el.getAttribute('data-group') === group && el.getAttribute('aria-checked') === 'true';
+    })[0] || null;
+  }
+
+  function render() {
+    var done = 0;
+    GROUPS.forEach(function (g) {
+      var el = selectedEl(g);
+      var state = document.querySelector('[data-state-for="' + g + '"]');
+      var sum = document.getElementById('sum-' + g);
+      if (el) {
+        done += 1;
+        if (state) {
+          state.textContent = '已选 ' + el.getAttribute('data-value').toUpperCase();
+          state.classList.add('is-set');
+        }
+        if (sum) {
+          sum.textContent = el.getAttribute('data-label');
+          sum.classList.remove('pending');
+        }
+      } else {
+        if (state) {
+          state.textContent = '待决';
+          state.classList.remove('is-set');
+        }
+        if (sum) {
+          sum.textContent = '待定';
+          sum.classList.add('pending');
+        }
+      }
+    });
+
+    var text = '音频输出检测 · 待决事项决策（2026-11-14）\n';
+    GROUPS.forEach(function (g, i) {
+      var el = selectedEl(g);
+      var label = el ? el.getAttribute('data-label') : '待定';
+      var names = {
+        d1: 'D1 badge 位置',
+        d2: 'D2 正常态显示',
+        d3: 'D3 轮询间隔',
+        d4: 'D4 试音素材',
+        d5: 'D5 E1 阻断范围'
+      };
+      text += (i + 1) + '. ' + names[g] + '：' + label + '\n';
+    });
+    document.getElementById('decisionText').textContent = text.trim();
+    document.getElementById('metaDone').textContent = done;
+    document.getElementById('metaPending').textContent = 5 - done;
+    document.getElementById('summaryDone').textContent = done;
+    document.getElementById('progressText').textContent = done + ' / 5';
+    document.getElementById('progressBar').style.width = (done / 5 * 100) + '%';
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(picks));
+    } catch (e) { /* file:// 下可能不可用 */ }
+  }
+
+  function pick(group, value) {
+    picks[group] = value;
+    radios.forEach(function (el) {
+      if (el.getAttribute('data-group') === group) {
+        el.setAttribute('aria-checked', el.getAttribute('data-value') === value ? 'true' : 'false');
+      }
+    });
+    render();
+  }
+
+  radios.forEach(function (el) {
+    el.addEventListener('click', function () {
+      pick(el.getAttribute('data-group'), el.getAttribute('data-value'));
+    });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        pick(el.getAttribute('data-group'), el.getAttribute('data-value'));
+      }
+    });
+  });
+
+  GROUPS.forEach(function (g) {
+    if (picks[g]) pick(g, picks[g]);
+  });
+  render();
+
+  /* 主题 */
+  var themeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-theme-btn]'));
+  themeButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var theme = btn.getAttribute('data-theme-btn');
+      document.body.setAttribute('data-theme', theme);
+      themeButtons.forEach(function (b) {
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+    });
+  });
+
+  /* badge 详情弹层 */
+  var heroBadge = document.getElementById('heroBadge');
+  var heroPopover = document.getElementById('heroPopover');
+  function setPopover(open) {
+    heroPopover.classList.toggle('open', open);
+    heroBadge.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  heroBadge.addEventListener('click', function (e) {
+    e.stopPropagation();
+    setPopover(!heroPopover.classList.contains('open'));
+  });
+  heroPopover.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.addEventListener('click', function () { setPopover(false); });
+  var closeBtn = heroPopover.querySelector('[data-close-popover]');
+  if (closeBtn) closeBtn.addEventListener('click', function () { setPopover(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setPopover(false);
+  });
+
+  /* D2 预览异常 */
+  function toggleD2(which, btn) {
+    var badge = document.getElementById(which === 'a' ? 'd2aBadge' : 'd2bBadge');
+    var isAlert;
+    if (which === 'a') {
+      isAlert = badge.classList.contains('is-normal');
+      badge.classList.toggle('is-normal', !isAlert);
+      badge.classList.toggle('is-alert', isAlert);
+    } else {
+      isAlert = badge.classList.contains('is-hidden');
+      badge.classList.toggle('is-hidden', !isAlert);
+      badge.classList.toggle('is-alert', isAlert);
+      var shift = document.getElementById('d2bShift');
+      if (shift) shift.classList.toggle('show', isAlert);
+    }
+    btn.textContent = isAlert ? '恢复正常' : '预览异常';
+  }
+
+  Array.prototype.slice.call(document.querySelectorAll('.d2-toggle')).forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleD2(btn.getAttribute('data-d2'), btn);
+    });
+  });
+
+  /* D3 延迟演示 */
+  var lanes = Array.prototype.slice.call(document.querySelectorAll('.lane'));
+  var raceBtn = document.getElementById('raceBtn');
+  var raceTimers = [];
+
+  function resetRace() {
+    raceTimers.forEach(function (t) { clearTimeout(t); });
+    raceTimers = [];
+    lanes.forEach(function (lane) {
+      lane.classList.remove('done');
+      var fill = lane.querySelector('.fill');
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+      lane.querySelector('.lane-time').textContent = '—';
+    });
+  }
+
+  raceBtn.addEventListener('click', function () {
+    resetRace();
+    var delays = [];
+    lanes.forEach(function (lane) {
+      var delay = parseInt(lane.getAttribute('data-delay'), 10);
+      delays.push(delay);
+    });
+    var max = Math.max.apply(null, delays);
+    lanes.forEach(function (lane) {
+      var delay = parseInt(lane.getAttribute('data-delay'), 10);
+      var fill = lane.querySelector('.fill');
+      /* 把最长 3s 映射到 3s 动画，短延迟按比例走，保持三条同时结束的观感 */
+      var animMs = Math.max(120, delay);
+      requestAnimationFrame(function () {
+        fill.style.transition = 'width ' + (animMs / 1000) + 's linear';
+        fill.style.width = '100%';
+      });
+      raceTimers.push(setTimeout(function () {
+        lane.classList.add('done');
+        lane.querySelector('.lane-time').textContent = delay < 1000
+          ? (delay / 1000).toFixed(1) + 's'
+          : (delay / 1000).toFixed(1) + 's';
+      }, delay + 60));
+    });
+    raceTimers.push(setTimeout(function () { /* 保持 done 状态 */ }, max + 400));
+  });
+
+  /* D4 试听 */
+  var clip = document.getElementById('realClip');
+  var clipBtn = document.getElementById('playClip');
+  var clipNote = document.getElementById('clipNote');
+  var toneBtn = document.getElementById('playTone');
+  var toneNote = document.getElementById('toneNote');
+  var audioCtx = null;
+  var clipFailed = false;
+
+  function getCtx() {
+    if (!audioCtx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audioCtx = new Ctx();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playTone(onDone) {
+    var ctx = getCtx();
+    if (!ctx) {
+      if (onDone) onDone();
+      return;
+    }
+    var now = ctx.currentTime;
+    [[700, 0], [1000, 0.4]].forEach(function (pair) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = pair[0];
+      var start = now + pair[1];
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.2, start + 0.03);
+      gain.gain.setValueAtTime(0.2, start + 0.35);
+      gain.gain.linearRampToValueAtTime(0, start + 0.38);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.4);
+    });
+    if (onDone) setTimeout(onDone, 820);
+  }
+
+  if (clip) {
+    clip.addEventListener('error', function () { clipFailed = true; });
+  }
+
+  clipBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (clipBtn.disabled) return;
+
+    if (clipFailed || !clip) {
+      clipNote.textContent = '真实片段加载失败 → 已退化为双音（这正是方案 A 需要兜底的原因）';
+      clipNote.classList.add('is-warn');
+      clipBtn.textContent = '播放中…';
+      clipBtn.disabled = true;
+      playTone(function () {
+        clipBtn.textContent = '播放';
+        clipBtn.disabled = false;
+      });
+      return;
+    }
+
+    clipBtn.textContent = '播放中…';
+    clipBtn.disabled = true;
+    clipNote.textContent = '原型播放完整片段；实机裁剪至 0.8s。';
+    clipNote.classList.remove('is-warn');
+    clip.currentTime = 0;
+    var p = clip.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        clipFailed = true;
+        clipBtn.textContent = '播放';
+        clipBtn.disabled = false;
+        clipNote.textContent = '浏览器拒绝播放（可能受本地文件限制）→ 改为生成双音';
+        clipNote.classList.add('is-warn');
+        playTone();
+      });
+    }
+  });
+
+  if (clip) {
+    clip.addEventListener('ended', function () {
+      clipBtn.textContent = '播放';
+      clipBtn.disabled = false;
+    });
+  }
+
+  toneBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (toneBtn.disabled) return;
+    toneBtn.textContent = '播放中…';
+    toneBtn.disabled = true;
+    toneNote.textContent = '正在播放 700Hz → 1000Hz';
+    toneNote.classList.remove('is-warn');
+    playTone(function () {
+      toneBtn.textContent = '播放';
+      toneBtn.disabled = false;
+      toneNote.textContent = '不依赖任何资源文件，永远可播。';
+    });
+  });
+
+  /* 复制与重置 */
+  var copyBtn = document.getElementById('copyBtn');
+  var copiedTip = document.getElementById('copiedTip');
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* ignore */ }
+    document.body.removeChild(ta);
+  }
+
+  copyBtn.addEventListener('click', function () {
+    var text = document.getElementById('decisionText').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+    copiedTip.classList.add('show');
+    setTimeout(function () { copiedTip.classList.remove('show'); }, 1800);
+  });
+
+  function resetAll() {
+    picks = {};
+    radios.forEach(function (el) { el.setAttribute('aria-checked', 'false'); });
+    try { localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ }
+    /* 重置 D2 预览 */
+    var a = document.getElementById('d2aBadge');
+    var b = document.getElementById('d2bBadge');
+    a.className = 'badge-slot is-normal';
+    b.className = 'badge-slot is-hidden';
+    document.getElementById('d2bShift').classList.remove('show');
+    Array.prototype.slice.call(document.querySelectorAll('.d2-toggle')).forEach(function (btn) {
+      btn.textContent = '预览异常';
+    });
+    resetRace();
+    render();
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+  document.getElementById('resetBtn2').addEventListener('click', resetAll);
+})();
+</script>
+</body>
+</html>
