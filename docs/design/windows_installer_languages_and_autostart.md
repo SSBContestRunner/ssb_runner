@@ -147,7 +147,7 @@ Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY
 - Inno 按各 `.isl` 的 `LanguageID` 自动匹配；其内置规则保证简体/繁体互斥，`zh-TW` 命中繁体、`zh-HK` / `zh-MO` 会回落到繁体、`ja` 命中日文。
 - `Name:` 使用 `english` / `chinesesimplified` / `chinesetraditional` / `japanese`，后续可用 `/LANG=` 指定。
 - 模板会被 Liquid 解析：不要写 Inno 预处理器 `#define`；也不要在注释里写双花括号示例（会被当作占位符解析）。`{app}`、`{cm:...}` 等单花括号常量不受影响。
-- 右上角小图由 `windows/runner/resources/wizard_small_image_{58,116,174}.png`（与 `app_icon.ico` 同目录，取自 macOS `app_icon_1024.png`）提供。fastforge 只注入固定变量集，无法新增路径变量，所以用 ISPP 内联 `{#StringChange(...)}` 从 `SETUP_ICON_FILE` 推导绝对路径：Liquid 先替换占位符，ISCC 编译期再求值。这样既不依赖渲染后 `.iss` 所在的 `dist/<version>/` 层级，也不需要 `#define`。三档尺寸供 Inno 按当前 DPI 选择。
+- 右上角小图由 `windows/runner/resources/wizard_small_image_{58,116,174}.png`（与 `app_icon.ico` 同目录，取自 macOS `app_icon_1024.png`）提供。fastforge 只注入固定变量集，无法新增路径变量，所以用 ISPP 内联 `{#StringChange(...)}` 从 `SETUP_ICON_FILE` 推导绝对路径：Liquid 先替换占位符，ISCC 编译期再求值。这样既不依赖渲染后 `.iss` 所在的 `dist/<version>/` 层级，也不需要 `#define`。三档尺寸供 Inno 按当前 DPI 选择。三张图都在画布内预留了均匀透明边距（100% 档 6px，等比 10%；图形 46 / 92 / 138px）：Inno 把这张小图贴着客户区右上角绘制，`[Setup]` 没有 margin 指令，留白只能烘进 PNG，否则蓝色方块会顶到标题栏和右边框。重新导出时画布尺寸必须保持 58 / 116 / 174 —— 图片高度同时决定向导头部高度，改画布会把页面标题和副标题一起顶偏。
 - 不引入 `[InstallDelete]`：alpha 阶段不清理旧版 Startup 快捷方式。
 
 ### 4.2 修改 `windows/packaging/exe/make_config.yaml`

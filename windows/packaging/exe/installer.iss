@@ -58,6 +58,12 @@ SetupIconFile={{SETUP_ICON_FILE}}
 ; second config key: Liquid substitutes the icon path first, then ISCC resolves the
 ; ISPP StringChange expression at compile time. Listing three sizes (100% / 200% /
 ; 300%) lets Inno pick the one closest to the current DPI scale.
+; The PNGs carry a uniform transparent inset (6px at 100%, 10% of the canvas):
+; Inno draws the small image flush against the client area's top-right corner and
+; [Setup] has no margin directive, so the padding has to be baked into the image.
+; Keep the canvas sizes (58 / 116 / 174) unchanged when re-exporting -- the image
+; height also drives the wizard header layout, so a different canvas shifts the
+; page title and subtitle.
 WizardSmallImageFile={#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_58.png")},{#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_116.png")},{#StringChange("{{SETUP_ICON_FILE}}", "app_icon.ico", "wizard_small_image_174.png")}
 WizardStyle=modern
 PrivilegesRequired={{PRIVILEGES_REQUIRED}}
