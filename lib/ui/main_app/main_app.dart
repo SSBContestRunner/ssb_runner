@@ -9,6 +9,7 @@ import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_init_tracker.dart';
 import 'package:ssb_runner/audio/audio_loader.dart';
+import 'package:ssb_runner/audio/audio_output_monitor.dart';
 import 'package:ssb_runner/audio/audio_player.dart';
 import 'package:ssb_runner/callsign/callsign_loader.dart';
 import 'package:ssb_runner/db/app_database.dart';
@@ -25,6 +26,7 @@ import 'package:ssb_runner/ui/diagnostics_actions.dart';
 import 'package:ssb_runner/ui/main_app/exit_flow.dart';
 import 'package:ssb_runner/ui/main_app/home_page.dart';
 import 'package:ssb_runner/ui/main_app/window_geometry.dart';
+import 'package:ssb_runner/ui/main_app/window_visibility.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';
 import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
@@ -55,6 +57,15 @@ class _MainAppState extends State<MainApp> {
   /// Tracks the audio initialisation so the exit path knows whether it is safe
   /// to answer the platform's exit request (see `_handleExitRequest`).
   final AudioInitTracker _audio = AudioInitTracker();
+
+  /// Watches the system output so the topbar badge can warn about a mute, a
+  /// too-low volume, a missing device or an engine that never started.
+  ///
+  /// Owned at the root because the warning must work on standby too, not only
+  /// while a session runs (design §4.1.1).
+  final AudioOutputMonitor _audioMonitor = AudioOutputMonitor(
+    visibilityFactory: WindowManagerVisibility.attach,
+  );
 
   /// Set by the exit path so the boot sequence stops dispatching new steps.
   final _ExitSignal _exitSignal = _ExitSignal();
@@ -150,6 +161,11 @@ class _MainAppState extends State<MainApp> {
     // A resize within the last 500ms may still be debounced.
     _geometry.flush();
     _exitTrace('geometry_flushed');
+
+    // Stop probing before the engine is torn down, so no platform read can run
+    // concurrently with `deinitAsync()`.
+    _audioMonitor.stop();
+    _exitTrace('audio_monitor_stopped');
 
     // 1) Let an in-flight initialisation settle (normally 28-411 ms). Closing
     // the window inside that window used to skip the deinit and answer `exit`,
@@ -343,6 +359,9 @@ class _MainAppState extends State<MainApp> {
                   RepositoryProvider(create: (context) => AudioLoader()),
                   RepositoryProvider(create: (context) => AudioPlayer()),
                   RepositoryProvider(create: (context) => CallsignLoader()),
+                  RepositoryProvider<AudioOutputMonitor>.value(
+                    value: _audioMonitor,
+                  ),
                   RepositoryProvider(
                     create: (context) => DxccManager(database: context.read()),
                   ),
@@ -403,6 +422,7 @@ class _MainAppState extends State<MainApp> {
 
   @override
   void dispose() {
+    _audioMonitor.dispose();
     _geometry.dispose();
     _listener.dispose();
     _language.dispose();
@@ -453,11 +473,19 @@ class _BootGateState extends State<_BootGate> {
       return;
     }
 
-    await context.read<_MainAppCubit>().load(
+    final cubit = context.read<_MainAppCubit>();
+    await cubit.load(
       dxccManager: context.read(),
       callsignLoader: context.read(),
       onSettingsReady: widget.geometry.attach,
     );
+
+    // Only a complete boot starts the monitor: a failed start or an abort by
+    // the exit path leaves it off (design §4.1.1).
+    if (!mounted || cubit.state is! _Ready) {
+      return;
+    }
+    context.read<AudioOutputMonitor>().start();
   }
 
   @override

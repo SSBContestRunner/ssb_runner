@@ -179,6 +179,16 @@ class AppSettings {
   set audioVolume(double value) =>
       _prefs.setDouble(_settingAudioVolume, value.clamp(0.2, 1.2).toDouble());
 
+  /// Whether a low system volume still blocks starting a session.
+  ///
+  /// Defaults to true. Only the low-volume case can be dismissed: a mute, a
+  /// missing device and an engine failure always ask (design D5).
+  bool get audioPreflightLowVolumeWarning =>
+      _prefs.getBool(_settingAudioPreflightLowVolumeWarning) ?? true;
+
+  set audioPreflightLowVolumeWarning(bool value) =>
+      _prefs.setBool(_settingAudioPreflightLowVolumeWarning, value);
+
   /// Function key bindings are key-centric: every key F1–F12 always exists and
   /// may map to an [OperationAction] or to Spare (`action == null`).
   ///
@@ -622,6 +632,8 @@ const _settingIncomingAccent = 'setting_incoming_accent';
 const _settingVerboseLogging = 'setting_verbose_logging';
 const _settingDifficulty = 'setting_difficulty';
 const _settingAudioVolume = 'setting_audio_volume';
+const _settingAudioPreflightLowVolumeWarning =
+    'setting_audio_preflight_low_volume_warning';
 const _settingWindowContentSize = 'setting_window_content_size';
 
 /// Legacy, action-centric key bindings. Kept only for migration; never written.

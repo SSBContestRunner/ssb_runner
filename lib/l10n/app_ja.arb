@@ -286,5 +286,21 @@
     }
   },
   "endPausedConfirm": "終了して振り返りを見る",
-  "endRunningBody": "未完了の問題と残り時間は失われます。記録済みの QSO は保持されます。"
+  "endRunningBody": "未完了の問題と残り時間は失われます。記録済みの QSO は保持されます。",
+  "audioBadgeMutedTooltip": "システム出力がミュートされています。コール音声は聞こえません",
+  "audioBadgeLowTooltip": "システム音量が {percent}% しかありません。コール音声が聞き取りにくい可能性があります",
+  "audioBadgeNoDeviceTooltip": "利用可能な音声出力デバイスが見つかりません",
+  "audioBadgeEngineDownTooltip": "音声エンジンが起動していないため、このセッションは無音になります",
+  "audioBadgeOpenSoundSettings": "システムのサウンド設定を開く",
+  "audioBadgeVolumeLabel": "現在の音量 {percent}%",
+  "audioTestToneTitle": "テスト音を再生",
+  "audioTestToneSubtitle": "素材本来の音量で約 0.8 秒再生します。聞きやすい音量に調整してください",
+  "audioTestTonePlaying": "再生中…",
+  "audioTestToneFailed": "音声の再生に失敗しました",
+  "audioPreflightRecheck": "再確認",
+  "audioPreflightRetry": "再試行",
+  "audioPreflightStartAnyway": "そのまま開始",
+  "audioPreflightDontAskLowVolume": "低音量の警告を表示しない",
+  "audioPreflightLowVolumeWarningLabel": "低音量を警告する",
+  "audioPreflightLowVolumeWarningHint": "オフにすると低音量でも開始を妨げません"
 }

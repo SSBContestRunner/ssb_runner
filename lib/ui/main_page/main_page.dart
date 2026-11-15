@@ -4,6 +4,7 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/ui/main_page/app_topbar.dart';
+import 'package:ssb_runner/ui/main_page/audio_alert_toaster.dart';
 import 'package:ssb_runner/ui/main_page/qso_console.dart';
 import 'package:ssb_runner/ui/main_page/qso_log_panel.dart';
 import 'package:ssb_runner/ui/main_page/rules_card.dart';
@@ -89,6 +90,7 @@ class _MainPageState extends State<MainPage> {
             ],
           ),
           TrainingReviewOverlay(),
+          AudioAlertToaster(),
         ],
       ),
     );

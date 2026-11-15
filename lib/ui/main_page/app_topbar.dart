@@ -7,6 +7,7 @@ import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_readiness.dart';
+import 'package:ssb_runner/ui/main_page/audio_status_badge.dart';
 import 'package:ssb_runner/ui/main_page/key_reference_dialog.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_sheet.dart';
@@ -84,6 +85,9 @@ class AppTopbar extends StatelessWidget {
                 isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
               ),
             ),
+            // Only present while the output is unusable; normal state keeps the
+            // topbar unchanged (design D2).
+            const AudioStatusBadge(),
             const SizedBox(width: 4),
             // Settings live in a drawer now, so the entry point itself carries
             // the "something still needs attention" signal.

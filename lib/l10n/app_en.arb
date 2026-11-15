@@ -563,5 +563,35 @@
     }
   },
   "endPausedConfirm": "End and view review",
-  "endRunningBody": "Unfinished questions and remaining time will be lost; already logged QSOs are kept."
+  "endRunningBody": "Unfinished questions and remaining time will be lost; already logged QSOs are kept.",
+  "audioBadgeMutedTooltip": "System output is muted; call audio will not be heard",
+  "audioBadgeLowTooltip": "System volume is only {percent}%; call audio may be hard to hear",
+  "@audioBadgeLowTooltip": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "audioBadgeNoDeviceTooltip": "No audio output device was found",
+  "audioBadgeEngineDownTooltip": "The audio engine did not start; this session will be silent",
+  "audioBadgeOpenSoundSettings": "Open system sound settings",
+  "audioBadgeVolumeLabel": "Current volume {percent}%",
+  "@audioBadgeVolumeLabel": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "audioTestToneTitle": "Play test sound",
+  "audioTestToneSubtitle": "A short sample at the recording's own level; adjust the system volume until it is comfortable",
+  "audioTestTonePlaying": "Playing…",
+  "audioTestToneFailed": "Audio playback failed",
+  "audioPreflightRecheck": "Check again",
+  "audioPreflightRetry": "Retry",
+  "audioPreflightStartAnyway": "Start anyway",
+  "audioPreflightDontAskLowVolume": "Don't warn about low volume",
+  "audioPreflightLowVolumeWarningLabel": "Warn about low volume",
+  "audioPreflightLowVolumeWarningHint": "When off, a low volume no longer blocks starting a session"
 }

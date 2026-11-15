@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssb_runner/audio/audio_output_monitor.dart';
 import 'package:ssb_runner/common/time_format.dart';
 import 'package:ssb_runner/contest_run/data/score_data.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
@@ -13,6 +14,7 @@ import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/settings/settings_issue.dart';
 import 'package:ssb_runner/settings/settings_readiness.dart';
 import 'package:ssb_runner/training/pending_replay.dart';
+import 'package:ssb_runner/ui/main_page/audio_preflight_dialog.dart';
 import 'package:ssb_runner/ui/main_page/replay_armed_banner.dart';
 import 'package:ssb_runner/ui/main_page/settings_cubits.dart';
 import 'package:ssb_runner/ui/main_page/settings_issues_dialog.dart';
@@ -997,7 +999,7 @@ class _RunSection extends StatelessWidget {
   }
 }
 
-class _RunButton extends StatelessWidget {
+class _RunButton extends StatefulWidget {
   const _RunButton({
     required this.phase,
     required this.issues,
@@ -1009,13 +1011,75 @@ class _RunButton extends StatelessWidget {
   final bool hasPendingReplay;
 
   @override
+  State<_RunButton> createState() => _RunButtonState();
+}
+
+class _RunButtonState extends State<_RunButton> {
+  /// Blocks a second start while the pre-flight dialog or `startContest()` is
+  /// in flight, so a double click cannot start two sessions (design §5 E1).
+  bool _busy = false;
+
+  Future<void> _onPressed() async {
+    final manager = context.read<ContestManager>();
+    switch (widget.phase) {
+      case ContestSessionPhase.running:
+        manager.pauseContest();
+        return;
+      case ContestSessionPhase.paused:
+        manager.beginResume();
+        return;
+      case ContestSessionPhase.resuming:
+        return;
+      case ContestSessionPhase.idle:
+        break;
+    }
+    if (widget.issues.isNotEmpty) {
+      showSettingsIssuesDialog(context, issues: widget.issues);
+      return;
+    }
+
+    final monitor = context.read<AudioOutputMonitor?>();
+    if (monitor != null) {
+      setState(() => _busy = true);
+      final proceed = await confirmAudioPreflight(
+        context: context,
+        monitor: monitor,
+        settings: context.read<AppSettings>(),
+      );
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (!proceed) return;
+    }
+
+    setState(() => _busy = true);
+    final result = await manager.startContest();
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    // An abandoned replay started a fresh session instead; say so explicitly
+    // rather than silently changing what RUN did.
+    if (result.started && result.abortedReason != null) {
+      final l10n = AppLocalizations.of(context);
+      toastification.show(
+        title: Text(
+          l10n.replayAbortedToast(result.replayContestName ?? '—'),
+        ),
+        autoCloseDuration: const Duration(seconds: 3),
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
+    final phase = widget.phase;
 
     final label = switch (phase) {
       ContestSessionPhase.idle =>
-        hasPendingReplay ? l10n.startReplay : l10n.startTraining,
+        widget.hasPendingReplay ? l10n.startReplay : l10n.startTraining,
       ContestSessionPhase.running => l10n.pauseTraining,
       ContestSessionPhase.paused ||
       ContestSessionPhase.resuming => l10n.resumeTraining,
@@ -1034,39 +1098,7 @@ class _RunButton extends StatelessWidget {
           textStyle: Theme.of(context).textTheme.labelLarge
               ?.copyWith(fontSize: 15, letterSpacing: 0.5),
         ),
-        onPressed: () async {
-          final manager = context.read<ContestManager>();
-          switch (phase) {
-            case ContestSessionPhase.running:
-              manager.pauseContest();
-              return;
-            case ContestSessionPhase.paused:
-              manager.beginResume();
-              return;
-            case ContestSessionPhase.resuming:
-              return;
-            case ContestSessionPhase.idle:
-              break;
-          }
-          if (issues.isNotEmpty) {
-            showSettingsIssuesDialog(context, issues: issues);
-            return;
-          }
-          final result = await manager.startContest();
-          if (!context.mounted) return;
-          // An abandoned replay started a fresh session instead; say so
-          // explicitly rather than silently changing what RUN did.
-          if (result.started && result.abortedReason != null) {
-            toastification.show(
-              title: Text(
-                l10n.replayAbortedToast(result.replayContestName ?? '—'),
-              ),
-              autoCloseDuration: const Duration(seconds: 3),
-              type: ToastificationType.warning,
-              style: ToastificationStyle.fillColored,
-            );
-          }
-        },
+        onPressed: _busy ? null : _onPressed,
         icon: Icon(
           phase == ContestSessionPhase.running
               ? Icons.pause_rounded

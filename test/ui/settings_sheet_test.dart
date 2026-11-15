@@ -102,6 +102,8 @@ void main() {
     expect(find.textContaining('Incoming audio'), findsOneWidget);
     expect(find.text('Incoming accent'), findsOneWidget);
     expect(find.text('Phonic type'), findsOneWidget);
+    expect(find.text('Play test sound'), findsOneWidget);
+    expect(find.text('Warn about low volume'), findsOneWidget);
 
     await _openTab(tester, 'System');
     expect(find.text('Function keys'), findsOneWidget);
@@ -111,6 +113,46 @@ void main() {
     expect(find.text('Export logs'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
+    harness.dispose();
+  });
+
+  testWidgets('the low-volume warning switch persists', (tester) async {
+    final harness = await _pumpSheet(tester);
+    expect(harness.settings.audioPreflightLowVolumeWarning, isTrue);
+
+    await _openTab(tester, 'Audio');
+    await tester.tap(find.text('Warn about low volume'));
+    await tester.pump();
+
+    expect(harness.settings.audioPreflightLowVolumeWarning, isFalse);
+
+    // Turning it back on restores the blocking pre-flight.
+    await tester.tap(find.text('Warn about low volume'));
+    await tester.pump();
+    expect(harness.settings.audioPreflightLowVolumeWarning, isTrue);
+
+    harness.dispose();
+  });
+
+  testWidgets('the test tone reports a failure when nothing can play', (
+    tester,
+  ) async {
+    final harness = await _pumpSheet(tester);
+
+    await _openTab(tester, 'Audio');
+    await tester.tap(find.text('Play test sound'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // No engine is initialised in a widget test, so the shared notification
+    // must carry the failure instead of failing silently.
+    expect(find.text('Audio playback failed'), findsOneWidget);
+
+    // Let the toast auto-close so no timer survives the test.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(milliseconds: 500));
+
     harness.dispose();
   });
 
