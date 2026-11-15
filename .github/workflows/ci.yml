@@ -127,6 +127,44 @@ jobs:
           # Windows ships both a portable zip and a single-file Inno Setup installer exe.
           echo "matrix={\"include\":$matrix}" >> "$GITHUB_OUTPUT"
 
+  # Native Windows code otherwise has no gate until a tag is pushed: package-windows only
+  # runs on tags and manual dispatches, and `Analyze & Test` never touches windows/runner.
+  # That is how run 43677974432 hit C3668 in audio_output_probe.h only at release time.
+  # Compile the runner on every PR and branch push; the bundle, installer and smoke tests
+  # stay restricted to tags and dispatches.
+  compile-windows:
+    name: Compile (windows)
+    needs: analyze
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
+    runs-on: windows-latest
+    steps:
+      # .gitmodules pins the public assets submodule to an SSH URL so local pushes use the
+      # developer's SSH key. Runners have no key, so rewrite it back to HTTPS for the clone.
+      - name: Clone submodules over HTTPS
+        run: 'git config --global url.https://github.com/.insteadOf git@github.com:'
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows runner
+        # Same toolchain and build hooks as the packaged build (including the /W4 /WX
+        # warnings-as-errors setting in windows/CMakeLists.txt); only packaging is skipped.
+        run: flutter build windows --release
+
   # One job per platform rather than a single matrix job: a matrix job reports a single
   # aggregate conclusion, so one platform failing would skip every smoke test and the release
   # even when the other platforms built fine. Separate jobs keep a failure isolated, and each
@@ -184,9 +222,18 @@ jobs:
           exit 1
 
       - name: Install appimagetool
+        # Pinned by sha256 instead of following `continuous`: build 370 changed the AppDir
+        # permission check from warnings to a fatal error and broke the libjvm trim
+        # (docs/research/ci-run-43677974432-failure-analysis.md). The packager and the trim
+        # script both run this binary, so an unpinned update changes what ships. If upstream
+        # republishes `continuous`, this step fails on the checksum instead of drifting
+        # silently; to upgrade, verify the new build and update the digest below.
+        env:
+          APPIMAGETOOL_SHA256: e8c1169c4af66c3184d7ee110713d4be04befe671fa358e2c1591ee840553b03
         run: |
           curl -fsSL --retry 3 --retry-delay 2 -o appimagetool \
             https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          echo "$APPIMAGETOOL_SHA256  appimagetool" | sha256sum -c -
           chmod +x appimagetool
           sudo mv appimagetool /usr/local/bin/appimagetool
 
@@ -337,19 +384,34 @@ jobs:
         # immediate rerun of the identical commit and runner image. Retry the whole
         # step so one flake does not fail the release; the hook download cache under
         # .dart_tool survives between attempts, so a retry does not re-download.
+        #
+        # A compiler diagnostic (error C####) is deterministic, and retrying it just
+        # burned ~12 minutes per run (run 43677974432, C3668), so that case fails on
+        # the first attempt instead.
         shell: pwsh
         run: |
           $attempts = 3
           for ($attempt = 1; $attempt -le $attempts; $attempt++) {
             Write-Host "== fastforge package attempt $attempt/$attempts =="
+            $log = Join-Path $env:RUNNER_TEMP "fastforge-package-$attempt.log"
             $ok = $false
             try {
-              dart pub global run fastforge:main package --platform=windows --targets=zip,exe --build-dart-define "CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}"
+              dart pub global run fastforge:main package --platform=windows --targets=zip,exe --build-dart-define "CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}" 2>&1 |
+                Tee-Object -FilePath $log
               $ok = ($LASTEXITCODE -eq 0)
             } catch {
               Write-Host "attempt $attempt threw: $_"
             }
             if ($ok) { exit 0 }
+            $diagnostics = @()
+            if (Test-Path -LiteralPath $log) {
+              $diagnostics = @(Select-String -LiteralPath $log -Pattern 'error C\d{4}:', 'Build process failed')
+            }
+            if ($diagnostics.Count -gt 0) {
+              Write-Host "::error::fastforge package failed with a compile error; not retrying ($log)"
+              $diagnostics | Select-Object -First 20 | ForEach-Object { Write-Host $_.Line }
+              exit 1
+            }
             Write-Host "::warning::fastforge package failed on attempt $attempt/$attempts"
           }
           Write-Host "::error::fastforge package failed after $attempts attempts"
