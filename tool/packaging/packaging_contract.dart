@@ -456,6 +456,25 @@ void _checkCiOrchestration(String ci, List<ContractIssue> issues) {
     );
   }
 
+  // Validate packaging (*) and Package (*) must not share an event: a manual
+  // dispatch already packages a platform for real, so a dry run next to it
+  // would repeat the same maker chain. Keeping dispatch out of the validate
+  // jobs makes the two sets mutually exclusive by event type.
+  for (final platform in _platforms) {
+    final block = _jobBlock(ci, 'validate-packaging-$platform');
+    if (block != null && block.contains('workflow_dispatch')) {
+      final offset = ci.indexOf(block) + block.indexOf('workflow_dispatch');
+      issues.add(
+        ContractIssue(
+          _ciPath,
+          'validate-packaging-$platform runs on workflow_dispatch; '
+              'validation and packaging must not share an event',
+          line: _lineOf(ci, offset),
+        ),
+      );
+    }
+  }
+
   // A template error must short-circuit the retry loop instead of rebuilding
   // the bundle three times (~9m30s in run 43702798064).
   for (final marker in <String>['Invalid section tag', 'Compile aborted']) {

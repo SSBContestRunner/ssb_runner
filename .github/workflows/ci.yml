@@ -332,13 +332,16 @@ jobs:
   #
   # One job per platform so a failure names the platform and can be rerun alone.
   # Each needs the contract job: a broken template should not reach a tool run.
+  #
+  # Trigger split: these run only on pull_request / merge_group. Package (*)
+  # runs only on tag and workflow_dispatch, so a manual dispatch packages for
+  # real instead of repeating every platform's maker chain as a dry run.
   validate-packaging-windows:
     name: Validate packaging (windows)
     needs: packaging-contract
     if: >-
       github.event_name == 'pull_request' ||
-      github.event_name == 'merge_group' ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'merge_group'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -379,8 +382,7 @@ jobs:
     needs: packaging-contract
     if: >-
       github.event_name == 'pull_request' ||
-      github.event_name == 'merge_group' ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'merge_group'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -425,8 +427,7 @@ jobs:
     needs: packaging-contract
     if: >-
       github.event_name == 'pull_request' ||
-      github.event_name == 'merge_group' ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'merge_group'
     runs-on: macos-latest
     steps:
       - name: Checkout

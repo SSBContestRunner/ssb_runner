@@ -218,9 +218,9 @@ fastforge 的 `package` 命令在 `flutter build` 之后调用 `FlutterAppPackag
 | 层 | 作业 | 运行环境 | 触发 | 执行内容 |
 |---|---|---|---|---|
 | L0 | `Packaging contract` | ubuntu-latest | PR / merge_group / push / tag / dispatch | 三平台配置与模板的静态契约 + 仓库耦合 + CI 编排一致性 |
-| L1 | `Validate packaging (windows)` | windows-latest | PR / merge_group / dispatch | stub bundle → `exe` maker → ISCC 真实编译 → 断言产物存在、命名正确、`ProductName` 为 `SSB Runner` |
-| L2 | `Validate packaging (linux)` | ubuntu-22.04 | PR / merge_group / dispatch | stub bundle → `deb` maker → `dpkg-deb` → 断言 control 与文件清单 |
-| L3 | `Validate packaging (macos)` | macos-latest | PR / merge_group / dispatch | stub `*.app` → `dmg` maker → appdmg → 挂载断言卷内容 |
+| L1 | `Validate packaging (windows)` | windows-latest | PR / merge_group | stub bundle → `exe` maker → ISCC 真实编译 → 断言产物存在、命名正确、`ProductName` 为 `SSB Runner` |
+| L2 | `Validate packaging (linux)` | ubuntu-22.04 | PR / merge_group | stub bundle → `deb` maker → `dpkg-deb` → 断言 control 与文件清单 |
+| L3 | `Validate packaging (macos)` | macos-latest | PR / merge_group | stub `*.app` → `dmg` maker → appdmg → 挂载断言卷内容 |
 | L4 | 现有 tag 流水线 | 各平台 | tag / dispatch | 不变：真实打包 + 4 个 smoke test + release |
 
 `merge_group` 已纳入触发（见 §7 D1）：当前未启用合并队列，但保留该触发，避免将来启用时 required check 缺失。
@@ -403,6 +403,7 @@ fixture 用例，跑在现有 `flutter test` 里，不新增作业：
 | D7 | 版本一致性比对 | 以 `~/.pub-cache/global_packages/fastforge/pubspec.lock` 为准；路径不可读时任务失败并提示人工确认，禁止静默跳过。 |
 | D8 | stub 保真度验收 | P0 实施后对比一次 dry run 产物名与 tag 实际产物名，必须逐字一致；不一致视为 dry run 不可信，先修 stub 装配再启用门禁。 |
 | D9 | L0 触发范围 | PR / merge_group / push / tag / dispatch 全开：L0 是秒级文本校验，重复执行的代价低于漏检的代价。 |
+| D10 | Validate 与 Package 的触发互斥 | `Validate packaging (*)` 只在 PR / merge_group 运行，`Package (*)` 只在 tag / dispatch 运行，两者按事件类型结构性互斥；dispatch 只做真实打包，不再对同一平台重复执行 dry run（见 [ci_validate_package_mutual_exclusion.md](file:///Users/wafer-li/FlutterProjects/ssb_contest_runner/docs/design/ci_validate_package_mutual_exclusion.md)）。 |
 
 结论：§4 方案已无未决事项；§6 中的条目均为已知边界或实施期验收点，不阻塞开工。
 

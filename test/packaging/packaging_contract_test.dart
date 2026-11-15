@@ -164,6 +164,50 @@ void main() {
       hasLength(1),
     );
   });
+
+  test('running validation on workflow_dispatch is rejected', () {
+    const String ciPath = '.github/workflows/ci.yml';
+    final ci = base.read(ciPath);
+    // Reintroduce the overlap: the validate job would dry-run every platform on
+    // the same dispatch that packages one of them for real.
+    final mutated = ci.replaceFirst(
+      "    if: >-\n"
+      "      github.event_name == 'pull_request' ||\n"
+      "      github.event_name == 'merge_group'\n"
+      '    runs-on: windows-latest',
+      "    if: >-\n"
+      "      github.event_name == 'pull_request' ||\n"
+      "      github.event_name == 'merge_group' ||\n"
+      "      github.event_name == 'workflow_dispatch'\n"
+      '    runs-on: windows-latest',
+    );
+    expect(mutated, isNot(ci), reason: 'fixture did not apply; update the ci.yml excerpt');
+
+    final issues = validatePackagingContract(
+      _OverlayRepo(base, <String, String>{ciPath: mutated}),
+      fastforge: _fastforge,
+    );
+    final reported = issues
+        .where(
+          (ContractIssue issue) =>
+              issue.message.contains('validate-packaging-windows') &&
+              issue.message.contains('workflow_dispatch'),
+        )
+        .toList();
+    expect(reported, hasLength(1));
+    expect(reported.single.file, ciPath);
+    // Derive the expected line instead of hard-coding it: take the validate
+    // block up to its own `runs-on`, then find the injected line inside it.
+    final start = mutated.indexOf('  validate-packaging-windows:');
+    final end = mutated.indexOf('    runs-on: windows-latest', start);
+    final expectedLine = mutated
+            .substring(start, end)
+            .split('\n')
+            .lastIndexWhere((String line) => line.contains('workflow_dispatch')) +
+        1 +
+        '\n'.allMatches(mutated.substring(0, start)).length;
+    expect(reported.single.line, expectedLine);
+  });
 }
 
 List<String> _errors(List<ContractIssue> issues) => issues
