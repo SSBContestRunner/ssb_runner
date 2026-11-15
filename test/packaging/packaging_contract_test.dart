@@ -50,6 +50,12 @@ void main() {
       '    [Prev, PackageVersion]);',
     );
     expect(wrapped, isNot(template), reason: 'fixture did not apply; update the template excerpt');
+    // Derive the expected line from the mutated text: the contract is "reports
+    // the continuation line", not "reports line 438". A hard-coded number goes
+    // red whenever an unrelated edit shifts the template.
+    final expectedLine =
+        wrapped.split('\n').indexWhere((String line) => line.trimLeft().startsWith('[Prev')) + 1;
+    expect(expectedLine, greaterThan(0), reason: 'fixture did not apply; update the template excerpt');
 
     final issues = validatePackagingContract(
       _OverlayRepo(base, <String, String>{_templatePath: wrapped}),
@@ -60,8 +66,8 @@ void main() {
         .toList();
     expect(reported, hasLength(1));
     expect(reported.single.file, _templatePath);
-    expect(reported.single.line, 438);
-    expect(reported.single.toAnnotation(), contains('line=438'));
+    expect(reported.single.line, expectedLine);
+    expect(reported.single.toAnnotation(), contains('line=$expectedLine'));
   });
 
   test('an indented "[" ends a section, matching ISCC', () {
