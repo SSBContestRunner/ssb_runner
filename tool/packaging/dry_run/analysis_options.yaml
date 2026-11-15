@@ -1,0 +1,5 @@
+# Share the app's analyzer settings so this package is held to the same lint
+# set as the repository root. It is a separate package only because of the
+# archive 3/4 resolution split (see pubspec.yaml), not because its code should
+# be checked less strictly.
+include: ../../../analysis_options.yaml
