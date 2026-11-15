@@ -4,6 +4,8 @@
   "cancel": "取消",
   "save": "保存",
   "startupFailedTitle": "SSB Runner 启动失败",
+  "startupWarningTitle": "启动警告",
+  "windowGeometryUnavailable": "当前系统无法使用窗口管理功能，窗口尺寸不会被恢复或记忆。",
   "copyDiagnostics": "复制诊断信息",
   "exportLogs": "导出日志",
   "diagnosticsCopied": "诊断信息已复制",

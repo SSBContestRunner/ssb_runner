@@ -38,9 +38,15 @@ and Web scaffolds are not release targets.
 
 | Platform | Architecture | Minimum version |
 | --- | --- | --- |
-| Windows | x64 | Windows 10 or 11 |
+| Windows | x64 | Windows 10 version 1607 (build 14393) or later, or Windows 11 |
 | macOS | Universal — Apple Silicon, Intel (best-effort) | macOS 12 Monterey or later |
 | Linux | x86_64 | glibc 2.35+ — Ubuntu 22.04 / Debian 12 or newer |
+
+Windows 10 1507/1511 (build 10240/10586) is not supported: the window-manager
+plugin imports an API that only exists from build 14393. The installer refuses
+those versions, and the portable zip shows a message and exits before the app
+starts. On 1607 the process is DPI-unaware, so at 125%/150% the UI is
+bitmap-stretched; per-monitor scaling starts with 1703.
 
 #### Artifacts
 

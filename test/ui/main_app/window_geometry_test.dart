@@ -81,6 +81,38 @@ void main() {
     });
   });
 
+  group('fail-soft window resolution', () {
+    test('resolveAppWindow returns null instead of throwing', () {
+      // No window exists in a test binding; a native window manager that
+      // cannot load must degrade the same way instead of failing startup.
+      expect(resolveAppWindow(), isNull);
+    });
+
+    test('attach skips geometry when the window cannot be resolved', () async {
+      final settings = await _settings();
+      final controller = WindowGeometryController();
+
+      expect(controller.attach(settings, resolve: () => null), isFalse);
+
+      controller.dispose();
+    });
+
+    test('attach swallows a throwing native window manager', () async {
+      final settings = await _settings();
+      final controller = WindowGeometryController();
+
+      expect(
+        controller.attach(
+          settings,
+          resolve: () => throw StateError('cnativeapi.dll is unavailable'),
+        ),
+        isFalse,
+      );
+
+      controller.dispose();
+    });
+  });
+
   group('AppSettings.windowContentSize', () {
     test('is null when never saved', () async {
       final settings = await _settings();

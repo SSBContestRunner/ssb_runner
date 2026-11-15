@@ -4,6 +4,8 @@
   "cancel": "Cancel",
   "save": "Save",
   "startupFailedTitle": "SSB Runner failed to start",
+  "startupWarningTitle": "Startup warning",
+  "windowGeometryUnavailable": "Window management is unavailable in this system, so the window size is neither restored nor remembered.",
   "copyDiagnostics": "Copy diagnostics",
   "exportLogs": "Export logs",
   "diagnosticsCopied": "Diagnostics copied",

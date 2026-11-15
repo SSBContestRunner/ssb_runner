@@ -348,6 +348,16 @@ jobs:
           Write-Host "::error::fastforge package failed after $attempts attempts"
           exit 1
 
+      - name: Check bundled binaries stay within the Windows 10 1607 floor
+        # A clean `flutter build windows` can still ship a dependency that raises
+        # the real OS floor through a static import (window_manager -> cnativeapi
+        # imports user32!GetDpiForWindow, which only exists from 1607/build
+        # 14393). The Release directory is what gets packaged, so auditing its
+        # import tables catches the regression here instead of in a crash report
+        # from an older system -- see
+        # docs/research/windows-10-rtm-cnativeapi-load-failure.md.
+        run: dart run tool/check_windows_imports.dart build/windows/x64/runner/Release
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:

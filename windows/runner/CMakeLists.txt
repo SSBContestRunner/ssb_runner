@@ -23,6 +23,13 @@ add_executable(${BINARY_NAME} WIN32
 # that need different build settings.
 apply_standard_settings(${BINARY_NAME})
 
+# main.cpp holds the bilingual "unsupported Windows" message as wide literals.
+# Without /utf-8 MSVC decodes the file with the build machine's ANSI code page,
+# which breaks those literals (and trips /WX on C4819) whenever the source is
+# UTF-8 and the code page is not. Scoped to the runner: plugins have their own
+# build rules.
+target_compile_options(${BINARY_NAME} PRIVATE /utf-8)
+
 # Add preprocessor definitions for the build version.
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION=\"${FLUTTER_VERSION}\"")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_MAJOR=${FLUTTER_VERSION_MAJOR}")
