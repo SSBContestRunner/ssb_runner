@@ -90,6 +90,8 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.byIcon(Icons.volume_down_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.volume_off_outlined), findsNothing);
   });
 
   testWidgets('clicking the badge opens the details dialog', (tester) async {

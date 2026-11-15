@@ -55,7 +55,7 @@ class _AlertBadge extends StatelessWidget {
               fixedSize: const Size(40, 40),
               foregroundColor: scheme.error,
             ),
-            icon: const Icon(Icons.volume_off_outlined, size: 20),
+            icon: Icon(audioAlertIcon(snapshot.reason), size: 20),
           ),
           Positioned(
             top: 4,
@@ -90,7 +90,7 @@ class _AlertBadge extends StatelessWidget {
       builder: (dialogContext) {
         final scheme = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
-          icon: Icon(Icons.volume_off_outlined, color: scheme.error),
+          icon: Icon(audioAlertIcon(snapshot.reason), color: scheme.error),
           title: Text(audioAlertTooltip(l10n, snapshot)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -117,6 +117,16 @@ class _AlertBadge extends StatelessWidget {
       },
     );
   }
+}
+
+/// Badge and dialog glyph for [reason].
+///
+/// A low volume keeps a speaker with a single wave, so it never reads as the
+/// crossed-out speaker that stands for a mute or a missing device.
+IconData audioAlertIcon(AudioAlertReason reason) {
+  return reason == AudioAlertReason.low
+      ? Icons.volume_down_outlined
+      : Icons.volume_off_outlined;
 }
 
 /// Tooltip / dialog headline for [snapshot].

@@ -78,7 +78,7 @@ class _AudioPreflightDialogState extends State<_AudioPreflightDialog> {
         final isEngineDown = snapshot.reason == AudioAlertReason.engineDown;
 
         return AlertDialog(
-          icon: Icon(Icons.volume_off_outlined, color: scheme.error),
+          icon: Icon(audioAlertIcon(snapshot.reason), color: scheme.error),
           title: Text(audioAlertTooltip(l10n, snapshot)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
