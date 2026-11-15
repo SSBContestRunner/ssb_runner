@@ -377,16 +377,18 @@ void _verifyDeb(File artifact) {
   }
   final contents = '${listing.stdout}';
   final binary = _linuxBinaryName();
+  // `--contents` lists the data archive only; the control archive is a separate
+  // ar member (`control.tar.zst`, holding ./control, ./postinst, ...). Its
+  // presence and Package field are already asserted by the --field call above.
   for (final required in <String>[
     './opt/$binary/$binary',
     './usr/share/applications/$binary.desktop',
-    './DEBIAN/control',
   ]) {
     if (!contents.contains(required)) {
       throw StateError('deb is missing $required');
     }
   }
-  stdout.writeln('dry run: deb contains opt/$binary, desktop entry and control');
+  stdout.writeln('dry run: deb contains opt/$binary and desktop entry');
 }
 
 void _verifyElf(File artifact) {

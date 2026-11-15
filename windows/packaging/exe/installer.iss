@@ -393,16 +393,18 @@ begin
   Result := False;
 end;
 
-procedure CreatePageLabel(const Top, Height: Integer; var Label: TNewStaticText);
+// 参数不能命名为 Label：label 是 Pascal 保留字（Inno 允许 var / label 声明块），
+// ISCC 会报 "Identifier expected"。
+procedure CreatePageLabel(const Top, Height: Integer; var Target: TNewStaticText);
 begin
-  Label := TNewStaticText.Create(WizardForm);
-  Label.Parent := FUpgradePage.Surface;
-  Label.Left := 0;
-  Label.Top := ScaleY(Top);
-  Label.Height := ScaleY(Height);
-  Label.AutoSize := False;
-  Label.WordWrap := True;
-  Label.Visible := False;
+  Target := TNewStaticText.Create(WizardForm);
+  Target.Parent := FUpgradePage.Surface;
+  Target.Left := 0;
+  Target.Top := ScaleY(Top);
+  Target.Height := ScaleY(Height);
+  Target.AutoSize := False;
+  Target.WordWrap := True;
+  Target.Visible := False;
 end;
 
 procedure InitializeWizard;

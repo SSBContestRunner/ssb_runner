@@ -58,6 +58,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Install dry-run tool dependencies
+        # tool/packaging/dry_run is its own package (the packager pins archive
+        # ^3.6.1, the app needs ^4.0.7), so the root `flutter pub get` leaves it
+        # without a package_config.json. The analyzer still walks into it, so every
+        # package: import there would fail in the next step (run 43710059911).
+        working-directory: tool/packaging/dry_run
+        run: dart pub get
+
       - name: Analyze
         # Info-level lints are gating too, so analyzer debt cannot pile up again
         # (see docs/design/analyzer_infos_cleanup.md).
@@ -164,9 +172,9 @@ jobs:
         run: dart tool/packaging/validate_packaging.dart
 
       - name: Analyze the dry-run tool
-        # tool/packaging/dry_run is its own package (the packager pins archive
-        # ^3.6.1, the app needs ^4.0.7), so the root `flutter analyze` does not
-        # cover it.
+        # The analyze job resolves this package's dependencies, so the root
+        # `flutter analyze` covers it as well. Keep this as an independent gate:
+        # the packaging contract must not depend on another job's result.
         working-directory: tool/packaging/dry_run
         run: |
           dart pub get
