@@ -38,9 +38,20 @@ and Web scaffolds are not release targets.
 
 | Platform | Architecture | Minimum version |
 | --- | --- | --- |
-| Windows | x64 | Windows 10 or 11 |
-| macOS | Universal — Apple Silicon, Intel (best-effort) | macOS 12 Monterey or later |
+| Windows | x64 | Windows 10 version 1607 (build 14393) or later, or Windows 11 |
+| macOS | Universal — Apple Silicon, Intel (best-effort) | macOS 13 Ventura or later |
 | Linux | x86_64 | glibc 2.35+ — Ubuntu 22.04 / Debian 12 or newer |
+
+Windows 10 1507/1511 (build 10240/10586) is not supported: the window-manager
+plugin imports an API that only exists from build 14393. The installer refuses
+those versions, and the portable zip shows a message and exits before the app
+starts. On 1607 the process is DPI-unaware, so at 125%/150% the UI is
+bitmap-stretched; per-monitor scaling starts with 1703.
+
+macOS 12 is not supported even though Flutter itself allows it: Flutter 3.47
+builds native assets (sqlite3, cnativeapi, flutter_soloud, objective_c) with a
+fixed macOS 13 deployment target, and dyld refuses to load those binaries on an
+older system. The bundle therefore declares — and must keep — 13.0.
 
 #### Artifacts
 
@@ -54,10 +65,15 @@ and Web scaffolds are not release targets.
   - `.dmg` — drag **SSB Runner.app** into *Applications*.
   - Intel support is best-effort: the bundle is checked to contain an x86_64 slice, but
     releases are not launched on Intel hardware. Apple ends Intel Mac support with macOS 26.
-- **Linux** (x86_64)
+- **Linux** (x86_64) — all three artifacts require glibc 2.35+.
   - `.deb` — install with `apt`, which also pulls in the EGL/GLES runtime the
     Flutter engine loads.
-  - `.AppImage` — mark it executable and run it.
+  - `.AppImage` — mark it executable and run it. It bundles libstdc++ and
+    libgcc, but not glibc, so the 2.35 floor still applies. Mounting it needs
+    FUSE 2 (`libfuse2` / `fusermount`), which recent distributions no longer
+    install by default; without it, run the file with
+    `--appimage-extract-and-run`. GTK 3, GL/EGL and ALSA/PulseAudio always come
+    from the system.
   - `.zip` — portable; unzip and run.
 
 #### Verifying downloads

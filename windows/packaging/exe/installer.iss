@@ -39,6 +39,13 @@
 
 [Setup]
 AppId={{APP_ID}}
+; Windows 10 1607 (build 14393) is the real floor, not "Windows 10": cnativeapi.dll
+; (window_manager -> nativeapi) statically imports user32!GetDpiForWindow, which
+; does not exist on 1507/1511, so the app cannot load its window manager there.
+; See docs/research/windows-10-rtm-cnativeapi-load-failure.md. The portable zip
+; has no installer to gate it, so windows/runner/main.cpp performs the same check
+; and shows a bilingual message before Dart starts.
+MinVersion=10.0.14393
 AppVersion={{APP_VERSION}}
 AppName={{DISPLAY_NAME}}
 AppPublisher={{PUBLISHER_NAME}}

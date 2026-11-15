@@ -50,20 +50,44 @@ Size clampWindowContentSize(Size saved, Size minimum, Size? workArea) {
 /// null while the window has not been shown or activated. `getAll()` only
 /// enumerates this process's top-level windows, so a single-window app has
 /// exactly one candidate; anything else is not guessed.
+///
+/// Never throws. `window_manager` 0.6.0 reaches Windows through cnativeapi,
+/// whose DLL fails to load as a whole on systems older than Windows 10 1607
+/// (see docs/research/windows-10-rtm-cnativeapi-load-failure.md). Every call
+/// then throws `ArgumentError`, and window features are optional: a missing
+/// handle degrades the app instead of failing startup, so both callers get
+/// `null` and the reason is logged once.
 Window? resolveAppWindow() {
-  final current = WindowManager.instance.getCurrent();
-  if (current != null) return current;
+  try {
+    final current = WindowManager.instance.getCurrent();
+    if (current != null) return current;
 
-  final all = WindowManager.instance.getAll();
-  if (all.length == 1) return all.first;
+    final all = WindowManager.instance.getAll();
+    if (all.length == 1) return all.first;
 
-  log.warn(
-    'window not resolved',
-    tag: 'boot',
-    fields: <String, Object?>{'candidates': all.length},
-  );
-  return null;
+    log.warn(
+      'window not resolved',
+      tag: 'boot',
+      fields: <String, Object?>{'candidates': all.length},
+    );
+    return null;
+  } catch (error, stackTrace) {
+    if (!_windowManagerUnavailableLogged) {
+      _windowManagerUnavailableLogged = true;
+      log.warn(
+        'window manager unavailable',
+        tag: 'boot',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+    return null;
+  }
 }
+
+/// Keeps a native window-manager failure to a single log record: resolution is
+/// attempted from several places during startup.
+bool _windowManagerUnavailableLogged = false;
 
 /// Applies the minimum *content* size to [window].
 ///
@@ -104,37 +128,59 @@ class WindowGeometryController {
 
   /// Called once prefs are ready: restores the saved content size, then starts
   /// tracking user resizes.
-  void attach(AppSettings settings) {
+  ///
+  /// Returns `false` when the window could not be resolved or configured, so
+  /// the caller can report a degraded capability instead of failing startup.
+  /// Window geometry is optional: without it the runner's own default size
+  /// stays in place. [resolve] is the test seam for a window manager that
+  /// throws or has no window.
+  bool attach(
+    AppSettings settings, {
+    Window? Function() resolve = resolveAppWindow,
+  }) {
     _settings = settings;
 
-    final window = resolveAppWindow();
-    if (window == null) return;
-    _window = window;
+    try {
+      final window = resolve();
+      if (window == null) return false;
+      _window = window;
 
-    final saved = settings.windowContentSize;
-    if (saved != null) {
-      final workArea = DisplayManager.instance.getPrimary()?.workArea;
-      final target = clampWindowContentSize(
-        saved,
-        kMinWindowContentSize,
-        workArea == null ? null : Size(workArea.width, workArea.height),
-      );
-      if (target != window.contentSize.toSize()) {
-        window.contentSize = target.toNative();
-        window.center();
+      final saved = settings.windowContentSize;
+      if (saved != null) {
+        final workArea = DisplayManager.instance.getPrimary()?.workArea;
+        final target = clampWindowContentSize(
+          saved,
+          kMinWindowContentSize,
+          workArea == null ? null : Size(workArea.width, workArea.height),
+        );
+        if (target != window.contentSize.toSize()) {
+          window.contentSize = target.toNative();
+          window.center();
+        }
+        _lastSaved = target;
+        log.info(
+          'window size restored',
+          tag: 'boot',
+          fields: <String, Object?>{
+            'saved': '${saved.width}x${saved.height}',
+            'applied': '${target.width}x${target.height}',
+          },
+        );
       }
-      _lastSaved = target;
-      log.info(
-        'window size restored',
-        tag: 'boot',
-        fields: <String, Object?>{
-          'saved': '${saved.width}x${saved.height}',
-          'applied': '${target.width}x${target.height}',
-        },
-      );
-    }
 
-    _listenerId = window.addListener(_onWindowEvent);
+      _listenerId = window.addListener(_onWindowEvent);
+      return true;
+    } catch (error, stackTrace) {
+      log.warn(
+        'window geometry unavailable',
+        tag: 'boot',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _window = null;
+      _listenerId = null;
+      return false;
+    }
   }
 
   void _onWindowEvent(WindowEvent event) {

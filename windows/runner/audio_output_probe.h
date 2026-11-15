@@ -26,7 +26,9 @@ class AudioOutputProbe : public IMMNotificationClient,
   static constexpr UINT kChangedMessage = WM_APP + 0x51;
 
   AudioOutputProbe(flutter::BinaryMessenger* messenger, HWND notification_window);
-  ~AudioOutputProbe() override;
+  // COM interfaces declare no destructor, so `override` here is ill-formed (MSVC C3668);
+  // `virtual` keeps /W4 /WX quiet about a virtual class with a non-virtual destructor.
+  virtual ~AudioOutputProbe();
 
   AudioOutputProbe(const AudioOutputProbe&) = delete;
   AudioOutputProbe& operator=(const AudioOutputProbe&) = delete;

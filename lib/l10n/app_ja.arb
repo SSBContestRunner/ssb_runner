@@ -4,6 +4,8 @@
   "cancel": "キャンセル",
   "save": "保存",
   "startupFailedTitle": "SSB Runner の起動に失敗しました",
+  "startupWarningTitle": "起動時の警告",
+  "windowGeometryUnavailable": "このシステムではウィンドウ管理を利用できないため、ウィンドウサイズの復元と記憶は行われません。",
   "copyDiagnostics": "診断情報をコピー",
   "exportLogs": "ログをエクスポート",
   "diagnosticsCopied": "診断情報をコピーしました",

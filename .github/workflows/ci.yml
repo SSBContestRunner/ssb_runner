@@ -127,6 +127,44 @@ jobs:
           # Windows ships both a portable zip and a single-file Inno Setup installer exe.
           echo "matrix={\"include\":$matrix}" >> "$GITHUB_OUTPUT"
 
+  # Native Windows code otherwise has no gate until a tag is pushed: package-windows only
+  # runs on tags and manual dispatches, and `Analyze & Test` never touches windows/runner.
+  # That is how run 43677974432 hit C3668 in audio_output_probe.h only at release time.
+  # Compile the runner on every PR and branch push; the bundle, installer and smoke tests
+  # stay restricted to tags and dispatches.
+  compile-windows:
+    name: Compile (windows)
+    needs: analyze
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
+    runs-on: windows-latest
+    steps:
+      # .gitmodules pins the public assets submodule to an SSH URL so local pushes use the
+      # developer's SSH key. Runners have no key, so rewrite it back to HTTPS for the clone.
+      - name: Clone submodules over HTTPS
+        run: 'git config --global url.https://github.com/.insteadOf git@github.com:'
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows runner
+        # Same toolchain and build hooks as the packaged build (including the /W4 /WX
+        # warnings-as-errors setting in windows/CMakeLists.txt); only packaging is skipped.
+        run: flutter build windows --release
+
   # One job per platform rather than a single matrix job: a matrix job reports a single
   # aggregate conclusion, so one platform failing would skip every smoke test and the release
   # even when the other platforms built fine. Separate jobs keep a failure isolated, and each
@@ -184,9 +222,18 @@ jobs:
           exit 1
 
       - name: Install appimagetool
+        # Pinned by sha256 instead of following `continuous`: build 370 changed the AppDir
+        # permission check from warnings to a fatal error and broke the libjvm trim
+        # (docs/research/ci-run-43677974432-failure-analysis.md). The packager and the trim
+        # script both run this binary, so an unpinned update changes what ships. If upstream
+        # republishes `continuous`, this step fails on the checksum instead of drifting
+        # silently; to upgrade, verify the new build and update the digest below.
+        env:
+          APPIMAGETOOL_SHA256: e8c1169c4af66c3184d7ee110713d4be04befe671fa358e2c1591ee840553b03
         run: |
           curl -fsSL --retry 3 --retry-delay 2 -o appimagetool \
             https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          echo "$APPIMAGETOOL_SHA256  appimagetool" | sha256sum -c -
           chmod +x appimagetool
           sudo mv appimagetool /usr/local/bin/appimagetool
 
@@ -213,6 +260,13 @@ jobs:
           dart pub global run fastforge:main package --platform=linux
           --targets=deb,appimage,zip
           --build-dart-define CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}
+
+      - name: Trim libjvm.so copied into the AppImage
+        # The appimage maker copies the ldd dependencies of every bundled .so into
+        # usr/lib, and the Android-only libdartjni.so resolves libjvm.so from this
+        # runner's JDK -- ~24 MB that is never loaded on Linux. See
+        # .github/scripts/trim-appimage-libjvm.sh.
+        run: bash .github/scripts/trim-appimage-libjvm.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
@@ -330,23 +384,51 @@ jobs:
         # immediate rerun of the identical commit and runner image. Retry the whole
         # step so one flake does not fail the release; the hook download cache under
         # .dart_tool survives between attempts, so a retry does not re-download.
+        #
+        # A compiler diagnostic (error C####) is deterministic, and retrying it just
+        # burned ~12 minutes per run (run 43677974432, C3668), so that case fails on
+        # the first attempt instead.
         shell: pwsh
         run: |
           $attempts = 3
           for ($attempt = 1; $attempt -le $attempts; $attempt++) {
             Write-Host "== fastforge package attempt $attempt/$attempts =="
+            $log = Join-Path $env:RUNNER_TEMP "fastforge-package-$attempt.log"
             $ok = $false
             try {
-              dart pub global run fastforge:main package --platform=windows --targets=zip,exe --build-dart-define "CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}"
+              dart pub global run fastforge:main package --platform=windows --targets=zip,exe --build-dart-define "CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}" 2>&1 |
+                Tee-Object -FilePath $log
               $ok = ($LASTEXITCODE -eq 0)
             } catch {
               Write-Host "attempt $attempt threw: $_"
             }
             if ($ok) { exit 0 }
+            # Only a compiler diagnostic short-circuits. The generic "Build process failed."
+            # line also ends the transient native-assets failures above, so matching it would
+            # switch off the retry this loop exists for.
+            $diagnostics = @()
+            if (Test-Path -LiteralPath $log) {
+              $diagnostics = @(Select-String -LiteralPath $log -Pattern 'error C\d{4}:')
+            }
+            if ($diagnostics.Count -gt 0) {
+              Write-Host "::error::fastforge package failed with a compile error; not retrying ($log)"
+              $diagnostics | Select-Object -First 20 | ForEach-Object { Write-Host $_.Line }
+              exit 1
+            }
             Write-Host "::warning::fastforge package failed on attempt $attempt/$attempts"
           }
           Write-Host "::error::fastforge package failed after $attempts attempts"
           exit 1
+
+      - name: Check bundled binaries stay within the Windows 10 1607 floor
+        # A clean `flutter build windows` can still ship a dependency that raises
+        # the real OS floor through a static import (window_manager -> cnativeapi
+        # imports user32!GetDpiForWindow, which only exists from 1607/build
+        # 14393). The Release directory is what gets packaged, so auditing its
+        # import tables catches the regression here instead of in a crash report
+        # from an older system -- see
+        # docs/research/windows-10-rtm-cnativeapi-load-failure.md.
+        run: dart run tool/check_windows_imports.dart build/windows/x64/runner/Release
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
@@ -464,9 +546,13 @@ jobs:
           path: dist/**
           if-no-files-found: error
 
-  # Installs the built .deb on a clean Debian 12 (our oldest supported target), fails if it
-  # cannot install or its libraries cannot load (issue #23), then starts the app under Xvfb
-  # and closes its window to assert the process exits.
+  # Installs the built .deb on a clean Debian 12, fails if it cannot install or its libraries
+  # cannot load (issue #23), then starts the app under Xvfb and closes its window to assert
+  # the process exits. Debian 12 is the oldest target we can boot in a container; the floor
+  # we actually promise is older (Ubuntu 22.04 / glibc 2.35, GLIBCXX_3.4.30), so the script
+  # checks symbols against those fixed versions instead of the container's. It also extracts
+  # the .AppImage and applies the same check to the bundle plus the libstdc++/libgcc_s copies
+  # in its usr/lib, then launches it the same way.
   #
   # Depending only on package-linux means it runs exactly when the Linux artifact exists, and
   # an unrelated platform failing no longer skips it. No `if` is needed: a skipped or failed

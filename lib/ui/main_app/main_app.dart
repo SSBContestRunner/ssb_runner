@@ -279,10 +279,13 @@ class _MainAppState extends State<MainApp> {
 
   Future<void> _revealWindow() async {
     // 0.6.0 resolves the app's own window from the native window manager,
-    // so there is no `ensureInitialized` step before these calls.
-    final window = resolveAppWindow();
+    // so there is no `ensureInitialized` step before these calls. Resolution
+    // itself never throws; a null handle leaves the window as the runner
+    // already shows it (visible, at its default size).
+    Window? window;
 
     try {
+      window = resolveAppWindow();
       if (window != null) {
         final stopwatch = Stopwatch()..start();
         window.isResizable = true;
@@ -550,7 +553,7 @@ class _MainAppCubit extends Cubit<_AppState> {
   Future<void> load({
     required DxccManager dxccManager,
     required CallsignLoader callsignLoader,
-    void Function(AppSettings settings)? onSettingsReady,
+    bool Function(AppSettings settings)? onSettingsReady,
   }) async {
     final warnings = <String>[];
 
@@ -589,7 +592,11 @@ class _MainAppCubit extends Cubit<_AppState> {
 
       // The earliest point at which the saved window size can be known: the
       // prefs cache is loaded, so this adds no IO before the first frame.
-      onSettingsReady?.call(settings);
+      // Window geometry is optional; a system where the native window manager
+      // cannot load keeps running without size restore and resize memory.
+      if (onSettingsReady?.call(settings) == false) {
+        warnings.add(AppL10n.current.windowGeometryUnavailable);
+      }
 
       // Apply the persisted verbosity choice as early as possible.
       log.setVerbose(settings.verboseLogging);
@@ -694,7 +701,7 @@ class _MainAppCubit extends Cubit<_AppState> {
 /// user expects it, without keeping the app from running.
 void _showStartupWarning(String message) {
   toastification.show(
-    title: const Text('History database'),
+    title: Text(AppL10n.current.startupWarningTitle),
     description: Text(message),
     type: ToastificationType.warning,
     style: ToastificationStyle.fillColored,
