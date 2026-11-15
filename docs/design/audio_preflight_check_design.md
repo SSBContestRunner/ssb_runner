@@ -1,9 +1,9 @@
 # 音频输出实时检测与界面提示设计
 
-> 状态：已定稿 v4（2026-11-14，D1–D8 全部决策，无未决事项）
+> 状态：已定稿 v5（2026-11-14 定 v4；2026-11-15 按[性能评审](audio_output_probe_performance_design.md)更新 §2.2、§4.1、§4.2.1 的设备存在性判据，D1–D8 方向不变）
 > 分支：待定
 > 范围：系统音频输出（音量/静音/设备）的实时检测、界面 badge 提示；不涉及赛制、计分、数据库与复盘数据结构
-> 关联：[`audio_player.dart`](../../lib/audio/audio_player.dart)、[`audio_engine.dart`](../../lib/audio/audio_engine.dart)、[`desktop_exit_design.md`](desktop_exit_design.md)
+> 关联：[`audio_player.dart`](../../lib/audio/audio_player.dart)、[`audio_engine.dart`](../../lib/audio/audio_engine.dart)、[`audio_output_probe_performance_design.md`](audio_output_probe_performance_design.md)（采样开销与判据来源）、[`desktop_exit_design.md`](desktop_exit_design.md)
 
 ---
 
@@ -61,7 +61,7 @@
 | 编号 | 异常 | 检测手段 | 用户表现 |
 |---|---|---|---|
 | A | SoLoud 引擎未初始化/初始化失败 | `isInitialized` | 全程无声，计时与状态机正常 |
-| B | 无可用输出设备 | `listPlaybackDevices()` / `getAudioDeviceState()` | 全程无声 |
+| B | 无可用输出设备 | 平台 `hasDevice`（默认输出端点）/ `getAudioDeviceState()` | 全程无声 |
 | C | 系统静音或主音量接近 0 | 平台 API（CoreAudio / WASAPI / pactl） | 全程无声或听不清 |
 
 **不检测应用内来台音量（D7）**：`AppSettings.audioVolume` 是应用内增益，已被钳制在 0.2–1.2，且用户在设置页能直接看到滑块位置；把它纳入检测只会与系统音量混淆，因此不产生任何 badge 或状态。
@@ -111,7 +111,7 @@
    └─ AudioOutputMonitor（常驻）
         │  事件驱动优先，轮询兜底
         ├─ 引擎：SoLoud.isInitialized
-        ├─ 设备：listPlaybackDevices / getAudioDeviceState
+        ├─ 设备：hasDevice（默认输出端点）/ getAudioDeviceState
         └─ 系统：音量 + 静音（平台适配层，失败即 unknown）
              │
              ▼
@@ -156,8 +156,10 @@
 | 探测项 | API | 判定 |
 |---|---|---|
 | 引擎就绪 | `SoLoud.instance.isInitialized` | false → 异常 A |
-| 输出设备存在 | `listPlaybackDevices()` | 空列表 → 异常 B |
+| 输出设备存在 | 平台 probe 的 `hasDevice`（默认输出端点） | false → 异常 B；null（读不到）→ 不报警 |
 | 设备交付状态 | `getAudioDeviceState()` | **仅 `uninitialized` 视为异常** |
+
+**决策（P-1，2026-11-15）：不再调用 `listPlaybackDevices()`。** 该调用是同步 FFI，每次约 0.6ms 且直接在 UI isolate 上执行（成本 99% 花在逐设备读显示名，而代码只用 `.length`），只换来一个比 `hasDevice` 更弱的判据。设备存在性改由 macOS/Windows 的默认输出端点探测回答；Linux 在默认 sink 解析为空时置 `hasDevice = false`。详见 [`audio_output_probe_performance_design.md`](audio_output_probe_performance_design.md) §5。
 
 **关键约束**：`getAudioDeviceState()` 返回 `stopped` 是正常状态。SoLoud 5.x 在 500ms 无活跃 voice 后会挂起输出设备（[`audio_player.dart`](../../lib/audio/audio_player.dart#L13-L17) 已记录），把 `stopped` 当作故障会导致每次空闲都误报。
 
@@ -194,8 +196,8 @@ AudioOutputStatus {
 
 **Linux**
 
-- 不加原生代码，`Process.run` 调 `pactl get-sink-volume @DEFAULT_SINK@` 与 `get-sink-mute`，PipeWire 回退 `wpctl get-volume`。
-- 非零退出码或文本无法解析即 `unknown`；Debian 冒烟容器通常没有音频栈，必须安静降级。
+- 不加原生代码，`Process.run` 调 `pactl --format=json list sinks` 一次读出音量与静音；多 sink 时再用 `--format=json info` 解析默认 sink（[性能改造](audio_output_probe_performance_design.md) §5 I）。PipeWire 回退 `wpctl get-volume`。
+- 非零退出码或文本无法解析即 `unknown`；命令成功但默认 sink 缺失（无 sink，或默认名对不上）视为 `hasDevice = false`；Debian 冒烟容器通常没有音频栈，必须安静降级。
 
 ### 4.3 实时监测机制
 
@@ -436,3 +438,7 @@ unknown 不产生任何状态变化（保持 none）
 补充需求（D5）：只有低音量允许"不再提示"；静音、无设备、引擎未就绪一律始终阻断，不提供任何抑制入口。设置页提供 `低音量时提示` 开关用于随时恢复。
 
 已无待确认项。后续只保留"真机阈值 / 文案微调"这类实现期调整，不再改变 D1–D8 的方向。
+
+### 9.1 性能评审补充（2026-11-15）
+
+P0 实施后另做了一轮采样开销评审，结论落在独立文档 [`audio_output_probe_performance_design.md`](audio_output_probe_performance_design.md)（P-1…P-5）。与本设计的交点只有一条：**设备存在性不再用 `listPlaybackDevices()` 判断**，改用平台 `hasDevice`（macOS/Windows 默认输出端点；Linux 默认 sink）。badge 触发条件、阈值、文案、装配方式与 E1/E2/E3 均不变。

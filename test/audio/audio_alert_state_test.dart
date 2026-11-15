@@ -1,10 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssb_runner/audio/audio_alert_state.dart';
 
-const _engineReady = AudioEngineStatus(
-  initialized: true,
-  playbackDeviceCount: 2,
-);
+const _engineReady = AudioEngineStatus(initialized: true);
 
 AudioOutputStatus _status({bool? muted, double? volume, bool? hasDevice}) {
   return AudioOutputStatus(
@@ -27,16 +24,27 @@ void main() {
       );
     });
 
-    test('no playback device is reported as noDevice', () {
+    test('a missing default output is reported as noDevice', () {
       expect(
         classifyAudioAlert(
-          status: _status(),
-          engine: const AudioEngineStatus(
-            initialized: true,
-            playbackDeviceCount: 0,
-          ),
+          status: _status(hasDevice: false),
+          engine: _engineReady,
         ),
         AudioAlertReason.noDevice,
+      );
+    });
+
+    test('an unknown device presence is not a fault', () {
+      expect(
+        classifyAudioAlert(
+          status: AudioOutputStatus(
+            volume: 0.5,
+            muted: false,
+            source: AudioProbeSource.coreAudio,
+          ),
+          engine: _engineReady,
+        ),
+        AudioAlertReason.none,
       );
     });
 
@@ -46,7 +54,6 @@ void main() {
           status: _status(),
           engine: const AudioEngineStatus(
             initialized: true,
-            playbackDeviceCount: 1,
             deviceUninitialized: true,
           ),
         ),

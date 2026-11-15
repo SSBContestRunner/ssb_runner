@@ -5,10 +5,7 @@ import 'package:ssb_runner/audio/audio_alert_state.dart';
 import 'package:ssb_runner/audio/audio_output_monitor.dart';
 import 'package:ssb_runner/audio/audio_output_probe.dart';
 
-const _engineReady = AudioEngineStatus(
-  initialized: true,
-  playbackDeviceCount: 1,
-);
+const _engineReady = AudioEngineStatus(initialized: true);
 
 AudioOutputStatus _status({bool? muted, double volume = 0.5}) {
   return AudioOutputStatus(
@@ -88,12 +85,14 @@ AudioOutputMonitor _monitor(
   bool disabled = false,
   AudioWindowVisibility Function()? visibilityFactory,
   DateTime Function()? clock,
+  Future<void> Function(Future<void> Function() task)? sampleScheduler,
 }) {
   return AudioOutputMonitor(
     probe: probe,
     readEngine: () => _engineReady,
     clock: clock,
     visibilityFactory: visibilityFactory,
+    sampleScheduler: sampleScheduler,
     disabled: disabled,
     pollInterval: const Duration(seconds: 2),
   );
@@ -105,7 +104,7 @@ void main() {
     final monitor = _monitor(probe);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
 
     expect(monitor.snapshot.value.reason, AudioAlertReason.muted);
     expect(probe.reads, 1);
@@ -117,7 +116,7 @@ void main() {
     final monitor = _monitor(probe);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
     expect(monitor.snapshot.value.reason, AudioAlertReason.none);
 
     await tester.pump(const Duration(seconds: 2));
@@ -131,7 +130,7 @@ void main() {
     final monitor = _monitor(probe);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
     expect(monitor.snapshot.value.hasAlert, isTrue);
 
     probe.status = _status();
@@ -148,7 +147,7 @@ void main() {
 
     monitor.start();
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
     expect(probe.reads, 1);
 
     monitor.stop();
@@ -177,7 +176,7 @@ void main() {
     final monitor = _monitor(probe, visibilityFactory: () => visibility);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
     expect(probe.reads, 1);
 
     visibility.update(false);
@@ -191,7 +190,7 @@ void main() {
     expect(monitor.snapshot.value.windowVisible, isFalse);
 
     visibility.update(true);
-    await tester.pump();
+    await tester.pump(Duration.zero);
     // Restoring visibility samples immediately instead of waiting.
     expect(probe.reads, 3);
     expect(monitor.snapshot.value.windowVisible, isTrue);
@@ -208,16 +207,73 @@ void main() {
     final monitor = _monitor(probe, clock: () => now);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
     expect(monitor.snapshot.value.reason, AudioAlertReason.none);
 
     probe.emit();
-    await tester.pump();
+    await tester.pump(Duration.zero);
     expect(monitor.snapshot.value.reason, AudioAlertReason.none);
 
     now = now.add(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 600));
     expect(monitor.snapshot.value.reason, AudioAlertReason.low);
+    monitor.dispose();
+  });
+
+  testWidgets('volume-slider event storms are throttled', (tester) async {
+    final probe = _FakeProbe(_status(), supportsEvents: true);
+    var now = DateTime(2026, 1, 1, 12);
+    final monitor = _monitor(probe, clock: () => now);
+
+    monitor.start();
+    await tester.pump(Duration.zero);
+    expect(probe.reads, 1);
+
+    // Twenty events inside 100 ms: only the first one is let through.
+    for (var i = 0; i < 20; i++) {
+      now = now.add(const Duration(milliseconds: 5));
+      probe.emit();
+      await tester.pump(Duration.zero);
+    }
+    expect(probe.reads, 2);
+
+    // One event per 100 ms for a second: at most 3-4 samples, not ten.
+    for (var i = 0; i < 10; i++) {
+      now = now.add(const Duration(milliseconds: 100));
+      probe.emit();
+      await tester.pump(Duration.zero);
+    }
+    expect(probe.reads, lessThanOrEqualTo(5));
+    monitor.dispose();
+  });
+
+  testWidgets('a sample is handed to the idle scheduler, never run in-line', (
+    tester,
+  ) async {
+    final probe = _FakeProbe(_status(), supportsEvents: true);
+    final scheduled = <Future<void> Function()>[];
+    final monitor = _monitor(
+      probe,
+      sampleScheduler: (task) {
+        scheduled.add(task);
+        return Future<void>.value();
+      },
+    );
+
+    monitor.start();
+    // Even the first sample waits for the scheduler.
+    expect(probe.reads, 0);
+    expect(scheduled, hasLength(1));
+    await scheduled.removeAt(0)();
+    expect(probe.reads, 1);
+
+    probe.emit();
+    await tester.idle();
+    expect(probe.reads, 1);
+    expect(scheduled, hasLength(1));
+
+    await scheduled.removeAt(0)();
+    expect(probe.reads, 2);
     monitor.dispose();
   });
 
@@ -229,7 +285,7 @@ void main() {
     final monitor = _monitor(probe);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
 
     expect(monitor.snapshot.value.reason, AudioAlertReason.muted);
     monitor.dispose();
@@ -242,7 +298,7 @@ void main() {
     final monitor = _monitor(probe);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
 
     // The first sample was taken and no alert was asserted prematurely.
     expect(probe.reads, 1);
@@ -261,7 +317,7 @@ void main() {
     final monitor = _monitor(probe, visibilityFactory: () => visibility);
 
     monitor.start();
-    await tester.pump();
+    await tester.pump(Duration.zero);
     expect(probe.reads, 1);
 
     // The window was minimised but no event was delivered.

@@ -150,27 +150,41 @@ class LinuxAudioOutputProbe implements AudioOutputProbe {
 
   Future<AudioOutputStatus?> _readPactl() async {
     try {
-      final volume = await Process.run('pactl', [
-        'get-sink-volume',
-        '@DEFAULT_SINK@',
+      // One JSON read instead of three text commands (design §5 I). The extra
+      // `info` call only happens when several sinks exist: picking the wrong
+      // one would report another device's volume.
+      final rawSinks = await _runQuietly('pactl', [
+        '--format=json',
+        'list',
+        'sinks',
       ]);
-      if (volume.exitCode != 0) return null;
+      if (rawSinks == null) return null;
+      final sinks = parsePactlSinks(rawSinks);
+      if (sinks == null) return null;
 
-      final mute = await Process.run('pactl', [
-        'get-sink-mute',
-        '@DEFAULT_SINK@',
-      ]);
-      if (mute.exitCode != 0) return null;
+      String? defaultName;
+      if (sinks.length > 1) {
+        final rawInfo = await _runQuietly('pactl', ['--format=json', 'info']);
+        defaultName = rawInfo == null
+            ? null
+            : parsePactlDefaultSink(rawInfo);
+      }
 
-      final name = await _runQuietly('pactl', [
-        'get-default-sink',
-      ]).then((it) => it?.trim());
+      final sink = selectPactlSink(sinks, defaultName);
+      if (sink == null) {
+        // No sink at all, or none of them is the default endpoint: apps cannot
+        // play (design P-5).
+        return const AudioOutputStatus(
+          hasDevice: false,
+          source: AudioProbeSource.pactl,
+        );
+      }
 
       return AudioOutputStatus(
         hasDevice: true,
-        deviceName: name == null || name.isEmpty ? null : name,
-        volume: parsePactlVolume('${volume.stdout}'),
-        muted: parsePactlMute('${mute.stdout}'),
+        deviceName: sink.name,
+        volume: sink.volume,
+        muted: sink.muted,
         source: AudioProbeSource.pactl,
       );
     } on ProcessException {
@@ -255,24 +269,87 @@ class LinuxAudioOutputProbe implements AudioOutputProbe {
 /// only cost a subprocess.
 bool isPactlSinkEvent(String line) => line.contains('on sink #');
 
-/// Parses `pactl get-sink-volume` output into a 0.0–1.0 volume.
-///
-/// Takes the first `NN%` in the text; `null` when the text carries none.
-double? parsePactlVolume(String output) {
-  final match = RegExp(r'(\d{1,3})\s*%').firstMatch(output);
-  if (match == null) return null;
-  final percent = int.tryParse(match.group(1)!);
-  if (percent == null) return null;
-  return (percent.clamp(0, 100)) / 100;
+/// One sink from `pactl --format=json list sinks`.
+class PactlSink {
+  const PactlSink({this.name, this.volume, this.muted});
+
+  /// Symbolic name, the same value `pactl info` reports as `default_sink_name`.
+  final String? name;
+
+  /// Normalized volume, 0.0–1.0.
+  final double? volume;
+  final bool? muted;
 }
 
-/// Parses `pactl get-sink-mute` (`Mute: yes` / `Mute: no`).
-bool? parsePactlMute(String output) {
-  final match = RegExp(r'Mute:\s*(yes|no)', caseSensitive: false).firstMatch(
-    output,
-  );
-  if (match == null) return null;
-  return match.group(1)!.toLowerCase() == 'yes';
+/// Parses `pactl --format=json list sinks`.
+///
+/// Returns `null` when the text is not the expected JSON array: an older pactl
+/// without `--format=json` must fall back to `wpctl` instead of pretending the
+/// machine has no device. An empty list really means the server has no sink
+/// (design P-5).
+List<PactlSink>? parsePactlSinks(String output) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(output);
+  } on FormatException {
+    return null;
+  }
+  if (decoded is! List) return null;
+
+  return <PactlSink>[
+    for (final entry in decoded)
+      if (entry is Map)
+        PactlSink(
+          name: entry['name'] is String ? entry['name'] as String : null,
+          volume: _pactlSinkVolume(entry['volume']),
+          muted: entry['mute'] is bool ? entry['mute'] as bool : null,
+        ),
+  ];
+}
+
+/// Picks the sink apps play through.
+///
+/// A single sink is the default by definition; with several, the server's
+/// `default_sink_name` must match one of them. `null` means there is no usable
+/// default endpoint, which the probe reports as `hasDevice == false`
+/// (design P-5).
+PactlSink? selectPactlSink(List<PactlSink> sinks, String? defaultSinkName) {
+  if (sinks.isEmpty) return null;
+  if (sinks.length == 1) return sinks.single;
+  if (defaultSinkName == null) return null;
+  for (final sink in sinks) {
+    if (sink.name == defaultSinkName) return sink;
+  }
+  return null;
+}
+
+/// Reads the first channel of a pactl volume object.
+///
+/// The wire value is a Pascal volume: `65536` is 100%.
+double? _pactlSinkVolume(Object? raw) {
+  if (raw is! Map) return null;
+  for (final channel in raw.values) {
+    if (channel is! Map) continue;
+    final value = channel['value'];
+    if (value is num) return (value / 65536).clamp(0.0, 1.0).toDouble();
+  }
+  return null;
+}
+
+/// Parses `default_sink_name` from `pactl --format=json info`.
+///
+/// `null` covers both an unparsable reply and a server that has no default
+/// sink: the probe treats the latter as "no output device" (design P-5).
+String? parsePactlDefaultSink(String output) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(output);
+  } on FormatException {
+    return null;
+  }
+  if (decoded is! Map) return null;
+  final name = decoded['default_sink_name'];
+  return name is String && name.isNotEmpty ? name : null;
 }
 
 /// Parses `wpctl get-volume` (`Volume: 0.65`, optionally `[MUTED]`).
@@ -342,6 +419,11 @@ Future<void> openSystemSoundSettings() async {
 
 /// Reads the SoLoud engine and device state without ever throwing.
 ///
+/// Only atomic queries: enumerating playback devices (`listPlaybackDevices()`)
+/// is a synchronous FFI call that costs hundreds of microseconds and blocks the
+/// UI isolate, so device existence comes from the platform probe instead
+/// (design [`audio_output_probe_performance_design.md`] §6.3 A).
+///
 /// `getAudioDeviceState() == stopped` is normal: flutter_soloud parks the
 /// output after 500 ms of silence (design §4.2.1), so only `uninitialized`
 /// counts as a fault.
@@ -352,17 +434,8 @@ AudioEngineStatus readSoLoudEngineStatus() {
       return const AudioEngineStatus(initialized: false);
     }
 
-    int? deviceCount;
-    try {
-      deviceCount = soloud.listPlaybackDevices().length;
-    } catch (_) {
-      // Unknown; the mute/volume reading still works.
-      deviceCount = null;
-    }
-
     return AudioEngineStatus(
       initialized: true,
-      playbackDeviceCount: deviceCount,
       deviceUninitialized:
           soloud.getAudioDeviceState() == AudioDeviceState.uninitialized,
     );

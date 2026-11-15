@@ -56,29 +56,102 @@ void main() {
     });
   });
 
-  group('pactl parsing', () {
-    test('reads the first percentage of a sink volume line', () {
-      const output =
-          'Volume: front-left: 32768 /  50% / -18.06 dB,'
-          '   front-right: 32768 /  50% / -18.06 dB\n'
-          '        balance 0.00\n';
+  group('pactl json parsing', () {
+    const sinksJson = '''
+[
+  {
+    "index": 0,
+    "state": "SUSPENDED",
+    "name": "alsa_output.pci-0000_00_1f.3.analog-stereo",
+    "description": "Built-in Audio Analog Stereo",
+    "mute": false,
+    "volume": {
+      "front-left": {"value": 32768, "value_percent": "50%", "db": "-18.06 dB"},
+      "front-right": {"value": 32768, "value_percent": "50%", "db": "-18.06 dB"}
+    }
+  }
+]
+''';
 
-      expect(parsePactlVolume(output), 0.5);
+    test('reads the name, volume and mute of every sink', () {
+      final sinks = parsePactlSinks(sinksJson);
+
+      expect(sinks, isNotNull);
+      expect(sinks!, hasLength(1));
+      expect(sinks.single.name, 'alsa_output.pci-0000_00_1f.3.analog-stereo');
+      expect(sinks.single.volume, 0.5);
+      expect(sinks.single.muted, isFalse);
     });
 
-    test('reads muted and unmuted', () {
-      expect(parsePactlMute('Mute: yes\n'), isTrue);
-      expect(parsePactlMute('Mute: no\n'), isFalse);
-      expect(parsePactlMute('something else'), isNull);
+    test('clamps a volume above 100%', () {
+      final sinks = parsePactlSinks('''
+[
+  {
+    "name": "loud",
+    "volume": {
+      "mono": {"value": 70000}
+    }
+  }
+]
+''');
+
+      expect(sinks!.single.volume, 1.0);
     });
 
-    test('returns null for unparsable output', () {
-      expect(parsePactlVolume('Failure: No such entity'), isNull);
-      expect(parsePactlVolume(''), isNull);
+    test('keeps a missing volume and mute unknown', () {
+      final sinks = parsePactlSinks('[{"name": "broken"}]');
+
+      expect(sinks!.single.name, 'broken');
+      expect(sinks.single.volume, isNull);
+      expect(sinks.single.muted, isNull);
     });
 
-    test('clamps percentages above 100', () {
-      expect(parsePactlVolume('Volume: front-left: 70000 / 107% / 0.00 dB'), 1.0);
+    test('an empty list means the server has no sink', () {
+      expect(parsePactlSinks('[]'), isEmpty);
+    });
+
+    test('returns null for a pactl without --format=json', () {
+      expect(
+        parsePactlSinks('Sink #0\n\tState: SUSPENDED\n\tMute: no\n'),
+        isNull,
+      );
+      expect(parsePactlSinks(''), isNull);
+    });
+
+    test('reads the default sink name', () {
+      expect(
+        parsePactlDefaultSink('{"default_sink_name": "alsa_output.speakers"}'),
+        'alsa_output.speakers',
+      );
+    });
+
+    test('a missing default sink name is null', () {
+      expect(parsePactlDefaultSink('{"default_sink_name": ""}'), isNull);
+      expect(parsePactlDefaultSink('{"server_name": "pulse"}'), isNull);
+      expect(parsePactlDefaultSink('not json'), isNull);
+    });
+  });
+
+  group('pactl default sink', () {
+    const speakers = PactlSink(name: 'speakers');
+    const headset = PactlSink(name: 'headset');
+
+    test('a single sink is the default by definition', () {
+      expect(selectPactlSink(const [speakers], null), same(speakers));
+    });
+
+    test('several sinks need a matching default name', () {
+      expect(
+        selectPactlSink(const [speakers, headset], 'headset'),
+        same(headset),
+      );
+    });
+
+    test('no default endpoint means no selectable sink', () {
+      // No sinks at all, no default name, or a stale default name.
+      expect(selectPactlSink(const [], null), isNull);
+      expect(selectPactlSink(const [speakers, headset], null), isNull);
+      expect(selectPactlSink(const [speakers, headset], 'unplugged'), isNull);
     });
   });
 

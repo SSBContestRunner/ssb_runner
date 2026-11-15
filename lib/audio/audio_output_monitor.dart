@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:ssb_runner/audio/audio_alert_state.dart';
 import 'package:ssb_runner/audio/audio_output_probe.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
@@ -27,6 +28,7 @@ class AudioOutputMonitor {
     AudioEngineStatus Function()? readEngine,
     AudioAlertAdjudicator? adjudicator,
     DateTime Function()? clock,
+    Future<void> Function(Future<void> Function() task)? sampleScheduler,
     this.visibilityFactory,
     bool disabled = false,
     Duration? pollInterval,
@@ -34,6 +36,7 @@ class AudioOutputMonitor {
        _readEngine = readEngine ?? readSoLoudEngineStatus,
        _adjudicator = adjudicator ?? AudioAlertAdjudicator(),
        _now = clock ?? DateTime.now,
+       _sampleScheduler = sampleScheduler ?? _scheduleIdle,
        _disabled = disabled || _disabledByEnvironment,
        pollInterval = pollInterval ?? _defaultPollInterval();
 
@@ -53,10 +56,32 @@ class AudioOutputMonitor {
   /// Wait for a settled value before the badge appears or disappears.
   static const Duration recheckDelay = Duration(milliseconds: 600);
 
+  /// Minimum spacing between event-driven samples (design §5 F).
+  ///
+  /// Dragging the volume slider emits ten to twenty property changes per
+  /// second, each of which used to trigger a full sample. 300 ms keeps the
+  /// badge inside the one-second target and cuts the read rate by an order of
+  /// magnitude.
+  static const Duration eventThrottle = Duration(milliseconds: 300);
+
+  /// A sample that occupies the UI isolate longer than this gets a warning.
+  ///
+  /// The post-change budget is 50 microseconds, so anything near a frame
+  /// boundary means expensive work slipped back into the sampling path
+  /// (design §5 H).
+  static const Duration slowSampleThreshold = Duration(milliseconds: 8);
+
   final AudioOutputProbe _probe;
   final AudioEngineStatus Function() _readEngine;
   final AudioAlertAdjudicator _adjudicator;
   final DateTime Function() _now;
+
+  /// Runs one sample in the scheduler's idle phase.
+  ///
+  /// Injected in tests so the deferral can be asserted without a live frame
+  /// loop; production always uses [Priority.idle] (design §5 G).
+  final Future<void> Function(Future<void> Function() task) _sampleScheduler;
+
   final bool _disabled;
 
   /// Resolved on [start] so the window handle exists by then; `null` keeps the
@@ -73,6 +98,10 @@ class AudioOutputMonitor {
   bool _sampling = false;
   bool _unknownLogged = false;
   bool _firstReadingLogged = false;
+  bool _slowSampleLogged = false;
+
+  /// When the last event-driven sample was scheduled, for [eventThrottle].
+  DateTime? _lastEventSampleAt;
 
   Timer? _pollTimer;
   Timer? _recheckTimer;
@@ -98,7 +127,7 @@ class AudioOutputMonitor {
     _subscribeEvents();
     _subscribeVisibility();
     _restartPollTimer();
-    unawaited(_sample(eventDriven: false));
+    unawaited(_scheduleSample(eventDriven: false));
   }
 
   /// Stops watching. Idempotent and safe to call from the exit path.
@@ -129,7 +158,7 @@ class AudioOutputMonitor {
   /// Reads the output state now instead of waiting for the next poll.
   ///
   /// Used by the pre-flight "check again" button (design §5 E1).
-  Future<void> refresh() => _sample(eventDriven: false);
+  Future<void> refresh() => _scheduleSample(eventDriven: false);
 
   void _subscribeEvents() {
     if (!_probe.supportsEvents) return;
@@ -194,12 +223,16 @@ class AudioOutputMonitor {
     _restartPollTimer();
     if (visible) {
       // Catch up immediately: the state may have changed while hidden.
-      unawaited(_sample(eventDriven: false));
+      unawaited(_scheduleSample(eventDriven: false));
     }
   }
 
   void _onProbeEvent() {
-    unawaited(_sample(eventDriven: true));
+    final now = _now();
+    final last = _lastEventSampleAt;
+    if (last != null && now.difference(last) < eventThrottle) return;
+    _lastEventSampleAt = now;
+    unawaited(_scheduleSample(eventDriven: true));
   }
 
   /// Re-reads visibility from the window handle.
@@ -216,6 +249,23 @@ class AudioOutputMonitor {
     _restartPollTimer();
   }
 
+  /// Queues one sample for the idle phase (design §5 G).
+  ///
+  /// Timers and platform events can fire while a frame is being built; sampling
+  /// at [Priority.idle] moves the read between frames, turning a potential
+  /// dropped frame into a slightly later sample.
+  Future<void> _scheduleSample({required bool eventDriven}) {
+    if (!_started || _disabled) return Future<void>.value();
+    return _sampleScheduler(() => _sample(eventDriven: eventDriven));
+  }
+
+  static Future<void> _scheduleIdle(Future<void> Function() task) =>
+      SchedulerBinding.instance.scheduleTask<void>(
+        task,
+        Priority.idle,
+        debugLabel: 'audio output sample',
+      );
+
   Future<void> _sample({required bool eventDriven}) async {
     if (!_started || _disabled) return;
     // A slow platform read must not stack up (Linux forks a process).
@@ -226,8 +276,13 @@ class AudioOutputMonitor {
       _refreshVisibility();
       final status = await _probe.read();
       if (!_started) return;
+      // Only the synchronous part after the platform reply occupies the UI
+      // isolate, so that is what the slow-sample budget measures.
+      final stopwatch = kDebugMode ? (Stopwatch()..start()) : null;
       final engine = _readEngine();
       _apply(status, engine, eventDriven: eventDriven);
+      stopwatch?.stop();
+      if (stopwatch != null) _reportSlowSample(stopwatch.elapsed);
     } catch (error, stackTrace) {
       log.warn(
         'audio output read failed',
@@ -273,7 +328,7 @@ class AudioOutputMonitor {
       _recheckTimer?.cancel();
       _recheckTimer = Timer(
         recheckDelay,
-        () => unawaited(_sample(eventDriven: true)),
+        () => unawaited(_scheduleSample(eventDriven: true)),
       );
     }
   }
@@ -335,12 +390,33 @@ class AudioOutputMonitor {
     _unknownLogged = false;
   }
 
+  /// Records a sample that kept the UI isolate busy near a frame boundary.
+  ///
+  /// Logged once per slow streak rather than every time, so a permanently slow
+  /// platform cannot turn into a log flood (design §5 H).
+  void _reportSlowSample(Duration elapsed) {
+    if (elapsed < slowSampleThreshold) {
+      _slowSampleLogged = false;
+      return;
+    }
+    if (_slowSampleLogged) return;
+    _slowSampleLogged = true;
+    log.warn(
+      'audio output sample was slow',
+      tag: 'audio.monitor',
+      fields: <String, Object?>{
+        'elapsedMs': elapsed.inMicroseconds / 1000,
+        'thresholdMs': slowSampleThreshold.inMilliseconds,
+      },
+    );
+  }
+
   void _restartPollTimer() {
     _pollTimer?.cancel();
     final interval = _visible ? pollInterval : hiddenPollInterval;
     _pollTimer = Timer.periodic(
       interval,
-      (_) => unawaited(_sample(eventDriven: false)),
+      (_) => unawaited(_scheduleSample(eventDriven: false)),
     );
   }
 

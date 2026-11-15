@@ -47,16 +47,11 @@ class AudioOutputStatus {
 /// (design §4.2.1).
 @immutable
 class AudioEngineStatus {
-  const AudioEngineStatus({
-    this.initialized,
-    this.playbackDeviceCount,
-    this.deviceUninitialized = false,
-  });
+  const AudioEngineStatus({this.initialized, this.deviceUninitialized = false});
 
   static const AudioEngineStatus unknown = AudioEngineStatus();
 
   final bool? initialized;
-  final int? playbackDeviceCount;
   final bool deviceUninitialized;
 }
 
@@ -133,10 +128,6 @@ AudioAlertReason classifyAudioAlert({
 }) {
   if (engine.initialized == false) return AudioAlertReason.engineDown;
 
-  final deviceCount = engine.playbackDeviceCount;
-  if (deviceCount != null && deviceCount == 0) {
-    return AudioAlertReason.noDevice;
-  }
   if (status.hasDevice == false) return AudioAlertReason.noDevice;
   if (engine.deviceUninitialized) return AudioAlertReason.noDevice;
 
