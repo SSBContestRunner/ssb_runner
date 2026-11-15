@@ -403,9 +403,12 @@ jobs:
               Write-Host "attempt $attempt threw: $_"
             }
             if ($ok) { exit 0 }
+            # Only a compiler diagnostic short-circuits. The generic "Build process failed."
+            # line also ends the transient native-assets failures above, so matching it would
+            # switch off the retry this loop exists for.
             $diagnostics = @()
             if (Test-Path -LiteralPath $log) {
-              $diagnostics = @(Select-String -LiteralPath $log -Pattern 'error C\d{4}:', 'Build process failed')
+              $diagnostics = @(Select-String -LiteralPath $log -Pattern 'error C\d{4}:')
             }
             if ($diagnostics.Count -gt 0) {
               Write-Host "::error::fastforge package failed with a compile error; not retrying ($log)"
