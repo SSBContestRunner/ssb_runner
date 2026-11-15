@@ -12,6 +12,11 @@
 #
 # Usage (from the repo root, as CI does): pwsh .github/scripts/smoke-test-windows-installer.ps1
 # Expects the `ssb-runner-windows` artifact unpacked under artifacts/.
+#
+# Upgrade handling (docs/design/windows_installer_upgrade_flow.md) is covered too: the same
+# package is installed a second time (dirSame path), then the uninstall entry's
+# DisplayVersion is faked to be newer to prove the downgrade block refuses to run and
+# leaves the install untouched.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -48,47 +53,18 @@ if (-not $installer) {
 }
 Write-Host "smoke-testing $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
 
-# --- static assertions on the installer template ------------------------------
-# fastforge renders windows/packaging/exe/installer.iss and then deletes it after a
-# successful compile, so the generated script is not part of the artifact. Assert on the
-# source template and on make_config.yaml instead: cheap, and it catches the two
-# regressions this custom template exists to prevent (silently falling back to
-# English-only, and re-adding the "launch at startup" task). The /LANG canary in the
-# install step below then proves the four languages really made it into the compiled setup.
-$configPath = 'windows/packaging/exe/make_config.yaml'
-$templatePath = 'windows/packaging/exe/installer.iss'
-foreach ($requiredFile in @($configPath, $templatePath)) {
-  if (-not (Test-Path $requiredFile)) { Fail "missing $requiredFile (run this script from the repo root)" }
-}
-if ((Get-Content $configPath -Raw) -notmatch '(?m)^script_template:\s*installer\.iss\s*$') {
-  Fail "${configPath}: script_template is not installer.iss"
-}
-
-# The template's own comments explain what was removed (and name the deprecated task), so
-# strip comment lines before asserting; only real script entries should match.
-$script = ((Get-Content $templatePath) | Where-Object { $_ -notmatch '^\s*;' }) -join "`n"
-
-$languageMatch = [regex]::Match($script, '(?ms)^\[Languages\](.*?)(?=^\[|\z)')
-if (-not $languageMatch.Success) { Fail "${templatePath}: no [Languages] section" }
-$languageSection = $languageMatch.Groups[1].Value
-$languageCount = ([regex]::Matches($languageSection, '(?m)^Name:')).Count
-if ($languageCount -ne 4) {
-  Fail "${templatePath}: expected 4 languages in [Languages], found $languageCount"
-}
-foreach ($languageFile in @(
-  'compiler:Default.isl',
-  'compiler:Languages\ChineseSimplified.isl',
-  'compiler:Languages\ChineseTraditional.isl',
-  'compiler:Languages\Japanese.isl'
-)) {
-  if ($languageSection -notmatch [regex]::Escape($languageFile)) {
-    Fail "${templatePath}: [Languages] is missing $languageFile"
-  }
-}
-if ($script -match 'launchAtStartup') { Fail "${templatePath}: still contains the launchAtStartup task" }
-if ($script -match '\{userstartup\}') { Fail "${templatePath}: still writes a {userstartup} shortcut" }
-
-Write-Host 'installer template has 4 languages and no startup task'
+# --- static assertions moved to L0 -------------------------------------------
+# The template contracts that used to live here (four languages, no launchAtStartup
+# task, [Code] without Liquid delimiters, [CustomMessages] coverage, [InstallDelete]
+# data boundary) now run in the `Packaging contract` job and its fixtures, together
+# with the rest of the three platforms' packaging configuration
+# (tool/packaging/validate_packaging.dart). Keeping them here too would be a second
+# implementation that drifts -- and the regex-based one had a trap: it ended
+# sections on `^\[`, while ISCC ends them on `^\s*\[`. This script only asserts
+# runtime behaviour now: install, overwrite, downgrade refusal, launch, uninstall.
+#
+# The /LANG canary in the install step below still proves the four languages made
+# it into the compiled setup.
 
 # --- silent install ----------------------------------------------------------
 # /VERYSILENT + /SUPPRESSMSGBOXES + /NORESTART: the unattended switches the Inno template
@@ -134,6 +110,59 @@ $startupShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs
 if (Test-Path $startupShortcut) { Fail "fresh install wrote a Startup shortcut: $startupShortcut" }
 
 Write-Host "bundle and shortcut look complete"
+
+# --- repeat install (same version over itself) --------------------------------
+# The in-app updater and a user double-click both overwrite an existing install. Run the
+# same package again: the installer must detect the existing install (dirSame), stay
+# silent, exit 0, and [InstallDelete] must not remove anything the bundle needs.
+$proc = Start-Process -FilePath $installer.FullName -Wait -PassThru -ArgumentList @(
+  '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$installLog"
+)
+if ($proc.ExitCode -ne 0) {
+  Write-Host "repeat install exited with $($proc.ExitCode); tail of ${installLog}:"
+  if (Test-Path $installLog) { Get-Content $installLog -Tail 40 }
+  Fail "repeat install over the same version failed (exit code $($proc.ExitCode))"
+}
+foreach ($rel in $required) {
+  if (-not (Test-Path (Join-Path $installDir $rel))) { Fail "repeat install removed $rel" }
+}
+Write-Host 'repeat install over the same version succeeded'
+
+# --- downgrade must be refused ------------------------------------------------
+# InitializeSetup compares the installed DisplayVersion with AppVersion and aborts before
+# the wizard exists, leaving the install untouched. Fake a newer installed version and
+# assert the installer refuses: Inno does not guarantee a specific exit code for a setup
+# aborted from InitializeSetup, so only "non-zero" is asserted. Restore the real version
+# afterwards so the uninstall step below still sees a normal install.
+$uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+$installedKey = Get-ChildItem $uninstallRoot |
+  Where-Object {
+    (Get-ItemPropertyValue -Path $_.PSPath -Name 'Inno Setup: App Path' -ErrorAction SilentlyContinue) -eq $installDir
+  } |
+  Select-Object -First 1
+if (-not $installedKey) { Fail "no uninstall entry points at $installDir" }
+$displayVersion = Get-ItemPropertyValue -Path $installedKey.PSPath -Name 'DisplayVersion'
+if (-not $displayVersion) { Fail 'uninstall entry has no DisplayVersion to compare against' }
+
+$before = @(Get-ChildItem $installDir -Recurse -File |
+  ForEach-Object { $_.FullName.Substring($installDir.Length) } | Sort-Object)
+Set-ItemProperty -Path $installedKey.PSPath -Name 'DisplayVersion' -Value '99.0.0'
+try {
+  $proc = Start-Process -FilePath $installer.FullName -Wait -PassThru -ArgumentList @(
+    '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$installLog"
+  )
+} finally {
+  Set-ItemProperty -Path $installedKey.PSPath -Name 'DisplayVersion' -Value $displayVersion
+}
+if ($proc.ExitCode -eq 0) { Fail 'downgrade install reported success (exit code 0)' }
+$after = @(Get-ChildItem $installDir -Recurse -File |
+  ForEach-Object { $_.FullName.Substring($installDir.Length) } | Sort-Object)
+$changed = Compare-Object $before $after
+if ($changed) {
+  Write-Host "downgrade attempt changed the install directory:`n$($changed | Out-String)"
+  Fail 'downgrade attempt modified the install directory'
+}
+Write-Host "downgrade refused with exit code $($proc.ExitCode); install directory unchanged"
 
 # --- launch ------------------------------------------------------------------
 # The static checks above cannot see a runtime-only problem (a DLL that dlopen()s, a broken

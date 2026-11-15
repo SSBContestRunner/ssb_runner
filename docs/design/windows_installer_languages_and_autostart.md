@@ -14,7 +14,8 @@
 | 安装语言 | 英文 / 简体中文 / 繁体中文 / 日文，共 4 种 |
 | 语言选择 | 显式 `ShowLanguageDialog=auto`，按系统语言自动匹配，匹配不到才弹选择框 |
 | 开机启动 | 删除任务与 Startup 快捷方式，安装向导中不再出现该选项 |
-| 老版本遗留 Startup 快捷方式 | **不清理**（alpha 阶段不考虑升级迁移） |
+| 老版本遗留 Startup 快捷方式 | **不清理**（应用内更新不会回头清理历史快捷方式） |
+| 覆盖安装 / 降级 | 由[覆盖安装提示技术方案](windows_installer_upgrade_flow.md)定义，本文不涉及 |
 | 桌面图标任务 | 保留，仍受 `create_desktop_icon: false` 控制（默认不勾选） |
 | 实现方式 | 使用 fastforge 的 `script_template` 自定义安装脚本，替代内置模板 |
 
@@ -77,7 +78,8 @@ Name: "{userstartup}\{{DISPLAY_NAME}}"; ...; Tasks: launchAtStartup
 ### 非目标
 
 - 不修改应用内语言设置与语言解析逻辑。
-- 不处理老版本已写入的 Startup 快捷方式（alpha 阶段）。
+- 不处理老版本已写入的 Startup 快捷方式。
+- 不定义覆盖安装提示与降级阻断，见[覆盖安装提示技术方案](windows_installer_upgrade_flow.md)。
 - 不改动 zip 便携包、macOS / Linux 打包流程。
 - 不改动安装目录、权限（`lowest`）、AppId 等既有契约。
 

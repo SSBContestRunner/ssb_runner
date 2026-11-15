@@ -75,6 +75,10 @@ dev_dependencies:
   drift_dev: ^2.29.0
   build_runner: ^2.10.0
 
+  # Used by tool/packaging/ (the static packaging contract and its fixtures).
+  path: ^1.9.0
+  yaml: ^3.1.0
+
 # Native library provisioning for package:sqlite3.
 # sqlite3_flutter_libs is end-of-life: package:sqlite3 3.x now bundles SQLite
 # through Dart build hooks. "sqlite3" is the default source and ships prebuilt
