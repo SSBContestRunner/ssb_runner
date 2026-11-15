@@ -12,6 +12,11 @@
 #
 # Usage (from the repo root, as CI does): pwsh .github/scripts/smoke-test-windows-installer.ps1
 # Expects the `ssb-runner-windows` artifact unpacked under artifacts/.
+#
+# Upgrade handling (docs/design/windows_installer_upgrade_flow.md) is covered too: the same
+# package is installed a second time (dirSame path), then the uninstall entry's
+# DisplayVersion is faked to be newer to prove the downgrade block refuses to run and
+# leaves the install untouched.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -90,6 +95,54 @@ if ($script -match '\{userstartup\}') { Fail "${templatePath}: still writes a {u
 
 Write-Host 'installer template has 4 languages and no startup task'
 
+# --- upgrade handling --------------------------------------------------------
+# The upgrade page, downgrade block and [InstallDelete] are only as good as their
+# localization coverage and their data boundary. Assert on the source template:
+#   * [Code] must not contain Liquid delimiters. fastforge renders this file before ISCC
+#     runs and deletes the rendered copy afterwards, so a stray delimiter would silently
+#     gut the upgrade detection in the shipped setup instead of failing the build.
+#   * every [CustomMessages] key must exist for all four [Languages], otherwise a
+#     non-English wizard falls back to English (or shows the key).
+#   * [InstallDelete] must never take the whole install directory or db/ log/ with it:
+#     lib/common/dirs.dart can fall back to writing user data under {app}.
+$codeMatch = [regex]::Match($script, '(?ms)^\[Code\](.*?)(?=^\[|\z)')
+if (-not $codeMatch.Success) { Fail "${templatePath}: no [Code] section" }
+if ($codeMatch.Groups[1].Value -match '\{\{|\{%') {
+  Fail "${templatePath}: [Code] contains a Liquid delimiter (this file is rendered by Liquid before ISCC)"
+}
+
+$messageMatch = [regex]::Match($script, '(?ms)^\[CustomMessages\](.*?)(?=^\[|\z)')
+if (-not $messageMatch.Success) { Fail "${templatePath}: no [CustomMessages] section" }
+$messageSection = $messageMatch.Groups[1].Value
+$messageKeys = [regex]::Matches($messageSection, '(?m)^[a-z]+\.([A-Za-z0-9_]+)\s*=') |
+  ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+if (-not $messageKeys) { Fail "${templatePath}: [CustomMessages] has no entries" }
+foreach ($key in $messageKeys) {
+  foreach ($language in @('english', 'chinesesimplified', 'chinesetraditional', 'japanese')) {
+    if ($messageSection -notmatch "(?m)^$language\.$([regex]::Escape($key))\s*=") {
+      Fail "${templatePath}: [CustomMessages] key $key is missing the $language translation"
+    }
+  }
+}
+
+$deleteMatch = [regex]::Match($script, '(?ms)^\[InstallDelete\](.*?)(?=^\[|\z)')
+if (-not $deleteMatch.Success) { Fail "${templatePath}: no [InstallDelete] section" }
+$deleteNames = [regex]::Matches($deleteMatch.Groups[1].Value, '(?im)Name:\s*"([^"]+)"') |
+  ForEach-Object { $_.Groups[1].Value }
+if (-not $deleteNames) { Fail "${templatePath}: [InstallDelete] has no Name entries" }
+foreach ($name in $deleteNames) {
+  $normalized = $name.TrimEnd('\')
+  # Exact match only: "{app}\*.dll" is intentional, "{app}\*" and the bare directory are not.
+  if ($normalized -eq '{app}\*' -or $normalized -eq '{app}') {
+    Fail "${templatePath}: [InstallDelete] deletes the whole install directory ($name)"
+  }
+  if ($normalized -match '\\(db|log)(\\|$)') {
+    Fail "${templatePath}: [InstallDelete] touches user data ($name)"
+  }
+}
+
+Write-Host ("installer template: [Code] has no Liquid delimiters, {0} messages x 4 languages, [InstallDelete] keeps user data" -f $messageKeys.Count)
+
 # --- silent install ----------------------------------------------------------
 # /VERYSILENT + /SUPPRESSMSGBOXES + /NORESTART: the unattended switches the Inno template
 # supports. install_dir_name is {localappdata}\Programs\SSB_Runner and privileges_required
@@ -134,6 +187,59 @@ $startupShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs
 if (Test-Path $startupShortcut) { Fail "fresh install wrote a Startup shortcut: $startupShortcut" }
 
 Write-Host "bundle and shortcut look complete"
+
+# --- repeat install (same version over itself) --------------------------------
+# The in-app updater and a user double-click both overwrite an existing install. Run the
+# same package again: the installer must detect the existing install (dirSame), stay
+# silent, exit 0, and [InstallDelete] must not remove anything the bundle needs.
+$proc = Start-Process -FilePath $installer.FullName -Wait -PassThru -ArgumentList @(
+  '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$installLog"
+)
+if ($proc.ExitCode -ne 0) {
+  Write-Host "repeat install exited with $($proc.ExitCode); tail of ${installLog}:"
+  if (Test-Path $installLog) { Get-Content $installLog -Tail 40 }
+  Fail "repeat install over the same version failed (exit code $($proc.ExitCode))"
+}
+foreach ($rel in $required) {
+  if (-not (Test-Path (Join-Path $installDir $rel))) { Fail "repeat install removed $rel" }
+}
+Write-Host 'repeat install over the same version succeeded'
+
+# --- downgrade must be refused ------------------------------------------------
+# InitializeSetup compares the installed DisplayVersion with AppVersion and aborts before
+# the wizard exists, leaving the install untouched. Fake a newer installed version and
+# assert the installer refuses: Inno does not guarantee a specific exit code for a setup
+# aborted from InitializeSetup, so only "non-zero" is asserted. Restore the real version
+# afterwards so the uninstall step below still sees a normal install.
+$uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+$installedKey = Get-ChildItem $uninstallRoot |
+  Where-Object {
+    (Get-ItemPropertyValue -Path $_.PSPath -Name 'Inno Setup: App Path' -ErrorAction SilentlyContinue) -eq $installDir
+  } |
+  Select-Object -First 1
+if (-not $installedKey) { Fail "no uninstall entry points at $installDir" }
+$displayVersion = Get-ItemPropertyValue -Path $installedKey.PSPath -Name 'DisplayVersion'
+if (-not $displayVersion) { Fail 'uninstall entry has no DisplayVersion to compare against' }
+
+$before = @(Get-ChildItem $installDir -Recurse -File |
+  ForEach-Object { $_.FullName.Substring($installDir.Length) } | Sort-Object)
+Set-ItemProperty -Path $installedKey.PSPath -Name 'DisplayVersion' -Value '99.0.0'
+try {
+  $proc = Start-Process -FilePath $installer.FullName -Wait -PassThru -ArgumentList @(
+    '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$installLog"
+  )
+} finally {
+  Set-ItemProperty -Path $installedKey.PSPath -Name 'DisplayVersion' -Value $displayVersion
+}
+if ($proc.ExitCode -eq 0) { Fail 'downgrade install reported success (exit code 0)' }
+$after = @(Get-ChildItem $installDir -Recurse -File |
+  ForEach-Object { $_.FullName.Substring($installDir.Length) } | Sort-Object)
+$changed = Compare-Object $before $after
+if ($changed) {
+  Write-Host "downgrade attempt changed the install directory:`n$($changed | Out-String)"
+  Fail 'downgrade attempt modified the install directory'
+}
+Write-Host "downgrade refused with exit code $($proc.ExitCode); install directory unchanged"
 
 # --- launch ------------------------------------------------------------------
 # The static checks above cannot see a runtime-only problem (a DLL that dlopen()s, a broken
