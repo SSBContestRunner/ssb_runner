@@ -244,7 +244,8 @@ void _writeStub(_Options options, Directory stub) {
       File(p.join(stub.path, 'ssb_runner.exe')).writeAsStringSync(stubText);
       _write(p.join(stub.path, 'data', 'icudtl.dat'), stubText);
     case 'linux':
-      File(p.join(stub.path, _linuxBinaryName())).writeAsStringSync(stubText);
+      final binary = p.join(stub.path, _linuxBinaryName());
+      File(binary).writeAsStringSync(stubText);
       _write(p.join(stub.path, 'data', 'icudtl.dat'), stubText);
       if (options.target == 'appimage') {
         // The appimage maker runs `ldd` on lib/libflutter_linux_gtk.so and
@@ -263,6 +264,12 @@ void _writeStub(_Options options, Directory stub) {
         final target = File(p.join(stub.path, 'lib', 'libflutter_linux_gtk.so'))
           ..createSync(recursive: true);
         File(source).copySync(target.path);
+        // appimagetool infers ARCH from the AppDir by reading the ELF header of
+        // executable files (or `*.so.*`). The real bundle's root binary is an
+        // executable ELF, so the stub has to be one too: a text file keeps the
+        // arch candidate count at zero and the tool dies (run 43714728174).
+        File(source).copySync(binary);
+        Process.runSync('chmod', <String>['+x', binary]);
       }
     case 'macos':
       final app = p.join(stub.path, '${_productName()}.app');

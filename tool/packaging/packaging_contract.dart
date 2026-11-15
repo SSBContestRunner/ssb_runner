@@ -1203,6 +1203,20 @@ void _checkIconAndCategories(
       );
     }
   }
+  // freedesktop.org: Audio and Video are sub-categories, so they require the
+  // main AudioVideo category. appimagetool warns about this today and says the
+  // warning becomes fatal in the future; dpkg-deb does not check it at all.
+  final present = categories.whereType<String>().toSet();
+  if ((present.contains('Audio') || present.contains('Video')) &&
+      !present.contains('AudioVideo')) {
+    issues.add(
+      ContractIssue(
+        path,
+        'categories contain Audio/Video without AudioVideo; freedesktop.org '
+            'requires the main AudioVideo category alongside them',
+      ),
+    );
+  }
 }
 
 void _checkDisplayNameConsistency(
