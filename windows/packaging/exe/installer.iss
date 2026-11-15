@@ -6,7 +6,7 @@
 ; template also derives [Languages] from `locales` through a locale map that has no
 ; Traditional Chinese entry, and silently drops language files it cannot find.
 ;
-; Baseline: fastforge 0.6.12 / flutter_app_packager 0.6.11 (inno_setup_script.dart).
+; Baseline: fastforge 0.6.12 / flutter_app_packager 0.6.13 (inno_setup_script.dart; unchanged since 0.6.11).
 ; Every line below is copied from that template except:
 ;   - ShowLanguageDialog=auto
 ;   - [Languages] is fixed to the four languages the app ships
@@ -434,8 +434,8 @@ begin
   FKeepDataLabel.Width := FUpgradePage.SurfaceWidth;
   FSameVersionLabel.Width := FUpgradePage.SurfaceWidth;
 
-  FVersionLabel.Caption := FmtMessage(CustomMessage('UpgradeVersionLine'),
-    [Prev, PackageVersion]);
+  FVersionLabel.Caption := FmtMessage(
+    CustomMessage('UpgradeVersionLine'), [Prev, PackageVersion]);
   FVersionLabel.Visible := True;
 
   // 取 WizardDirValue 而不是 DefaultDirName：旧安装可能位于不同目录，Inno 会沿用旧目录，

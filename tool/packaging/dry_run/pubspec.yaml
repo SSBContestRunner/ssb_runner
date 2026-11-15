@@ -1,0 +1,20 @@
+name: ssb_packaging_dry_run
+description: Drives flutter_app_packager with a stub bundle so the packaging config is compiled before merge.
+publish_to: none
+
+# Separate from the app package on purpose: the packager pins archive ^3.6.1
+# while the app needs ^4.0.7, and flutter_app_packager 0.6.13's tar_gz maker uses
+# archive 3 APIs. Forcing one resolution would mean an override that only
+# breaks at runtime, so this package resolves its own (fastforge-like) graph.
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  # Must equal the version fastforge resolves in CI and what
+  # tool/packaging/packaging_contract.dart reads from the global fastforge lock.
+  # `dart pub global activate fastforge 0.6.12` resolves the newest 0.6.x
+  # because fastforge's own constraint is ^0.6.11; bump this pin in the same PR
+  # as the fastforge activation.
+  flutter_app_packager: 0.6.13
+  path: ^1.9.0
+  yaml: ^3.1.0

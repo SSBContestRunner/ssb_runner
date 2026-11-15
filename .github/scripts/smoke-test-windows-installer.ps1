@@ -53,95 +53,18 @@ if (-not $installer) {
 }
 Write-Host "smoke-testing $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
 
-# --- static assertions on the installer template ------------------------------
-# fastforge renders windows/packaging/exe/installer.iss and then deletes it after a
-# successful compile, so the generated script is not part of the artifact. Assert on the
-# source template and on make_config.yaml instead: cheap, and it catches the two
-# regressions this custom template exists to prevent (silently falling back to
-# English-only, and re-adding the "launch at startup" task). The /LANG canary in the
-# install step below then proves the four languages really made it into the compiled setup.
-$configPath = 'windows/packaging/exe/make_config.yaml'
-$templatePath = 'windows/packaging/exe/installer.iss'
-foreach ($requiredFile in @($configPath, $templatePath)) {
-  if (-not (Test-Path $requiredFile)) { Fail "missing $requiredFile (run this script from the repo root)" }
-}
-if ((Get-Content $configPath -Raw) -notmatch '(?m)^script_template:\s*installer\.iss\s*$') {
-  Fail "${configPath}: script_template is not installer.iss"
-}
-
-# The template's own comments explain what was removed (and name the deprecated task), so
-# strip comment lines before asserting; only real script entries should match.
-$script = ((Get-Content $templatePath) | Where-Object { $_ -notmatch '^\s*;' }) -join "`n"
-
-$languageMatch = [regex]::Match($script, '(?ms)^\[Languages\](.*?)(?=^\[|\z)')
-if (-not $languageMatch.Success) { Fail "${templatePath}: no [Languages] section" }
-$languageSection = $languageMatch.Groups[1].Value
-$languageCount = ([regex]::Matches($languageSection, '(?m)^Name:')).Count
-if ($languageCount -ne 4) {
-  Fail "${templatePath}: expected 4 languages in [Languages], found $languageCount"
-}
-foreach ($languageFile in @(
-  'compiler:Default.isl',
-  'compiler:Languages\ChineseSimplified.isl',
-  'compiler:Languages\ChineseTraditional.isl',
-  'compiler:Languages\Japanese.isl'
-)) {
-  if ($languageSection -notmatch [regex]::Escape($languageFile)) {
-    Fail "${templatePath}: [Languages] is missing $languageFile"
-  }
-}
-if ($script -match 'launchAtStartup') { Fail "${templatePath}: still contains the launchAtStartup task" }
-if ($script -match '\{userstartup\}') { Fail "${templatePath}: still writes a {userstartup} shortcut" }
-
-Write-Host 'installer template has 4 languages and no startup task'
-
-# --- upgrade handling --------------------------------------------------------
-# The upgrade page, downgrade block and [InstallDelete] are only as good as their
-# localization coverage and their data boundary. Assert on the source template:
-#   * [Code] must not contain Liquid delimiters. fastforge renders this file before ISCC
-#     runs and deletes the rendered copy afterwards, so a stray delimiter would silently
-#     gut the upgrade detection in the shipped setup instead of failing the build.
-#   * every [CustomMessages] key must exist for all four [Languages], otherwise a
-#     non-English wizard falls back to English (or shows the key).
-#   * [InstallDelete] must never take the whole install directory or db/ log/ with it:
-#     lib/common/dirs.dart can fall back to writing user data under {app}.
-$codeMatch = [regex]::Match($script, '(?ms)^\[Code\](.*?)(?=^\[|\z)')
-if (-not $codeMatch.Success) { Fail "${templatePath}: no [Code] section" }
-if ($codeMatch.Groups[1].Value -match '\{\{|\{%') {
-  Fail "${templatePath}: [Code] contains a Liquid delimiter (this file is rendered by Liquid before ISCC)"
-}
-
-$messageMatch = [regex]::Match($script, '(?ms)^\[CustomMessages\](.*?)(?=^\[|\z)')
-if (-not $messageMatch.Success) { Fail "${templatePath}: no [CustomMessages] section" }
-$messageSection = $messageMatch.Groups[1].Value
-$messageKeys = [regex]::Matches($messageSection, '(?m)^[a-z]+\.([A-Za-z0-9_]+)\s*=') |
-  ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
-if (-not $messageKeys) { Fail "${templatePath}: [CustomMessages] has no entries" }
-foreach ($key in $messageKeys) {
-  foreach ($language in @('english', 'chinesesimplified', 'chinesetraditional', 'japanese')) {
-    if ($messageSection -notmatch "(?m)^$language\.$([regex]::Escape($key))\s*=") {
-      Fail "${templatePath}: [CustomMessages] key $key is missing the $language translation"
-    }
-  }
-}
-
-$deleteMatch = [regex]::Match($script, '(?ms)^\[InstallDelete\](.*?)(?=^\[|\z)')
-if (-not $deleteMatch.Success) { Fail "${templatePath}: no [InstallDelete] section" }
-$deleteNames = [regex]::Matches($deleteMatch.Groups[1].Value, '(?im)Name:\s*"([^"]+)"') |
-  ForEach-Object { $_.Groups[1].Value }
-if (-not $deleteNames) { Fail "${templatePath}: [InstallDelete] has no Name entries" }
-foreach ($name in $deleteNames) {
-  $normalized = $name.TrimEnd('\')
-  # Exact match only: "{app}\*.dll" is intentional, "{app}\*" and the bare directory are not.
-  if ($normalized -eq '{app}\*' -or $normalized -eq '{app}') {
-    Fail "${templatePath}: [InstallDelete] deletes the whole install directory ($name)"
-  }
-  if ($normalized -match '\\(db|log)(\\|$)') {
-    Fail "${templatePath}: [InstallDelete] touches user data ($name)"
-  }
-}
-
-Write-Host ("installer template: [Code] has no Liquid delimiters, {0} messages x 4 languages, [InstallDelete] keeps user data" -f $messageKeys.Count)
+# --- static assertions moved to L0 -------------------------------------------
+# The template contracts that used to live here (four languages, no launchAtStartup
+# task, [Code] without Liquid delimiters, [CustomMessages] coverage, [InstallDelete]
+# data boundary) now run in the `Packaging contract` job and its fixtures, together
+# with the rest of the three platforms' packaging configuration
+# (tool/packaging/validate_packaging.dart). Keeping them here too would be a second
+# implementation that drifts -- and the regex-based one had a trap: it ended
+# sections on `^\[`, while ISCC ends them on `^\s*\[`. This script only asserts
+# runtime behaviour now: install, overwrite, downgrade refusal, launch, uninstall.
+#
+# The /LANG canary in the install step below still proves the four languages made
+# it into the compiled setup.
 
 # --- silent install ----------------------------------------------------------
 # /VERYSILENT + /SUPPRESSMSGBOXES + /NORESTART: the unattended switches the Inno template
