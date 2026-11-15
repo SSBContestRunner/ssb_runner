@@ -214,6 +214,13 @@ jobs:
           --targets=deb,appimage,zip
           --build-dart-define CRASH_ISSUE_TOKEN=${{ secrets.CRASH_ISSUE_TOKEN }}
 
+      - name: Trim libjvm.so copied into the AppImage
+        # The appimage maker copies the ldd dependencies of every bundled .so into
+        # usr/lib, and the Android-only libdartjni.so resolves libjvm.so from this
+        # runner's JDK -- ~24 MB that is never loaded on Linux. See
+        # .github/scripts/trim-appimage-libjvm.sh.
+        run: bash .github/scripts/trim-appimage-libjvm.sh
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -474,9 +481,13 @@ jobs:
           path: dist/**
           if-no-files-found: error
 
-  # Installs the built .deb on a clean Debian 12 (our oldest supported target), fails if it
-  # cannot install or its libraries cannot load (issue #23), then starts the app under Xvfb
-  # and closes its window to assert the process exits.
+  # Installs the built .deb on a clean Debian 12, fails if it cannot install or its libraries
+  # cannot load (issue #23), then starts the app under Xvfb and closes its window to assert
+  # the process exits. Debian 12 is the oldest target we can boot in a container; the floor
+  # we actually promise is older (Ubuntu 22.04 / glibc 2.35, GLIBCXX_3.4.30), so the script
+  # checks symbols against those fixed versions instead of the container's. It also extracts
+  # the .AppImage and applies the same check to the bundle plus the libstdc++/libgcc_s copies
+  # in its usr/lib, then launches it the same way.
   #
   # Depending only on package-linux means it runs exactly when the Linux artifact exists, and
   # an unrelated platform failing no longer skips it. No `if` is needed: a skipped or failed
