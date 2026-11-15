@@ -156,7 +156,7 @@ macOS/Windows 的 `hasDevice` 直接调用 `GetDefaultAudioEndpoint` / `kAudioHa
 | **E. keepalive 探针** | 播放极低电平片段让设备保持 active，用 `getAudioDeviceState()` 判活 | 更接近“链路是否活着” | 破坏 SoLoud 的 idle 挂起省电策略；与训练音频排队冲突；仍不回答“人耳是否听到” | 不采纳 |
 | **F. 事件节流**（正交） | 事件触发的采样加最小间隔 **300 ms** | 消除拖动风暴；同时压住 Linux 的 fork 频率 | 事件响应最多延迟 300 ms（设计目标 1 s 内，仍满足） | **采纳** |
 | **G. 空闲期采样**（正交） | 采样排到 post-frame / `Priority.idle` | 即使有残余同步工作也不占帧预算，把“掉一帧”降级为“晚一次采样” | 实现极轻；采样延迟增加不到一帧 | **采纳** |
-| **H. 慢采样可观测**（正交） | debug 下单次采样的 UI isolate 同步段 > 8 ms 记一条 warn（非周期日志；平台/子进程耗时不计入，否则 Linux 会常态误报） | 把残余风险从“猜”变成“数据” | 无 | **采纳** |
+| **H. 慢采样可观测**（正交） | debug 下两段分别计时、各自 8 ms 预算：UI isolate 同步段 > 8 ms 记一条 warn；平台往返段只在 in-process 平台（macOS/Windows）计入，Linux 子进程豁免（否则会常态误报）。非周期日志，同一慢序列只记一条 | 把残余风险从“猜”变成“数据”，且能区分“Dart 侧变慢”与“平台线程被卡” | 无 | **采纳** |
 | **I. Linux 单进程读取**（正交） | 3 次 `pactl` 合并为一次 `pactl --format=json list sinks`；多 sink 时再加一次 `--format=json info` 解析默认 sink（`wpctl get-volume` 本就同时返回音量与 mute） | fork 数 3 → 1（多 sink 时 2） | 解析代码需要重写 + 单测 | **采纳（Linux）** |
 
 ### 5.1 为什么 A 在语义上不吃亏

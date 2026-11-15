@@ -71,6 +71,16 @@ class AudioOutputMonitor {
   /// (design §5 H).
   static const Duration slowSampleThreshold = Duration(milliseconds: 8);
 
+  /// Budget for the platform round-trip, `null` where it is out of process.
+  ///
+  /// macOS and Windows answer on the platform main thread, so a slow reply
+  /// jolts the window even though it never enters the Dart frame budget.
+  /// Linux forks `pactl` by design and takes tens of milliseconds per read,
+  /// so reporting it there would be a permanent false alarm (design §5 H).
+  static final Duration? platformReadThreshold = Platform.isLinux
+      ? null
+      : const Duration(milliseconds: 8);
+
   final AudioOutputProbe _probe;
   final AudioEngineStatus Function() _readEngine;
   final AudioAlertAdjudicator _adjudicator;
@@ -274,7 +284,12 @@ class AudioOutputMonitor {
 
     try {
       _refreshVisibility();
+      // The platform leg is timed on its own: it runs on the platform main
+      // thread, so a slow reply is a jolt even though it never occupies the
+      // Dart frame budget.
+      final platformStopwatch = kDebugMode ? (Stopwatch()..start()) : null;
       final status = await _probe.read();
+      platformStopwatch?.stop();
       if (!_started) return;
       // Only the synchronous part after the platform reply occupies the UI
       // isolate, so that is what the slow-sample budget measures.
@@ -282,7 +297,12 @@ class AudioOutputMonitor {
       final engine = _readEngine();
       _apply(status, engine, eventDriven: eventDriven);
       stopwatch?.stop();
-      if (stopwatch != null) _reportSlowSample(stopwatch.elapsed);
+      if (stopwatch != null && platformStopwatch != null) {
+        _reportSampleTiming(
+          post: stopwatch.elapsed,
+          platform: platformStopwatch.elapsed,
+        );
+      }
     } catch (error, stackTrace) {
       log.warn(
         'audio output read failed',
@@ -390,12 +410,18 @@ class AudioOutputMonitor {
     _unknownLogged = false;
   }
 
-  /// Records a sample that kept the UI isolate busy near a frame boundary.
+  /// Records a sample that ran over budget on either leg.
   ///
   /// Logged once per slow streak rather than every time, so a permanently slow
   /// platform cannot turn into a log flood (design §5 H).
-  void _reportSlowSample(Duration elapsed) {
-    if (elapsed < slowSampleThreshold) {
+  void _reportSampleTiming({
+    required Duration post,
+    required Duration platform,
+  }) {
+    final platformBudget = platformReadThreshold;
+    final postSlow = post >= slowSampleThreshold;
+    final platformSlow = platformBudget != null && platform >= platformBudget;
+    if (!postSlow && !platformSlow) {
       _slowSampleLogged = false;
       return;
     }
@@ -405,8 +431,10 @@ class AudioOutputMonitor {
       'audio output sample was slow',
       tag: 'audio.monitor',
       fields: <String, Object?>{
-        'elapsedMs': elapsed.inMicroseconds / 1000,
+        'elapsedMs': post.inMicroseconds / 1000,
+        'platformMs': platform.inMicroseconds / 1000,
         'thresholdMs': slowSampleThreshold.inMilliseconds,
+        'platformThresholdMs': platformBudget?.inMilliseconds,
       },
     );
   }
