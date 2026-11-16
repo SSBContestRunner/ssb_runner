@@ -111,7 +111,7 @@ FUpgradePage := CreateCustomPage(wpSelectDir, CustomMessage('UpgradePageCaption'
 | 方向 | 版本行 | 额外行 | 下一步 |
 | --- | --- | --- | --- |
 | `dirUpgrade` | 已安装 A → 本次 B | 目标目录 + 数据保留 | 直接通过 |
-| `dirSame` | 已安装 A → 本次 A | 「当前已是该版本，将重新覆盖写入」 | 直接通过 |
+| `dirSame` | 已安装 A → 本次 A | 「即使版本相同，安装也会重新写入并覆盖已安装的文件」 | 直接通过 |
 | `dirDowngrade` | — | — | **不会进入向导**，在 `InitializeSetup` 阶段中止，见 §4.4 |
 | `dirNone` | — | — | 页面跳过，流程与现状一致 |
 
@@ -153,7 +153,7 @@ FUpgradePage := CreateCustomPage(wpSelectDir, CustomMessage('UpgradePageCaption'
 | `UpgradeVersionLine` | Installed: %1　→　This package: %2 | 已安装：%1　→　本次安装包：%2 |
 | `UpgradeTargetLine` | Target folder: %1 | 目标目录：%1 |
 | `UpgradeKeepsDataLine` | Settings and training records are stored outside this folder and will be kept. | 设置与训练记录保存在用户数据目录，不会被删除。 |
-| `UpgradeSameVersionLine` | This version is already installed; Setup will overwrite it. | 当前已是该版本，安装将重新覆盖写入。 |
+| `UpgradeSameVersionLine` | Setup will overwrite the installed files even though the version is the same. | 即使版本相同，安装也会重新写入并覆盖已安装的文件。 |
 | `UpgradeBlockedCaption` | Cannot continue | 无法继续安装 |
 | `UpgradeDowngradeBlocked` | SSB Runner %1 is already installed and is newer than this package (%2). Setup will exit without changing anything. Use a package at %1 or newer, or uninstall the current version first. | 已安装的 SSB Runner 为 %1，高于本安装包（%2）。安装已取消，现有安装未做任何修改。请使用不低于 %1 的安装包，或先卸载当前版本。 |
 
@@ -163,7 +163,7 @@ FUpgradePage := CreateCustomPage(wpSelectDir, CustomMessage('UpgradePageCaption'
 | `UpgradeVersionLine` | 已安裝：%1　→　本次安裝包：%2 | インストール済み：%1　→　このパッケージ：%2 |
 | `UpgradeTargetLine` | 目標資料夾：%1 | インストール先フォルダー：%1 |
 | `UpgradeKeepsDataLine` | 設定與訓練記錄儲存在使用者資料目錄，不會被刪除。 | 設定とトレーニング記録はユーザーデータフォルダーに保存されるため、削除されません。 |
-| `UpgradeSameVersionLine` | 目前已是該版本，安裝將重新覆寫。 | このバージョンは既にインストールされています。上書きインストールします。 |
+| `UpgradeSameVersionLine` | 即使版本相同，安裝也會重新寫入並覆寫已安裝的檔案。 | バージョンが同じでも、インストール済みのファイルを上書きして再インストールします。 |
 | `UpgradeBlockedCaption` | 無法繼續安裝 | 続行できません |
 | `UpgradeDowngradeBlocked` | 已安裝的 SSB Runner 為 %1，高於本安裝包（%2）。安裝已取消，現有安裝未做任何修改。請使用不低於 %1 的安裝包，或先解除安裝目前版本。 | インストール済みの SSB Runner は %1 で、このパッケージ（%2）より新しいため、インストールを中止しました。既存のインストールは変更されていません。%1 以降のパッケージを使用するか、現在のバージョンを先にアンインストールしてください。 |
 
@@ -244,7 +244,7 @@ Type: filesandordirs; Name: "{app}\data"
 | 场景 | 期望 |
 | --- | --- |
 | 全新安装（无卸载项） | 不出现覆盖页，流程与现状一致 |
-| 同版本重装 | 出现页面，显示「当前已是该版本，将重新覆盖写入」 |
+| 同版本重装 | 出现页面，显示「即使版本相同，安装也会重新写入并覆盖已安装的文件」 |
 | 旧 → 新（目录相同） | 出现页面，版本行正确，Next 直接通过 |
 | 旧 → 新（目录不同） | 页面显示**旧目录**（真实写入位置），与 `%LOCALAPPDATA%` 下的实际路径一致 |
 | 新 → 旧（交互） | 弹出「无法继续安装」错误提示后退出，安装目录内容不变 |
