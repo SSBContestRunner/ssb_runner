@@ -369,5 +369,8 @@
   "audioPreflightStartAnyway": "そのまま開始",
   "audioPreflightDontAskLowVolume": "低音量の警告を表示しない",
   "audioPreflightLowVolumeWarningLabel": "低音量を警告する",
-  "audioPreflightLowVolumeWarningHint": "オフにすると低音量でも開始を妨げません"
+  "audioPreflightLowVolumeWarningHint": "オフにすると低音量でも開始を妨げません",
+  "audioBadgeEngineBlockedTooltip": "ブラウザが音声の再生をブロックしました",
+  "audioBadgeEnableAudio": "音声を有効にする",
+  "audioBadgeWebBlindSpotHint": "ブラウザはシステム音量を検出できません。音が出ない場合は、システムまたはタブがミュートされていないか確認してください。"
 }

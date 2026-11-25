@@ -1,17 +1,42 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:ssb_runner/platform/audio/audio_bootstrap_web.dart';
+import 'package:ssb_runner/platform/audio/web/web_audio_alert_toaster.dart';
+import 'package:ssb_runner/platform/audio/web/web_audio_monitor.dart';
+import 'package:ssb_runner/platform/audio/web/web_audio_signals.dart';
+import 'package:ssb_runner/platform/audio/web/web_audio_status_badge.dart';
 
-/// The browser has no system audio endpoint to monitor, so the badge, the
-/// toaster and the run pre-flight are all inert.
+/// Resident web monitor, created on first use and shared for the process
+/// lifetime (design §5.1).
+WebAudioMonitor? _monitor;
+
+WebAudioMonitor _sharedMonitor() => _monitor ??= WebAudioMonitor(
+  initState: audioInitState,
+  engineInitialized: webAudioEngineInitialized,
+  deviceState: webAudioDeviceState,
+  audioContextState: webAudioContextState,
+  isVisible: webAudioPageVisible,
+  visibilityChanges: webAudioVisibilityChanges(),
+  retryInitialization: retryAudioInitialized,
+);
+
+/// The web badge, toaster and monitor are wired directly, so no provider is
+/// needed here.
 Widget wrapWithAudioMonitor(Widget child) => child;
 
-Widget buildAudioStatusBadge() => const SizedBox.shrink();
+Widget buildAudioStatusBadge() => WebAudioStatusBadge(source: _sharedMonitor());
 
-Widget buildAudioAlertToaster() => const SizedBox.shrink();
+Widget buildAudioAlertToaster() =>
+    WebAudioAlertToaster(source: _sharedMonitor());
 
-void startAudioMonitor() {}
+void startAudioMonitor() => _sharedMonitor().start();
 
-void stopAudioMonitor() {}
+void stopAudioMonitor() => _monitor?.stop();
 
-void disposeAudioMonitor() {}
+void disposeAudioMonitor() {
+  _monitor?.dispose();
+  _monitor = null;
+}
 
+/// A browser cannot guarantee audibility even when the context is running, so
+/// the run pre-flight stays non-blocking (design §4.3).
 Future<bool> confirmRunAudioPreflight(BuildContext context) async => true;

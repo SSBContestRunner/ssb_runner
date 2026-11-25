@@ -18,6 +18,7 @@ import 'package:ssb_runner/dxcc/dxcc_manager.dart';
 import 'package:ssb_runner/l10n/domain_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
+import 'package:ssb_runner/platform/capabilities.dart';
 import 'package:ssb_runner/platform/database/database_status_port.dart';
 import 'package:ssb_runner/platform/export/export_port.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -584,8 +585,10 @@ class _AudioPanel extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _AudioTestToneRow(enabled: enabled),
-          const SizedBox(height: 4),
-          _LowVolumeWarningSwitch(enabled: enabled),
+          if (PlatformCapabilities.supportsAudioOutputMonitoring) ...[
+            const SizedBox(height: 4),
+            _LowVolumeWarningSwitch(enabled: enabled),
+          ],
           const SizedBox(height: 16),
           _menu<IncomingAccent>(
             context: context,

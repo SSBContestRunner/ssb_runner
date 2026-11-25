@@ -369,5 +369,8 @@
   "audioPreflightStartAnyway": "仍然開始",
   "audioPreflightDontAskLowVolume": "低音量時不再提示",
   "audioPreflightLowVolumeWarningLabel": "低音量時提示",
-  "audioPreflightLowVolumeWarningHint": "關閉後低音量不再阻擋開賽"
+  "audioPreflightLowVolumeWarningHint": "關閉後低音量不再阻擋開賽",
+  "audioBadgeEngineBlockedTooltip": "瀏覽器已阻止音訊播放",
+  "audioBadgeEnableAudio": "啟用聲音",
+  "audioBadgeWebBlindSpotHint": "瀏覽器無法偵測系統音量；若仍無聲，請確認系統或瀏覽器是否靜音。"
 }

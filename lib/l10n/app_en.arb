@@ -660,5 +660,8 @@
   "audioPreflightStartAnyway": "Start anyway",
   "audioPreflightDontAskLowVolume": "Don't warn about low volume",
   "audioPreflightLowVolumeWarningLabel": "Warn about low volume",
-  "audioPreflightLowVolumeWarningHint": "When off, a low volume no longer blocks starting a session"
+  "audioPreflightLowVolumeWarningHint": "When off, a low volume no longer blocks starting a session",
+  "audioBadgeEngineBlockedTooltip": "The browser blocked audio playback",
+  "audioBadgeEnableAudio": "Enable sound",
+  "audioBadgeWebBlindSpotHint": "Browsers cannot detect system volume; if you still hear nothing, check whether the system or this browser is muted."
 }

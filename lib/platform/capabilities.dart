@@ -21,6 +21,10 @@ abstract final class PlatformCapabilities {
   /// `navigator.storage.persist()` is a browser API.
   static bool get supportsStoragePersistence => isWeb;
 
+  /// System output volume, mute and device can be read from desktop APIs only;
+  /// a browser exposes none of them.
+  static bool get supportsAudioOutputMonitoring => !isWeb;
+
   /// A browser cannot keep a session running while the page is hidden, so the
   /// run is paused instead of pretending it continued.
   static bool get pausesWhenHidden => isWeb;
