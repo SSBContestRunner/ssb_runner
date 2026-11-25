@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
 import 'package:catcher_2/catcher_2.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ssb_runner/audio/audio_init_tracker.dart';
@@ -184,7 +184,7 @@ class _MainAppState extends State<MainApp> {
                 title: 'SSB Runner',
                 locale: appLanguageLocale(language),
                 localeListResolutionCallback: resolveAppLocale,
-                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                localizationsDelegates: appLocalizationsDelegates,
                 supportedLocales: AppLocalizations.supportedLocales,
                 builder: (context, child) {
                   AppL10n.update(AppLocalizations.of(context));

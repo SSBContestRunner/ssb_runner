@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' hide isNull;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/rendering.dart';
@@ -14,6 +14,7 @@ import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';
 import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/session_review.dart';
@@ -51,7 +52,7 @@ void main() {
   for (final item in cases) {
     final language = item.locale.toString();
     testWidgets('暂停格在一行内显示时长与次数 ($language)', (tester) async {
-      await _ensureAppFonts();
+      await _ensureAppFonts(tester);
       final manager = await _pumpOverlay(
         tester,
         item.locale,
@@ -94,7 +95,7 @@ void main() {
   }
 
   testWidgets('暂停次数为零时不显示暂停格 (en)', (tester) async {
-    await _ensureAppFonts();
+    await _ensureAppFonts(tester);
     final manager = await _pumpOverlay(
       tester,
       const Locale('en'),
@@ -119,7 +120,7 @@ void main() {
   });
 
   testWidgets('单次暂停的英文标签使用单数 (en)', (tester) async {
-    await _ensureAppFonts();
+    await _ensureAppFonts(tester);
     final manager = await _pumpOverlay(
       tester,
       const Locale('en'),
@@ -199,7 +200,7 @@ Future<_ReviewManager> _pumpOverlay(
     MaterialApp(
       theme: AppTheme.light,
       locale: locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: RepositoryProvider<ContestManager>.value(
         value: manager,
@@ -222,17 +223,23 @@ Future<void> _tearDown(WidgetTester tester, _ReviewManager manager) async {
 
 bool _appFontsLoaded = false;
 
-Future<void> _ensureAppFonts() async {
+Future<void> _ensureAppFonts(WidgetTester tester) async {
   if (_appFontsLoaded) return;
   _appFontsLoaded = true;
-  await (FontLoader(
-    'Iosevka',
-  )..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'))).load();
-  await (FontLoader('Noto Sans SC')
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Regular-sub.otf'))
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Medium-sub.otf'))
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Bold-sub.otf')))
-      .load();
+  // The Flutter 3.50 engine sends a `fontsChange` system message after a font
+  // loads. Loading inside runAsync lets that real async message arrive while
+  // the test still owns the tree; otherwise it lands after disposal and the
+  // binding reports a pending transient callback.
+  await tester.runAsync(() async {
+    await (FontLoader(
+      'Iosevka',
+    )..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'))).load();
+    await (FontLoader('Noto Sans SC')
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Regular-sub.otf'))
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Medium-sub.otf'))
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Bold-sub.otf')))
+        .load();
+  });
 }
 
 final AppDatabase _neverOpenedDatabase = AppDatabase(

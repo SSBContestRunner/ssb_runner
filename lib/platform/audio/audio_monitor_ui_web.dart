@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The browser has no system audio endpoint to monitor, so the badge, the
 /// toaster and the run pre-flight are all inert.

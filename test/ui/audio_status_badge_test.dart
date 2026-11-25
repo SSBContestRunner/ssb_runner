@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssb_runner/audio/audio_alert_state.dart';
 import 'package:ssb_runner/audio/audio_output_monitor.dart';
 import 'package:ssb_runner/audio/audio_output_probe.dart';
+import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/ui/main_page/audio_status_badge.dart';
 
@@ -14,7 +15,7 @@ Widget _app({AudioOutputMonitor? monitor}) {
 
   return MaterialApp(
     locale: const Locale('en'),
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    localizationsDelegates: appLocalizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: monitor == null
         ? badge

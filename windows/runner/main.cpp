@@ -10,7 +10,7 @@
 
 namespace {
 
-// `window_manager` 0.6.0 reaches Windows through nativeapi/cnativeapi, whose DLL
+// `window_manager` 0.7.1 reaches Windows through nativeapi/cnativeapi, whose DLL
 // statically imports user32!GetDpiForWindow. That API only exists from Windows
 // 10 version 1607 (build 14393); on 1507/1511 LoadLibrary fails with
 // ERROR_PROC_NOT_FOUND (127) and every Dart call into it throws, which the app

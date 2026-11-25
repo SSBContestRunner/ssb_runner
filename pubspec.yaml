@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 0.3.0+300009 # VersionCode using scheme: MM_NN_PP_BBB
 
 environment:
-  sdk: ^3.13.0
+  sdk: ^3.14.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -36,32 +36,37 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^2.0.0
-  flutter_soloud: ^5.1.5
+  flutter_soloud: ^5.3.2
   flutter_bloc: ^9.1.1
   statemachine: ^3.4.0
   collection: ^1.19.1
-  equatable: ^2.0.7
-  drift: ^2.29.0
+  equatable: ^3.0.0
+  drift: ^2.35.4
   drift_flutter: ^0.3.1
-  sqlite3: ^3.6.0
-  path_provider: ^2.1.5
-  archive: ^4.0.7
+  sqlite3: ^3.9.2
+  path_provider: ^2.1.6
+  archive: ^4.7.1
   xml: ^7.1.0
-  window_manager: ^0.6.0
+  window_manager: ^0.7.1
   # Direct for DisplayManager.workArea (the primary screen's usable area), which
-  # window_manager 0.6 uses but does not re-export. Version is locked by
+  # window_manager 0.7 uses but does not re-export. Version is locked by
   # window_manager's own constraint.
-  nativeapi: ^0.5.10
-  shared_preferences: ^2.5.3
-  uuid: ^4.5.1
-  worker_manager: ^7.2.7
-  logger: ^2.6.2
-  package_info_plus: ^10.2.1
-  toastification: ^3.0.3
-  catcher_2: ^2.1.5
-  intl: ^0.20.2
+  nativeapi: ^0.6.2
+  shared_preferences: ^2.5.6
+  uuid: ^4.6.0
+  worker_manager: ^7.2.9
+  logger: ^2.8.0
+  package_info_plus: ^10.2.2
+  toastification: ^3.2.2
+  catcher_2: ^2.1.12
+  intl: ^0.20.3
   file_selector: ^1.1.0
-  web: ^1.1.0
+  web: ^1.1.2
+
+  # Material widgets now live outside the Flutter SDK (Flutter 3.50 deprecates
+  # package:flutter/material.dart); dart fix --code=migrate_design_widgets
+  # rewrote the imports to this package.
+  material_ui: ^1.11.1
 
 dev_dependencies:
   flutter_test:
@@ -73,12 +78,12 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  drift_dev: ^2.29.0
-  build_runner: ^2.10.0
+  drift_dev: ^2.35.3
+  build_runner: ^2.17.1
 
   # Used by tool/packaging/ (the static packaging contract and its fixtures).
-  path: ^1.9.0
-  yaml: ^3.1.0
+  path: ^1.9.1
+  yaml: ^3.1.4
 
 # Native library provisioning for package:sqlite3.
 # sqlite3_flutter_libs is end-of-life: package:sqlite3 3.x now bundles SQLite
@@ -198,12 +203,14 @@ flutter:
 
 # Force every remaining package to the newest published version where the
 # constraint is loose enough to allow it:
-#   equatable -> toastification, cli_util -> drift_dev,
-#   material_color_utilities / test_api -> Flutter SDK.
+#   cli_util -> drift_dev (drift_dev still pins an older cli_util).
+# The Flutter SDK pins material_color_utilities / test_api exactly one patch
+# behind pub; the app deliberately uses the newest patch (verified by the full
+# test suite), so both stay overridden.
 # Do NOT override a transitive major that a direct dependency pins with an
-# upper bound (e.g. catcher_2 -> cross_file ^0.3.0): that only creates a fork.
+# upper bound (e.g. file_selector -> cross_file ^0.3.0, which blocks
+# catcher_2 3.x): that only creates a fork.
 dependency_overrides:
-  equatable: ^3.0.0
-  cli_util: ^0.6.0
+  cli_util: ^0.6.1
   material_color_utilities: ^0.13.1
-  test_api: ^0.7.14
+  test_api: ^0.7.15

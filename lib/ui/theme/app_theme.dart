@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:ssb_runner/common/constants.dart';
 
 /// Brand anchor and the "Clear Sky" (晴空) palette from

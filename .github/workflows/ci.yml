@@ -72,7 +72,7 @@ jobs:
         run: flutter analyze --fatal-infos
 
       - name: Install Linux test dependencies
-        # window_manager 0.6.0 reaches nativeapi/cnativeapi, whose build hook links
+        # window_manager 0.7.1 reaches nativeapi/cnativeapi, whose build hook links
         # GTK3/X11/Xi via pkg-config during `flutter test`.
         #
         # The runner's mirror is intermittently unresolvable (ubuntu-26.04 sources go

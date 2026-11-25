@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,7 +60,9 @@ void main() {
     // 74px column including cell padding ellipsised the last seconds digit.
     final loader = FontLoader('Iosevka')
       ..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'));
-    await loader.load();
+    // The Flutter 3.50 engine sends a `fontsChange` system message after a
+    // font loads; load inside runAsync so it arrives before teardown.
+    await tester.runAsync(loader.load);
 
     final item = QsoResult(
       call: QsoResultField(data: 'BG7TVF', isCorrect: true),

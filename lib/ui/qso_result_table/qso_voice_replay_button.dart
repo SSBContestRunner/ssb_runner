@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 48 dp wide hit area around a 40 dp circle. The table row limits the height
 /// to 42 dp; the dialog rows can use the full 48 dp.

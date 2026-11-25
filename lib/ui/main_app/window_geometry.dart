@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nativeapi/nativeapi.dart' show DisplayManager;
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
@@ -51,7 +51,7 @@ Size clampWindowContentSize(Size saved, Size minimum, Size? workArea) {
 /// enumerates this process's top-level windows, so a single-window app has
 /// exactly one candidate; anything else is not guessed.
 ///
-/// Never throws. `window_manager` 0.6.0 reaches Windows through cnativeapi,
+/// Never throws. `window_manager` 0.7.1 reaches Windows through cnativeapi,
 /// whose DLL fails to load as a whole on systems older than Windows 10 1607
 /// (see docs/research/windows-10-rtm-cnativeapi-load-failure.md). Every call
 /// then throws `ArgumentError`, and window features are optional: a missing

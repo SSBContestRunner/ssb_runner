@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
@@ -83,7 +83,9 @@ void main() {
   testWidgets('every cell is centred inside the 42 dp row', (tester) async {
     final loader = FontLoader('Iosevka')
       ..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'));
-    await loader.load();
+    // The Flutter 3.50 engine sends a `fontsChange` system message after a
+    // font loads; load inside runAsync so it arrives before teardown.
+    await tester.runAsync(loader.load);
 
     for (final withReplay in [false, true]) {
       for (final locale in _locales) {

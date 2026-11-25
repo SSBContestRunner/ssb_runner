@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:catcher_2/catcher_2.dart';
 import 'package:catcher_2/model/platform_type.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/ui/diagnostics_actions.dart';
 

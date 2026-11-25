@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:catcher_2/catcher_2.dart';
 import 'package:flutter/foundation.dart' show BindingBase;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:ssb_runner/error_handling.dart';
 import 'package:ssb_runner/logging/app_logger.dart';
 import 'package:ssb_runner/logging/boot_trace.dart';

@@ -1,7 +1,7 @@
 // Fails when a bundled Windows binary statically imports an API that does not
 // exist on the oldest supported Windows version.
 //
-// Why this exists: `window_manager` 0.6.0 -> nativeapi/cnativeapi imports
+// Why this exists: `window_manager` 0.7.1 -> nativeapi/cnativeapi imports
 // user32!GetDpiForWindow, which only exists from Windows 10 1607 (build
 // 14393). Nothing in the build notices that a dependency raised the OS floor;
 // it only surfaced when a user on 10240 reported a startup crash (issue #71,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ssb_runner/contest_run/new/contest_data_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_input_handler.dart';

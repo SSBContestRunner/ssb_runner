@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_result_list/qso_result.dart';
 import 'package:ssb_runner/ui/qso_result_table/qso_voice_replay_button.dart';
 import 'package:ssb_runner/ui/theme/app_theme.dart';

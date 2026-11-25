@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' hide isNull;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +14,7 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/pending_replay.dart';
@@ -84,7 +85,7 @@ void main() {
   });
 
   testWidgets('最小窗口下五语言四态都不滚动，只读格不被裁', (tester) async {
-    await _ensureAppFonts();
+    await _ensureAppFonts(tester);
     // Content area 1108x772 (the macOS window frame is about 1108x796).
     const size = Size(1108, 772);
     const locales = [
@@ -162,7 +163,7 @@ void main() {
   });
 
   testWidgets('恢复中跳过只恢复一次，提示仍可从 tooltip 读到', (tester) async {
-    await _ensureAppFonts();
+    await _ensureAppFonts(tester);
     final manager = await _pumpMainPage(
       tester,
       const Size(1108, 772),
@@ -190,7 +191,7 @@ void main() {
   });
 
   testWidgets('恢复中倒计时三秒后自动完成且只完成一次', (tester) async {
-    await _ensureAppFonts();
+    await _ensureAppFonts(tester);
     final manager = await _pumpMainPage(
       tester,
       const Size(1108, 772),
@@ -247,7 +248,7 @@ Future<void> _pumpSessionPanel(WidgetTester tester, _Harness harness) async {
     MaterialApp(
       theme: AppTheme.light,
       locale: const Locale('en'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: MultiRepositoryProvider(
         providers: [
@@ -331,7 +332,7 @@ Future<_PhaseContestManager> _pumpMainPage(
       child: MaterialApp(
         theme: AppTheme.light,
         locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
@@ -423,17 +424,23 @@ ScrollPosition _sessionBodyScroll(WidgetTester tester) {
 
 bool _appFontsLoaded = false;
 
-Future<void> _ensureAppFonts() async {
+Future<void> _ensureAppFonts(WidgetTester tester) async {
   if (_appFontsLoaded) return;
   _appFontsLoaded = true;
-  await (FontLoader(
-    'Iosevka',
-  )..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'))).load();
-  await (FontLoader('Noto Sans SC')
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Regular-sub.otf'))
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Medium-sub.otf'))
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Bold-sub.otf')))
-      .load();
+  // The Flutter 3.50 engine sends a `fontsChange` system message after a font
+  // loads. Loading inside runAsync lets that real async message arrive while
+  // the test still owns the tree; otherwise it lands after disposal and the
+  // binding reports a pending transient callback.
+  await tester.runAsync(() async {
+    await (FontLoader(
+      'Iosevka',
+    )..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'))).load();
+    await (FontLoader('Noto Sans SC')
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Regular-sub.otf'))
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Medium-sub.otf'))
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Bold-sub.otf')))
+        .load();
+  });
 }
 
 final AppDatabase _neverOpenedDatabase = AppDatabase(

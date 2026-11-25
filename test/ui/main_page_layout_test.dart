@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +17,7 @@ import 'package:ssb_runner/contest_run/new/contest_manager.dart';
 import 'package:ssb_runner/contest_run/new/contest_timer.dart';
 import 'package:ssb_runner/db/app_database.dart';
 import 'package:ssb_runner/dxcc/dxcc_manager.dart';
+import 'package:ssb_runner/l10n/app_l10n.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';
 import 'package:ssb_runner/settings/app_settings.dart';
 import 'package:ssb_runner/training/pending_replay.dart';
@@ -865,7 +866,7 @@ Future<AppSettings> _pumpMainPage(
   addTearDown(tester.view.resetPhysicalSize);
   // Measure with the real faces: the header hides whole items based on these
   // advances, and the Ahem test font would misreport every width.
-  await _ensureAppFonts();
+  await _ensureAppFonts(tester);
 
   final prefs = await SharedPreferencesWithCache.create(
     cacheOptions: const SharedPreferencesWithCacheOptions(),
@@ -890,7 +891,7 @@ Future<AppSettings> _pumpMainPage(
       child: MaterialApp(
         theme: AppTheme.light,
         locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
@@ -922,17 +923,23 @@ Future<AppSettings> _pumpMainPage(
 
 bool _appFontsLoaded = false;
 
-Future<void> _ensureAppFonts() async {
+Future<void> _ensureAppFonts(WidgetTester tester) async {
   if (_appFontsLoaded) return;
   _appFontsLoaded = true;
-  await (FontLoader(
-    'Iosevka',
-  )..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'))).load();
-  await (FontLoader('Noto Sans SC')
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Regular-sub.otf'))
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Medium-sub.otf'))
-        ..addFont(rootBundle.load('fonts/NotoSansSC-Bold-sub.otf')))
-      .load();
+  // The Flutter 3.50 engine sends a `fontsChange` system message after a font
+  // loads. Loading inside runAsync lets that real async message arrive while
+  // the test still owns the tree; otherwise it lands after disposal and the
+  // binding reports a pending transient callback.
+  await tester.runAsync(() async {
+    await (FontLoader(
+      'Iosevka',
+    )..addFont(rootBundle.load('fonts/Iosevka-Regular-sub.ttf'))).load();
+    await (FontLoader('Noto Sans SC')
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Regular-sub.otf'))
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Medium-sub.otf'))
+          ..addFont(rootBundle.load('fonts/NotoSansSC-Bold-sub.otf')))
+        .load();
+  });
 }
 
 AppDatabase? _neverOpenedDatabase;

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:ssb_runner/contest_run/key_event_handler.dart';
 import 'package:ssb_runner/l10n/generated/app_localizations.dart';

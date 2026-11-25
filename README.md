@@ -48,7 +48,7 @@ those versions, and the portable zip shows a message and exits before the app
 starts. On 1607 the process is DPI-unaware, so at 125%/150% the UI is
 bitmap-stretched; per-monitor scaling starts with 1703.
 
-macOS 12 is not supported even though Flutter itself allows it: Flutter 3.47
+macOS 12 is not supported even though Flutter itself allows it: Flutter 3.50
 builds native assets (sqlite3, cnativeapi, flutter_soloud, objective_c) with a
 fixed macOS 13 deployment target, and dyld refuses to load those binaries on an
 older system. The bundle therefore declares — and must keep — 13.0.
